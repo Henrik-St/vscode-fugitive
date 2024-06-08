@@ -1,0 +1,109 @@
+{
+	"name": "virtual-document-sample",
+	"displayName": "Cowsay in virtual documents",
+	"description": "A sample for virtual document",
+	"version": "0.0.1",
+	"publisher": "vscode-samples",
+	"private": true,
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/Microsoft/vscode-extension-samples"
+	},
+	"bugs": {
+		"url": "https://github.com/Microsoft/vscode-extension-samples/issues"
+	},
+	"engines": {
+		"vscode": "^1.74.0"
+	},
+	"categories": [
+		"Other"
+	],
+	"activationEvents": [],
+	"main": "./out/extension.js",
+	"contributes": {
+		"commands": [
+			{
+				"command": "fugitive.open",
+				"title": "Fugitive"
+			},
+			{
+				"command": "fugitive.stage",
+				"title": "Fugitive stage"
+			},
+			{
+				"command": "fugitive.unstage",
+				"title": "Fugitive unstage"
+			},
+			{
+				"command": "fugitive.commit",
+				"title": "Fugitive commit"
+			}
+		],
+		"menus": {
+			"commandPalette": [
+				{
+					"command": "fugitive.stage",
+					"when": "resourceScheme == fugitive"
+				}
+			]
+		},
+		"keybindings": [
+			{
+				"command": "fugitive.stage",
+				"key": "s",
+				"mac": "s",
+				"when": "resourceScheme == fugitive"
+			},
+			{
+				"command": "fugitive.open",
+				"key": "cmd+g",
+				"mac": "cmd+g"
+			},
+			{
+				"command": "fugitive.unstage",
+				"key": "u",
+				"mac": "u",
+				"when": "resourceScheme == fugitive"
+			},
+			{
+				"command": "fugitive.commit",
+				"key": "c c",
+				"mac": "c c",
+				"when": "resourceScheme == fugitive"
+			}
+		],
+		"languages": [
+			{
+				"id": "fugitive",
+				"filenames": [
+					"fugitive"
+				]
+			}
+		],
+		"grammars": [
+			{
+				"language": "fugitive",
+				"scopeName": "source.fugitive",
+				"path": "./syntaxes/fugitive.tmGrammar.json"
+			}
+		]
+	},
+	"scripts": {
+		"vscode:prepublish": "npm run compile",
+		"compile": "tsc -p ./",
+		"lint": "eslint \"src/**/*.ts\"",
+		"watch": "tsc -watch -p ./"
+	},
+	"dependencies": {
+		"cowsay": "^1.5.0"
+	},
+	"devDependencies": {
+		"@types/node": "^18",
+		"@types/vscode": "^1.73.0",
+		"@typescript-eslint/eslint-plugin": "^6.7.0",
+		"@typescript-eslint/parser": "^6.7.0",
+		"eslint": "^8.26.0",
+		"typescript": "^5.4.2"
+	}
+}
