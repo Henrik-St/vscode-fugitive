@@ -1,17 +1,17 @@
 {
-	"name": "virtual-document-sample",
-	"displayName": "Cowsay in virtual documents",
-	"description": "A sample for virtual document",
+	"name": "vscode-fugitive",
+	"displayName": "Fugitive for VS Code",
+	"description": "This is simple extension that adds a small subset of the fugitive plugin to VS Code",
 	"version": "0.0.1",
-	"publisher": "vscode-samples",
+	"publisher": "hnrk-str",
 	"private": true,
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/Microsoft/vscode-extension-samples"
+		"url": "https://github.com/Henrik-St/vscode-fugitive.git"
 	},
 	"bugs": {
-		"url": "https://github.com/Microsoft/vscode-extension-samples/issues"
+		"url": "https://github.com/Microsoft/vscode-fugitive/issues"
 	},
 	"engines": {
 		"vscode": "^1.74.0"
@@ -78,7 +78,11 @@
 				"id": "fugitive",
 				"filenames": [
 					"fugitive"
-				]
+				],
+				"icon": {
+					"light": "git-branch",
+					"dark": "git-branch"
+				}
 			}
 		],
 		"grammars": [
