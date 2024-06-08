@@ -11,7 +11,7 @@
 		"url": "https://github.com/Henrik-St/vscode-fugitive.git"
 	},
 	"bugs": {
-		"url": "https://github.com/Microsoft/vscode-fugitive/issues"
+		"url": "https://github.com/Henrik-St/vscode-fugitive/issues"
 	},
 	"engines": {
 		"vscode": "^1.74.0"
@@ -29,48 +29,71 @@
 			},
 			{
 				"command": "fugitive.stage",
-				"title": "Fugitive stage"
+				"title": "Fugitive stage",
+				"when": "resourceScheme == fugitive"
 			},
 			{
 				"command": "fugitive.unstage",
-				"title": "Fugitive unstage"
+				"title": "Fugitive unstage",
+				"when": "resourceScheme == fugitive"
+			},
+			{
+				"command": "fugitive.clear",
+				"title": "Fugitive: clear",
+				"when": "resourceScheme == fugitive"
 			},
 			{
 				"command": "fugitive.commit",
-				"title": "Fugitive commit"
+				"title": "Fugitive: commit",
+				"when": "resourceScheme == fugitive"
+			},
+			{
+				"command": "fugitive.openDiff",
+				"title": "Fugitive: open diff",
+				"when": "resourceScheme == fugitive"
 			}
 		],
-		"menus": {
-			"commandPalette": [
-				{
-					"command": "fugitive.stage",
-					"when": "resourceScheme == fugitive"
-				}
-			]
-		},
 		"keybindings": [
 			{
 				"command": "fugitive.stage",
 				"key": "s",
 				"mac": "s",
-				"when": "resourceScheme == fugitive"
+				"when": "vim.mode == 'Normal' && resourceScheme == fugitive"
+			},
+			{
+				"command": "fugitive.stage",
+				"key": "ctrl+s",
+				"mac": "cmd+s",
+				"when": "vim == undefined && resourceScheme == fugitive"
 			},
 			{
 				"command": "fugitive.open",
-				"key": "cmd+g",
+				"key": "ctrl+g",
 				"mac": "cmd+g"
 			},
 			{
 				"command": "fugitive.unstage",
 				"key": "u",
 				"mac": "u",
-				"when": "resourceScheme == fugitive"
+				"when": "vim.mode == 'Normal' && resourceScheme == fugitive"
+			},
+			{
+				"command": "fugitive.clear",
+				"key": "X",
+				"mac": "X",
+				"when": "vim.mode == 'Normal' && resourceScheme == fugitive"
+			},
+			{
+				"command": "fugitive.openDiff",
+				"key": "d v",
+				"mac": "cmd+d",
+				"when": "vim.mode == 'Normal' && resourceScheme == fugitive"
 			},
 			{
 				"command": "fugitive.commit",
 				"key": "c c",
 				"mac": "c c",
-				"when": "resourceScheme == fugitive"
+				"when": "vim.mode == 'Normal' && resourceScheme == fugitive"
 			}
 		],
 		"languages": [

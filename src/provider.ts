@@ -6,6 +6,7 @@ import { Selection } from 'vscode';
 export class Provider implements vscode.TextDocumentContentProvider {
     // emitter and its event
     static myScheme = 'fugitive';
+    private gitExtension: any;
     private api: GitAPI;
     repo: Repository;
     rootUri: string;
@@ -17,11 +18,11 @@ export class Provider implements vscode.TextDocumentContentProvider {
     mapChangeToName: (c: Change) => string;
 
     constructor() {
-        const gitExtension = vscode.extensions.getExtension('vscode.git')?.exports;
-        if (!gitExtension) {
+        this.gitExtension = vscode.extensions.getExtension('vscode.git')?.exports;
+        if (!this.gitExtension) {
             window.showInformationMessage('No git extension found.');
         }
-        this.api = gitExtension.getAPI(1);
+        this.api = this.gitExtension.getAPI(1);
         if (this.api.repositories.length === 0) {
             window.showInformationMessage('No git repository initialized');
         }
@@ -87,5 +88,33 @@ export class Provider implements vscode.TextDocumentContentProvider {
             await this.repo.revert([ressource]);
             this.stagedOffset++;
         }
+    }
+
+    async openDiff(line: number) {
+        let ressourceIndex = line - this.unstagedOffset;
+
+        console.log('ressourceIndex ', ressourceIndex);
+        if (ressourceIndex >= 0 && ressourceIndex < this.repo.state.workingTreeChanges.length) {
+            const ressource = this.repo.state.workingTreeChanges[ressourceIndex].uri;
+            console.log('diff ', ressource);
+            // const result = await this.repo.diffWithHEAD(ressource);
+            vscode.commands.executeCommand('git.openChange', ressource).then((success) => {
+                console.log('success ', success);
+            }, (rejected) => {
+                console.log('rejected ', rejected);
+            });
+            return;
+        }
+        ressourceIndex = line - this.stagedOffset;
+        if (ressourceIndex >= 0 && ressourceIndex < this.repo.state.indexChanges.length) {
+            const ressource = this.repo.state.indexChanges[ressourceIndex].uri.path;
+            console.log('diff ', ressource);
+            await this.repo.diffWithHEAD(ressource);
+
+        }
+    }
+
+    async openCommitDiff() {
+        // const result = await this.repo.diffWithHEAD(ressource);
     }
 }
