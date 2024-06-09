@@ -1,8 +1,8 @@
 {
 	"name": "vscode-fugitive",
 	"displayName": "Fugitive for VS Code",
-	"description": "This is simple extension that adds a small subset of the fugitive plugin to VS Code",
-	"version": "0.0.1",
+	"description": "This is simple extension that adds a subset of the fugitive plugin to VS Code",
+	"version": "0.0.2",
 	"publisher": "hnrk-str",
 	"private": true,
 	"license": "MIT",
@@ -38,8 +38,8 @@
 				"when": "resourceScheme == fugitive"
 			},
 			{
-				"command": "fugitive.clear",
-				"title": "Fugitive: clear",
+				"command": "fugitive.clean",
+				"title": "Fugitive: clean",
 				"when": "resourceScheme == fugitive"
 			},
 			{
@@ -64,12 +64,7 @@
 				"command": "fugitive.stage",
 				"key": "ctrl+s",
 				"mac": "cmd+s",
-				"when": "vim == undefined && resourceScheme == fugitive"
-			},
-			{
-				"command": "fugitive.open",
-				"key": "ctrl+g",
-				"mac": "cmd+g"
+				"when": "!vim.mode && resourceScheme == fugitive"
 			},
 			{
 				"command": "fugitive.unstage",
@@ -78,10 +73,22 @@
 				"when": "vim.mode == 'Normal' && resourceScheme == fugitive"
 			},
 			{
-				"command": "fugitive.clear",
-				"key": "X",
-				"mac": "X",
+				"command": "fugitive.unstage",
+				"key": "ctrl+s",
+				"mac": "cmd+s",
+				"when": "!vim.mode && resourceScheme == fugitive"
+			},
+			{
+				"command": "fugitive.clean",
+				"key": "shift+x",
+				"mac": "shift+x",
 				"when": "vim.mode == 'Normal' && resourceScheme == fugitive"
+			},
+			{
+				"command": "fugitive.clean",
+				"key": "ctrl+x",
+				"mac": "cmd+x",
+				"when": "!vim.mode && resourceScheme == fugitive"
 			},
 			{
 				"command": "fugitive.openDiff",
@@ -90,10 +97,22 @@
 				"when": "vim.mode == 'Normal' && resourceScheme == fugitive"
 			},
 			{
+				"command": "fugitive.openDiff",
+				"key": "ctrl+d",
+				"mac": "cmd+d",
+				"when": "!vim.mode && resourceScheme == fugitive"
+			},
+			{
 				"command": "fugitive.commit",
 				"key": "c c",
 				"mac": "c c",
 				"when": "vim.mode == 'Normal' && resourceScheme == fugitive"
+			},
+			{
+				"command": "fugitive.commit",
+				"key": "ctrl+c",
+				"mac": "cmd+c",
+				"when": "!vim.mode && resourceScheme == fugitive"
 			}
 		],
 		"languages": [

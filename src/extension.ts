@@ -29,11 +29,9 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 		if (document.uri.scheme !== Provider.myScheme) {
 			return; // not my scheme
 		}
-		// get location of the cursor
 		const loc = window.activeTextEditor.selection.active.line;
 		console.log('loc ', loc);
 		await myProvider.stageFile(loc);
-		// get path-components, reverse it, and create a new uri
 		const doc = await myProvider.getDocOrRefreshIfExists(document.uri);
 		await window.showTextDocument(doc, { preview: false });
 	}));
@@ -47,7 +45,19 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 		const loc = window.activeTextEditor!.selection.active.line;
 		console.log('loc ', loc);
 		await myProvider.unstageFile(loc);
-		// get path-components, reverse it, and create a new uri
+		const doc = await myProvider.getDocOrRefreshIfExists(document.uri);
+		await window.showTextDocument(doc, { preview: false });
+	}));
+
+	subscriptions.push(commands.registerCommand('fugitive.clean', async () => {
+		console.log('fugitive.clean');
+		const document = getDocument();
+		if (!document) {
+			return;
+		}
+		const loc = window.activeTextEditor!.selection.active.line;
+		console.log('loc ', loc);
+		await myProvider.cleanFile(loc);
 		const doc = await myProvider.getDocOrRefreshIfExists(document.uri);
 		await window.showTextDocument(doc, { preview: false });
 	}));
@@ -58,7 +68,6 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 		if (!document) {
 			return;
 		}
-		// get location of the cursor
 		const loc = window.activeTextEditor!.selection.active.line;
 		console.log('loc ', loc);
 		await myProvider.openDiff(loc);

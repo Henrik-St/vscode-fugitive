@@ -90,6 +90,25 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
     }
 
+    async cleanFile(line: number) {
+        let ressourceIndex = line - this.unstagedOffset;
+
+        if (ressourceIndex >= 0 && ressourceIndex < this.repo.state.workingTreeChanges.length) {
+            const ressource = this.repo.state.workingTreeChanges[ressourceIndex].uri.path;
+            console.log('clean ', ressource);
+            await this.repo.clean([ressource]);
+            return;
+        }
+        ressourceIndex = line - this.stagedOffset;
+        if (ressourceIndex >= 0 && ressourceIndex < this.repo.state.indexChanges.length) {
+            const ressource = this.repo.state.indexChanges[ressourceIndex].uri.path;
+            console.log('clean ', ressource);
+            await this.repo.revert([ressource]);
+            await this.repo.clean([ressource]);
+            return;
+        }
+    }
+
     async openDiff(line: number) {
         let ressourceIndex = line - this.unstagedOffset;
 
@@ -97,7 +116,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
         if (ressourceIndex >= 0 && ressourceIndex < this.repo.state.workingTreeChanges.length) {
             const ressource = this.repo.state.workingTreeChanges[ressourceIndex].uri;
             console.log('diff ', ressource);
-            // const result = await this.repo.diffWithHEAD(ressource);
             vscode.commands.executeCommand('git.openChange', ressource).then((success) => {
                 console.log('success ', success);
             }, (rejected) => {
@@ -107,9 +125,14 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
         ressourceIndex = line - this.stagedOffset;
         if (ressourceIndex >= 0 && ressourceIndex < this.repo.state.indexChanges.length) {
-            const ressource = this.repo.state.indexChanges[ressourceIndex].uri.path;
+            const ressource = this.repo.state.indexChanges[ressourceIndex].uri;
             console.log('diff ', ressource);
-            await this.repo.diffWithHEAD(ressource);
+            vscode.commands.executeCommand('git.openChange', ressource).then((success) => {
+                console.log('success ', success);
+            }, (rejected) => {
+                console.log('rejected ', rejected);
+            });
+            return;
 
         }
     }
