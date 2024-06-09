@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 import { window } from 'vscode';
 import { API as GitAPI, Change, Repository } from './vscode-git';
-import { Selection } from 'vscode';
 
 export class Provider implements vscode.TextDocumentContentProvider {
     // emitter and its event
@@ -31,7 +30,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         this.rootUri = this.repo.rootUri.path;
         this.head = this.repo.state.HEAD?.name;
 
-        this.mapChangeToName = (c: Change) => c.originalUri.path.replace(this.rootUri, '');
+        this.mapChangeToName = (c: Change) => mapStatustoString(c.status) + " " + c.originalUri.path.replace(this.rootUri, '');
 
 
         this.unstagedOffset = 3;
@@ -39,21 +38,24 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
 
+    //@TODO: set correct merge name
     provideTextDocumentContent(uri: vscode.Uri): string {
         const head = this.repo.state.HEAD?.name;
-        let renderString = `head: ${head}`;
+        let renderString = `Head: ${head}\nMerge: ${this.repo.state.remotes[0].name}/${head}\nHelp: g?`;
         // render unstaged
         if (this.repo.state.workingTreeChanges.length > 0) {
             const unstaged = this.repo.state.workingTreeChanges.map(this.mapChangeToName).join('\n');
-            renderString += `\n\nunstaged:\n${unstaged}`;
-            this.unstagedOffset = 3;
+            const unstagedCount = this.repo.state.workingTreeChanges.length;
+            renderString += `\n\nunstaged (${unstagedCount}):\n${unstaged}`;
+            this.unstagedOffset = 5;
         } else {
-            this.unstagedOffset = 1;
+            this.unstagedOffset = 3;
         }
         // render staged
         if (this.repo.state.indexChanges.length > 0) {
             const staged = this.repo.state.indexChanges.map(this.mapChangeToName).join('\n');
-            renderString += `\n\nstaged:\n${staged}`;
+            const stagedCount = this.repo.state.indexChanges.length;
+            renderString += `\n\nstaged (${stagedCount}):\n${staged}`;
         }
         this.stagedOffset = this.unstagedOffset + this.repo.state.workingTreeChanges.length + 2;
         return renderString;
@@ -139,5 +141,28 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     async openCommitDiff() {
         // const result = await this.repo.diffWithHEAD(ressource);
+    }
+}
+
+function mapStatustoString(status: number) {
+    switch (status) {
+        case 0:
+            return 'M';
+        case 1:
+            return 'A';
+        case 2:
+            return 'D';
+        case 3:
+            return 'R';
+        case 4:
+            return 'C';
+        case 5:
+            return 'M';
+        case 6:
+            return 'D';
+        case 7:
+            return 'U';
+        default:
+            return status;
     }
 }

@@ -84,6 +84,12 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 		const doc = await myProvider.getDocOrRefreshIfExists(document.uri);
 		await window.showTextDocument(doc, { preview: false });
 	}));
+	subscriptions.push(commands.registerCommand('fugitive.help', async () => {
+		console.log('fugitive.help');
+		"keybindings.editor.showExtensionKeybindings";
+		"extension.open";
+		vscode.commands.executeCommand("extension.open", "hnrk-str.vscode-fugitive");
+	}));
 }
 
 function getDocument(): TextDocument | undefined {

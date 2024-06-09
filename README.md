@@ -1,10 +1,10 @@
 # Fugitive for VS Code
 
-This extension ports the (Fugitive)[https://github.com/tpope/vim-fugitive.git] plugin for vim/neovim to VS Code.
+This extension ports the [Fugitive](https://github.com/tpope/vim-fugitive.git) plugin for vim/neovim to VS Code.
 
 ## Recommended extensions.
 
-This extension is meant to be used with the (vscodevim.vim)[https://marketplace.visualstudio.com/items?itemName=vscodevim.vim] plugin.
+This extension is meant to be used with the [vscodevim.vim](https://marketplace.visualstudio.com/items?itemName=vscodevim.vim) plugin.
 
 ## Keymaps
 There are keymaps for and without the vim plugin:
@@ -56,4 +56,4 @@ There are keymaps for and without the vim plugin:
 ## WIP
 
 This extension is still a work in progress.
-Many of the original fugitive plugins' functionality is not yet / will not be implemented.
+Many of the original fugitive plugins' functionality is not yet implemented.
