@@ -86,8 +86,6 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 	}));
 	subscriptions.push(commands.registerCommand('fugitive.help', async () => {
 		console.log('fugitive.help');
-		"keybindings.editor.showExtensionKeybindings";
-		"extension.open";
 		vscode.commands.executeCommand("extension.open", "hnrk-str.vscode-fugitive");
 	}));
 }

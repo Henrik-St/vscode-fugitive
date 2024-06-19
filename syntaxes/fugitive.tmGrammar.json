@@ -3,7 +3,7 @@
     "patterns": [
         {
             "name": "keyword.control.titles",
-            "match": "head|unstaged|staged"
+            "match": "Head|Merge|Help|Unstaged|Staged"
         },
         {
             "name": "keyword.letter",

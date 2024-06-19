@@ -14,6 +14,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
     stagedOffset: number;
     onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri>();
     onDidChange = this.onDidChangeEmitter.event;
+    private _subscriptions: vscode.Disposable;
     mapChangeToName: (c: Change) => string;
 
     constructor() {
@@ -35,18 +36,30 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
         this.unstagedOffset = 3;
         this.stagedOffset = 3 + this.repo.state.workingTreeChanges.length + 2;
+        this._subscriptions = this.repo.state.onDidChange(async () => {
+            console.log('onDidChangeActiveTextEditor');
+            console.log("fire");
+            const doc = vscode.workspace.textDocuments.find(doc => doc.uri.scheme === Provider.myScheme);
+            if (doc) {
+                this.onDidChangeEmitter.fire(doc.uri);
+                // window.showTextDocument(editor.document, { preview: false });
+            }
+        });
     }
 
-
+    dispose() {
+        this._subscriptions.dispose();
+    }
     //@TODO: set correct merge name
     provideTextDocumentContent(uri: vscode.Uri): string {
+        console.log('provideTextDocumentContent');
         const head = this.repo.state.HEAD?.name;
         let renderString = `Head: ${head}\nMerge: ${this.repo.state.remotes[0].name}/${head}\nHelp: g?`;
         // render unstaged
         if (this.repo.state.workingTreeChanges.length > 0) {
             const unstaged = this.repo.state.workingTreeChanges.map(this.mapChangeToName).join('\n');
             const unstagedCount = this.repo.state.workingTreeChanges.length;
-            renderString += `\n\nunstaged (${unstagedCount}):\n${unstaged}`;
+            renderString += `\n\nUnstaged (${unstagedCount}):\n${unstaged}`;
             this.unstagedOffset = 5;
         } else {
             this.unstagedOffset = 3;
@@ -55,7 +68,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         if (this.repo.state.indexChanges.length > 0) {
             const staged = this.repo.state.indexChanges.map(this.mapChangeToName).join('\n');
             const stagedCount = this.repo.state.indexChanges.length;
-            renderString += `\n\nstaged (${stagedCount}):\n${staged}`;
+            renderString += `\n\nStaged (${stagedCount}):\n${staged}`;
         }
         this.stagedOffset = this.unstagedOffset + this.repo.state.workingTreeChanges.length + 2;
         return renderString;
