@@ -32,41 +32,46 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 		const loc = window.activeTextEditor.selection.active.line;
 		console.log('loc ', loc);
 		await myProvider.stageFile(loc);
-		const doc = await myProvider.getDocOrRefreshIfExists(document.uri);
-		await window.showTextDocument(doc, { preview: false });
 	}));
 
 	subscriptions.push(commands.registerCommand('fugitive.unstage', async () => {
 		console.log('fugitive.unstage');
-		const document = getDocument();
-		if (!document) {
-			return;
+		if (!window.activeTextEditor) {
+			return; // no editor
+		}
+		const { document } = window.activeTextEditor;
+		if (document.uri.scheme !== Provider.myScheme) {
+			return; // not my scheme
 		}
 		const loc = window.activeTextEditor!.selection.active.line;
 		console.log('loc ', loc);
 		await myProvider.unstageFile(loc);
-		const doc = await myProvider.getDocOrRefreshIfExists(document.uri);
-		await window.showTextDocument(doc, { preview: false });
 	}));
 
 	subscriptions.push(commands.registerCommand('fugitive.clean', async () => {
 		console.log('fugitive.clean');
-		const document = getDocument();
-		if (!document) {
-			return;
+		if (!window.activeTextEditor) {
+			return; // no editor
+		}
+		const { document } = window.activeTextEditor;
+		if (document.uri.scheme !== Provider.myScheme) {
+			return; // not my scheme
 		}
 		const loc = window.activeTextEditor!.selection.active.line;
 		console.log('loc ', loc);
 		await myProvider.cleanFile(loc);
-		const doc = await myProvider.getDocOrRefreshIfExists(document.uri);
-		await window.showTextDocument(doc, { preview: false });
+		// const doc = await myProvider.getDocOrRefreshIfExists(document.uri);
+		// await window.showTextDocument(doc, { preview: false });
 	}));
 
 	subscriptions.push(commands.registerCommand('fugitive.openDiff', async () => {
 		console.log('fugitive.openDiff');
-		const document = getDocument();
-		if (!document) {
-			return;
+		if (!window.activeTextEditor) {
+			return; // no editor
+		}
+		const { document } = window.activeTextEditor;
+		if (document.uri.scheme !== Provider.myScheme) {
+			return; // not my scheme
 		}
 		const loc = window.activeTextEditor!.selection.active.line;
 		console.log('loc ', loc);
@@ -80,9 +85,8 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 			return;
 		}
 		await myProvider.repo.commit('', { useEditor: true });
-		console.log('after');
-		const doc = await myProvider.getDocOrRefreshIfExists(document.uri);
-		await window.showTextDocument(doc, { preview: false });
+		// const doc = await myProvider.getDocOrRefreshIfExists(document.uri);
+		// await window.showTextDocument(doc, { preview: false });
 	}));
 	subscriptions.push(commands.registerCommand('fugitive.help', async () => {
 		console.log('fugitive.help');

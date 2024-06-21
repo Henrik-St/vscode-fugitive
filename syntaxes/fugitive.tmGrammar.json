@@ -3,18 +3,27 @@
     "patterns": [
         {
             "name": "keyword.control.titles",
-            "match": "Head|Merge|Help|Unstaged|Staged"
+            "match": "Head|Merge|Help|Unstaged|Staged|Unpushed"
         },
         {
-            "name": "keyword.letter",
-            "begin": "\\head",
-            "end": "\\\n",
-            "patterns": [
-                {
-                    "name": "keyword.letter",
-                    "match": "(.)"
-                }
-            ]
+            "name": "variable.parameter",
+            "match": "(?<=Head:) .*\n|(?<=Merge:) .*\n|(?<=Unpushed to) .*(?=\\(\\w\\):\n)"
+        },
+        {
+            "name": "constant.language",
+            "match": "(?<=Help:) .*\n"
+        },
+        {
+            "name": "constant.numeric",
+            "match": "(?<=Staged \\().(?=\\):\n)"
+        },
+        {
+            "name": "constant.numeric",
+            "match": "(?<=\\().(?=\\):\n)"
+        },
+        {
+            "name": "constant.character.escape",
+            "match": "M |D |R "
         }
     ]
 }

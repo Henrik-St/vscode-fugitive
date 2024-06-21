@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { window } from 'vscode';
-import { API as GitAPI, Change, Repository } from './vscode-git';
+import { API as GitAPI, Change, Repository, Commit } from './vscode-git';
 
 export class Provider implements vscode.TextDocumentContentProvider {
     // emitter and its event
@@ -9,9 +9,10 @@ export class Provider implements vscode.TextDocumentContentProvider {
     private api: GitAPI;
     repo: Repository;
     rootUri: string;
-    head: string | undefined;
     unstagedOffset: number;
     stagedOffset: number;
+    unpushedOffset: number;
+    unpushedCommits: Commit[];
     onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri>();
     onDidChange = this.onDidChangeEmitter.event;
     private _subscriptions: vscode.Disposable;
@@ -29,20 +30,26 @@ export class Provider implements vscode.TextDocumentContentProvider {
         this.repo = this.api.repositories[0];
 
         this.rootUri = this.repo.rootUri.path;
-        this.head = this.repo.state.HEAD?.name;
+
+        // this.unpushedCommits = [];
+        this.unpushedCommits = [];
 
         this.mapChangeToName = (c: Change) => mapStatustoString(c.status) + " " + c.originalUri.path.replace(this.rootUri, '');
 
 
         this.unstagedOffset = 3;
         this.stagedOffset = 3 + this.repo.state.workingTreeChanges.length + 2;
+        this.unpushedOffset = 3 + this.repo.state.workingTreeChanges.length + 2
+            + this.repo.state.indexChanges.length + 2;
+
+        // on Git Changed
         this._subscriptions = this.repo.state.onDidChange(async () => {
-            console.log('onDidChangeActiveTextEditor');
-            console.log("fire");
+            console.log('onGitChanged');
+
+            this.unpushedCommits = await this.repo.log({ range: this.repo.state.remotes[0].name + "/" + this.repo.state.HEAD?.name + "..HEAD" })
             const doc = vscode.workspace.textDocuments.find(doc => doc.uri.scheme === Provider.myScheme);
             if (doc) {
                 this.onDidChangeEmitter.fire(doc.uri);
-                // window.showTextDocument(editor.document, { preview: false });
             }
         });
     }
@@ -70,12 +77,23 @@ export class Provider implements vscode.TextDocumentContentProvider {
             const stagedCount = this.repo.state.indexChanges.length;
             renderString += `\n\nStaged (${stagedCount}):\n${staged}`;
         }
+
+        if (this.repo.state.HEAD?.ahead) {
+            console.log("ahead" + this.unpushedCommits.length)
+            const len = this.unpushedCommits.length;
+            const to = `${this.repo.state.remotes[0].name}/${head}`
+            const commits = this.unpushedCommits.map(c =>
+                c.hash.slice(0, 8) + " " + c.message
+            ).join('\n');
+            renderString += `\n\nUnpushed to ${to} (${len}):\n${commits}`;
+        }
         this.stagedOffset = this.unstagedOffset + this.repo.state.workingTreeChanges.length + 2;
         return renderString;
     }
 
     async getDocOrRefreshIfExists(uri: vscode.Uri) {
         let doc = vscode.workspace.textDocuments.find(doc => doc.uri.scheme === Provider.myScheme);
+        this.unpushedCommits = await this.repo.log({ range: this.repo.state.remotes[0].name + "/" + this.repo.state.HEAD?.name + "..HEAD" });
         if (doc) {
             this.onDidChangeEmitter.fire(uri);
         } else {
