@@ -49,6 +49,18 @@ There are keymaps for and without the vim plugin:
         "command": "fugitive.commit",
         "key": "ctrl+c", "mac": "cmd+c",
         "when": "!vim.mode && resourceScheme == fugitive"
+    }, {
+        "command": "fugitive.goUnstaged",
+        "key": "g u", "mac": "g u",
+        "when": "vim.mode == 'Normal' && resourceScheme == fugitive"
+    }, {
+        "command": "fugitive.goStaged",
+        "key": "g s", "mac": "g s",
+        "when": "vim.mode == 'Normal' && resourceScheme == fugitive"
+    }, {
+        "command": "fugitive.help",
+        "key": "g shift+oem_4",
+        "when": "vim.mode == 'Normal' && resourceScheme == fugitive"
     }
 
 ```

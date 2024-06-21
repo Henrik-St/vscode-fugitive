@@ -9,10 +9,14 @@ export class Provider implements vscode.TextDocumentContentProvider {
     private api: GitAPI;
     repo: Repository;
     rootUri: string;
+
     unstagedOffset: number;
     stagedOffset: number;
     unpushedOffset: number;
+
     unpushedCommits: Commit[];
+    line: number;
+
     onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri>();
     onDidChange = this.onDidChangeEmitter.event;
     private _subscriptions: vscode.Disposable;
@@ -33,6 +37,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
         // this.unpushedCommits = [];
         this.unpushedCommits = [];
+        this.line = 0;
 
         this.mapChangeToName = (c: Change) => mapStatustoString(c.status) + " " + c.originalUri.path.replace(this.rootUri, '');
 
@@ -44,7 +49,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
         // on Git Changed
         this._subscriptions = this.repo.state.onDidChange(async () => {
-            console.log('onGitChanged');
+            console.debug('onGitChanged');
 
             this.unpushedCommits = await this.repo.log({ range: this.repo.state.remotes[0].name + "/" + this.repo.state.HEAD?.name + "..HEAD" })
             const doc = vscode.workspace.textDocuments.find(doc => doc.uri.scheme === Provider.myScheme);
@@ -52,6 +57,16 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 this.onDidChangeEmitter.fire(doc.uri);
             }
         });
+
+        vscode.workspace.onDidChangeTextDocument((e: vscode.TextDocumentChangeEvent) => {
+            if (vscode.window.activeTextEditor && e.document.uri.scheme === Provider.myScheme) {
+                // console.debug("set line ", this.line)
+                window.activeTextEditor!.selection =
+                    new vscode.Selection(new vscode.Position(this.line, 0), new vscode.Position(this.line, 0));
+                // vscode.window.activeTextEditor.selection.active = new vscode.Position(this.line, 0);
+            }
+        })
+
     }
 
     dispose() {
@@ -59,7 +74,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
     //@TODO: set correct merge name
     provideTextDocumentContent(uri: vscode.Uri): string {
-        console.log('provideTextDocumentContent');
+        console.debug('provideTextDocumentContent');
         const head = this.repo.state.HEAD?.name;
         let renderString = `Head: ${head}\nMerge: ${this.repo.state.remotes[0].name}/${head}\nHelp: g?`;
         // render unstaged
@@ -79,7 +94,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
 
         if (this.repo.state.HEAD?.ahead) {
-            console.log("ahead" + this.unpushedCommits.length)
             const len = this.unpushedCommits.length;
             const to = `${this.repo.state.remotes[0].name}/${head}`
             const commits = this.unpushedCommits.map(c =>
@@ -102,22 +116,38 @@ export class Provider implements vscode.TextDocumentContentProvider {
         return doc;
     }
 
+    goStaged() {
+        if (this.repo.state.indexChanges.length > 0) {
+            window.activeTextEditor!.selection =
+                new vscode.Selection(new vscode.Position(this.stagedOffset, 0), new vscode.Position(this.stagedOffset, 0));
+        }
+    }
+
+    goUnstaged() {
+        if (this.repo.state.workingTreeChanges.length > 0) {
+            window.activeTextEditor!.selection =
+                new vscode.Selection(new vscode.Position(this.unstagedOffset, 0), new vscode.Position(this.unstagedOffset, 0));
+        }
+    }
+
     async stageFile(line: number) {
         const ressourceIndex = line - this.unstagedOffset;
-
+        console.debug('ressourceIndex ', ressourceIndex);
+        this.setNewCursor('stage', ressourceIndex);
         if (ressourceIndex >= 0 && ressourceIndex < this.repo.state.workingTreeChanges.length) {
             const ressource = this.repo.state.workingTreeChanges[ressourceIndex].uri.path;
-            console.log('stage ', ressource);
+            console.debug('stage ', ressource);
             await this.repo.add([ressource]);
             this.stagedOffset--;
         }
     }
     async unstageFile(line: number) {
         const ressourceIndex = line - this.stagedOffset;
-        console.log('ressourceIndex ', ressourceIndex);
+        console.debug('ressourceIndex ', ressourceIndex);
+        this.setNewCursor('unstage', ressourceIndex);
         if (ressourceIndex >= 0 && ressourceIndex < this.repo.state.indexChanges.length) {
             const ressource = this.repo.state.indexChanges[ressourceIndex].uri.path;
-            console.log('unstage ', ressource);
+            console.debug('unstage ', ressource);
             await this.repo.revert([ressource]);
             this.stagedOffset++;
         }
@@ -128,14 +158,14 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
         if (ressourceIndex >= 0 && ressourceIndex < this.repo.state.workingTreeChanges.length) {
             const ressource = this.repo.state.workingTreeChanges[ressourceIndex].uri.path;
-            console.log('clean ', ressource);
+            console.debug('clean ', ressource);
             await this.repo.clean([ressource]);
             return;
         }
         ressourceIndex = line - this.stagedOffset;
         if (ressourceIndex >= 0 && ressourceIndex < this.repo.state.indexChanges.length) {
             const ressource = this.repo.state.indexChanges[ressourceIndex].uri.path;
-            console.log('clean ', ressource);
+            console.debug('clean ', ressource);
             await this.repo.revert([ressource]);
             await this.repo.clean([ressource]);
             return;
@@ -145,25 +175,25 @@ export class Provider implements vscode.TextDocumentContentProvider {
     async openDiff(line: number) {
         let ressourceIndex = line - this.unstagedOffset;
 
-        console.log('ressourceIndex ', ressourceIndex);
+        console.debug('ressourceIndex ', ressourceIndex);
         if (ressourceIndex >= 0 && ressourceIndex < this.repo.state.workingTreeChanges.length) {
             const ressource = this.repo.state.workingTreeChanges[ressourceIndex].uri;
-            console.log('diff ', ressource);
+            console.debug('diff ', ressource);
             vscode.commands.executeCommand('git.openChange', ressource).then((success) => {
-                console.log('success ', success);
+                console.debug('success ', success);
             }, (rejected) => {
-                console.log('rejected ', rejected);
+                console.debug('rejected ', rejected);
             });
             return;
         }
         ressourceIndex = line - this.stagedOffset;
         if (ressourceIndex >= 0 && ressourceIndex < this.repo.state.indexChanges.length) {
             const ressource = this.repo.state.indexChanges[ressourceIndex].uri;
-            console.log('diff ', ressource);
+            console.debug('diff ', ressource);
             vscode.commands.executeCommand('git.openChange', ressource).then((success) => {
-                console.log('success ', success);
+                console.debug('success ', success);
             }, (rejected) => {
-                console.log('rejected ', rejected);
+                console.debug('rejected ', rejected);
             });
             return;
 
@@ -172,6 +202,38 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     async openCommitDiff() {
         // const result = await this.repo.diffWithHEAD(ressource);
+    }
+
+    setNewCursor(operation: 'stage' | 'unstage', index: number) {
+        if (operation === 'stage') {
+            if (index == this.repo.state.workingTreeChanges.length - 1) {
+                if (index == 0) {
+                    console.debug("stage first and last item")
+                    this.line = this.unstagedOffset;
+                } else {
+                    console.debug("stage last item")
+                    this.line = this.unstagedOffset + index - 1;
+                }
+            } else {
+                this.line = this.unstagedOffset + index;
+            }
+        } else {
+            let addUnstagedOffset = 0
+            if (this.repo.state.workingTreeChanges.length == 0) {
+                addUnstagedOffset = 2;
+            }
+            if (index == this.repo.state.indexChanges.length - 1) {
+                if (index == 0) {
+                    console.debug("unstage first and last item")
+                    this.line = this.unstagedOffset + addUnstagedOffset;
+                } else {
+                    console.debug("unstage last item")
+                    this.line = this.stagedOffset + index + addUnstagedOffset;
+                }
+            } else {
+                this.line = this.stagedOffset + index + 1 + addUnstagedOffset;
+            }
+        }
     }
 }
 

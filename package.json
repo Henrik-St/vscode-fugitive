@@ -2,7 +2,7 @@
 	"name": "vscode-fugitive",
 	"displayName": "Fugitive for VS Code",
 	"description": "This is simple extension that adds a subset of the fugitive plugin to VS Code",
-	"version": "0.0.4",
+	"version": "0.0.6",
 	"publisher": "hnrk-str",
 	"private": true,
 	"license": "MIT",
@@ -55,6 +55,16 @@
 			{
 				"command": "fugitive.help",
 				"title": "Fugitive: open help",
+				"when": "resourceScheme == fugitive"
+			},
+			{
+				"command": "fugitive.goUnstaged",
+				"title": "Fugitive: go to unstaged section",
+				"when": "resourceScheme == fugitive"
+			},
+			{
+				"command": "fugitive.goStaged",
+				"title": "Fugitive: go to staged section",
 				"when": "resourceScheme == fugitive"
 			}
 		],
@@ -118,6 +128,18 @@
 				"key": "ctrl+c",
 				"mac": "cmd+c",
 				"when": "!vim.mode && resourceScheme == fugitive"
+			},
+			{
+				"command": "fugitive.goUnstaged",
+				"key": "g u",
+				"mac": "g u",
+				"when": "vim.mode == 'Normal' && resourceScheme == fugitive"
+			},
+			{
+				"command": "fugitive.goStaged",
+				"key": "g s",
+				"mac": "g s",
+				"when": "vim.mode == 'Normal' && resourceScheme == fugitive"
 			},
 			{
 				"command": "fugitive.help",

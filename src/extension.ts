@@ -2,8 +2,8 @@ import * as vscode from 'vscode';
 import { window, workspace, commands, Uri, TextDocument } from 'vscode';
 import { Provider } from './provider';
 
-// see https://github.com/microsoft/vscode-extension-samples/blob/main/contentprovider-sample/locations-syntax.json
 // for syntax highlighting
+// see https://github.com/microsoft/vscode-extension-samples/blob/main/contentprovider-sample/locations-syntax.json
 export function activate({ subscriptions }: vscode.ExtensionContext) {
 
 	console.log('activate');
@@ -11,7 +11,6 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 	const myProvider = new Provider();
 	subscriptions.push(workspace.registerTextDocumentContentProvider(Provider.myScheme, myProvider));
 
-	// register a command that opens a cowsay-document
 	subscriptions.push(commands.registerCommand('fugitive.open', async () => {
 		console.log('fugitive.open');
 		const uri = Uri.parse('fugitive:Fugitive');
@@ -19,43 +18,36 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 		await window.showTextDocument(doc, { preview: false });
 	}));
 
-	// register a command that updates the current cowsay
 	subscriptions.push(commands.registerCommand('fugitive.stage', async () => {
 		console.log('fugitive.stage');
-		if (!window.activeTextEditor) {
-			return; // no editor
+		const document = getDocument();
+		if (!document) {
+			return;
 		}
-		const { document } = window.activeTextEditor;
-		if (document.uri.scheme !== Provider.myScheme) {
-			return; // not my scheme
-		}
-		const loc = window.activeTextEditor.selection.active.line;
+		const loc = window.activeTextEditor!.selection.active.line;
 		console.log('loc ', loc);
 		await myProvider.stageFile(loc);
 	}));
 
 	subscriptions.push(commands.registerCommand('fugitive.unstage', async () => {
 		console.log('fugitive.unstage');
-		if (!window.activeTextEditor) {
-			return; // no editor
+		const document = getDocument();
+		if (!document) {
+			return;
 		}
-		const { document } = window.activeTextEditor;
-		if (document.uri.scheme !== Provider.myScheme) {
-			return; // not my scheme
-		}
-		const loc = window.activeTextEditor!.selection.active.line;
-		console.log('loc ', loc);
-		await myProvider.unstageFile(loc);
+		// const loc = window.activeTextEditor!.selection.active.line;
+		const Oldloc = window.activeTextEditor!.selection.active;
+		const loc = new vscode.Position(Oldloc.line, Oldloc.character);
+		console.log('loc ', Oldloc.line);
+		await myProvider.unstageFile(Oldloc.line);
+		// window.activeTextEditor!.selection.active = loc;
 	}));
 
 	subscriptions.push(commands.registerCommand('fugitive.clean', async () => {
 		console.log('fugitive.clean');
-		if (!window.activeTextEditor) {
-			return; // no editor
-		}
-		const { document } = window.activeTextEditor;
-		if (document.uri.scheme !== Provider.myScheme) {
-			return; // not my scheme
+		const document = getDocument();
+		if (!document) {
+			return;
 		}
 		const loc = window.activeTextEditor!.selection.active.line;
 		console.log('loc ', loc);
@@ -66,12 +58,9 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 
 	subscriptions.push(commands.registerCommand('fugitive.openDiff', async () => {
 		console.log('fugitive.openDiff');
-		if (!window.activeTextEditor) {
-			return; // no editor
-		}
-		const { document } = window.activeTextEditor;
-		if (document.uri.scheme !== Provider.myScheme) {
-			return; // not my scheme
+		const document = getDocument();
+		if (!document) {
+			return;
 		}
 		const loc = window.activeTextEditor!.selection.active.line;
 		console.log('loc ', loc);
@@ -88,6 +77,28 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 		// const doc = await myProvider.getDocOrRefreshIfExists(document.uri);
 		// await window.showTextDocument(doc, { preview: false });
 	}));
+
+	subscriptions.push(commands.registerCommand('fugitive.goUnstaged', async () => {
+		console.log('fugitive.goUnstaged');
+		const document = getDocument();
+		if (!document) {
+			return;
+		}
+		myProvider.goUnstaged();
+		// window.activeTextEditor!.selection = new vscode.Selection(new vscode.Position(5, 0), new vscode.Position(5, 0));
+		// await myProvider.repo.commit('', { useEditor: true });
+	}));
+
+	subscriptions.push(commands.registerCommand('fugitive.goStaged', async () => {
+		console.log('fugitive.goUnstaged');
+		const document = getDocument();
+		if (!document) {
+			return;
+		}
+		myProvider.goStaged();
+		// await myProvider.repo.commit('', { useEditor: true });
+	}));
+
 	subscriptions.push(commands.registerCommand('fugitive.help', async () => {
 		console.log('fugitive.help');
 		vscode.commands.executeCommand("extension.open", "hnrk-str.vscode-fugitive");
