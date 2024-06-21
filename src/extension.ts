@@ -42,6 +42,15 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 		await myProvider.unstageFile(Oldloc.line);
 		// window.activeTextEditor!.selection.active = loc;
 	}));
+	subscriptions.push(commands.registerCommand('fugitive.unstageAll', async () => {
+		console.log('fugitive.unstageAll');
+		const document = getDocument();
+		if (!document) {
+			return;
+		}
+		const loc = window.activeTextEditor!.selection.active.line;
+		await myProvider.unstageAll();
+	}));
 
 	subscriptions.push(commands.registerCommand('fugitive.clean', async () => {
 		console.log('fugitive.clean');
@@ -67,6 +76,28 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 		await myProvider.openDiff(loc);
 	}));
 
+	subscriptions.push(commands.registerCommand('fugitive.openFileSplit', async () => {
+		console.log('fugitive.openFileSplit');
+		const document = getDocument();
+		if (!document) {
+			return;
+		}
+		const loc = window.activeTextEditor!.selection.active.line;
+		console.log('loc ', loc);
+		await myProvider.openFile(loc, true);
+	}));
+
+	subscriptions.push(commands.registerCommand('fugitive.openFile', async () => {
+		console.log('fugitive.openFile');
+		const document = getDocument();
+		if (!document) {
+			return;
+		}
+		const loc = window.activeTextEditor!.selection.active.line;
+		console.log('loc ', loc);
+		await myProvider.openFile(loc, false);
+	}));
+
 	subscriptions.push(commands.registerCommand('fugitive.commit', async () => {
 		console.log('fugitive.commit');
 		const document = getDocument();
@@ -85,6 +116,17 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 			return;
 		}
 		myProvider.goUnstaged();
+		// window.activeTextEditor!.selection = new vscode.Selection(new vscode.Position(5, 0), new vscode.Position(5, 0));
+		// await myProvider.repo.commit('', { useEditor: true });
+	}));
+
+	subscriptions.push(commands.registerCommand('fugitive.goUnpushed', async () => {
+		console.log('fugitive.goUnpushed');
+		const document = getDocument();
+		if (!document) {
+			return;
+		}
+		myProvider.goUnpushed();
 		// window.activeTextEditor!.selection = new vscode.Selection(new vscode.Position(5, 0), new vscode.Position(5, 0));
 		// await myProvider.repo.commit('', { useEditor: true });
 	}));

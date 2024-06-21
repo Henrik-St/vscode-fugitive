@@ -42,15 +42,28 @@ export class Provider implements vscode.TextDocumentContentProvider {
         this.mapChangeToName = (c: Change) => mapStatustoString(c.status) + " " + c.originalUri.path.replace(this.rootUri, '');
 
 
-        this.unstagedOffset = 3;
-        this.stagedOffset = 3 + this.repo.state.workingTreeChanges.length + 2;
-        this.unpushedOffset = 3 + this.repo.state.workingTreeChanges.length + 2
-            + this.repo.state.indexChanges.length + 2;
+        const unstagedOffset = 5;
+        const unstagedLen = this.repo.state.workingTreeChanges.length;
+        const stagedLen = this.repo.state.indexChanges.length;
+        const stagedOffset = unstagedOffset + unstagedLen + Number(unstagedLen > 0) * 2;
+
+        this.unstagedOffset = unstagedOffset;
+        this.stagedOffset = stagedOffset;
+        this.unpushedOffset = stagedOffset + stagedLen + Number(stagedLen > 0) * 2;
 
         // on Git Changed
         this._subscriptions = this.repo.state.onDidChange(async () => {
             console.debug('onGitChanged');
 
+            const unstagedOffset = 5;
+            const unstagedLen = this.repo.state.workingTreeChanges.length;
+            const stagedLen = this.repo.state.indexChanges.length;
+            const stagedOffset = unstagedOffset + unstagedLen + Number(unstagedLen > 0) * 2;
+
+            this.unstagedOffset = unstagedOffset;
+            this.stagedOffset = stagedOffset;
+            this.unpushedOffset = stagedOffset + stagedLen + Number(stagedLen > 0) * 2;
+            console.log(this.stagedOffset + " " + this.unpushedOffset)
             this.unpushedCommits = await this.repo.log({ range: this.repo.state.remotes[0].name + "/" + this.repo.state.HEAD?.name + "..HEAD" })
             const doc = vscode.workspace.textDocuments.find(doc => doc.uri.scheme === Provider.myScheme);
             if (doc) {
@@ -58,12 +71,11 @@ export class Provider implements vscode.TextDocumentContentProvider {
             }
         });
 
+        // override cursor behaviour
         vscode.workspace.onDidChangeTextDocument((e: vscode.TextDocumentChangeEvent) => {
             if (vscode.window.activeTextEditor && e.document.uri.scheme === Provider.myScheme) {
-                // console.debug("set line ", this.line)
                 window.activeTextEditor!.selection =
                     new vscode.Selection(new vscode.Position(this.line, 0), new vscode.Position(this.line, 0));
-                // vscode.window.activeTextEditor.selection.active = new vscode.Position(this.line, 0);
             }
         })
 
@@ -82,9 +94,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
             const unstaged = this.repo.state.workingTreeChanges.map(this.mapChangeToName).join('\n');
             const unstagedCount = this.repo.state.workingTreeChanges.length;
             renderString += `\n\nUnstaged (${unstagedCount}):\n${unstaged}`;
-            this.unstagedOffset = 5;
-        } else {
-            this.unstagedOffset = 3;
         }
         // render staged
         if (this.repo.state.indexChanges.length > 0) {
@@ -101,7 +110,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
             ).join('\n');
             renderString += `\n\nUnpushed to ${to} (${len}):\n${commits}`;
         }
-        this.stagedOffset = this.unstagedOffset + this.repo.state.workingTreeChanges.length + 2;
         return renderString;
     }
 
@@ -129,6 +137,12 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 new vscode.Selection(new vscode.Position(this.unstagedOffset, 0), new vscode.Position(this.unstagedOffset, 0));
         }
     }
+    goUnpushed() {
+        if (this.repo.state.HEAD?.ahead) {
+            window.activeTextEditor!.selection =
+                new vscode.Selection(new vscode.Position(this.unpushedOffset, 0), new vscode.Position(this.unpushedOffset, 0));
+        }
+    }
 
     async stageFile(line: number) {
         const ressourceIndex = line - this.unstagedOffset;
@@ -138,9 +152,9 @@ export class Provider implements vscode.TextDocumentContentProvider {
             const ressource = this.repo.state.workingTreeChanges[ressourceIndex].uri.path;
             console.debug('stage ', ressource);
             await this.repo.add([ressource]);
-            this.stagedOffset--;
         }
     }
+
     async unstageFile(line: number) {
         const ressourceIndex = line - this.stagedOffset;
         console.debug('ressourceIndex ', ressourceIndex);
@@ -149,8 +163,12 @@ export class Provider implements vscode.TextDocumentContentProvider {
             const ressource = this.repo.state.indexChanges[ressourceIndex].uri.path;
             console.debug('unstage ', ressource);
             await this.repo.revert([ressource]);
-            this.stagedOffset++;
         }
+    }
+
+    async unstageAll() {
+        const files = this.repo.state.indexChanges.map((c) => c.uri.path);
+        await this.repo.revert(files);
     }
 
     async cleanFile(line: number) {
@@ -174,29 +192,47 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     async openDiff(line: number) {
         let ressourceIndex = line - this.unstagedOffset;
+        let ressource: vscode.Uri | null = null;
 
         console.debug('ressourceIndex ', ressourceIndex);
         if (ressourceIndex >= 0 && ressourceIndex < this.repo.state.workingTreeChanges.length) {
-            const ressource = this.repo.state.workingTreeChanges[ressourceIndex].uri;
-            console.debug('diff ', ressource);
-            vscode.commands.executeCommand('git.openChange', ressource).then((success) => {
-                console.debug('success ', success);
-            }, (rejected) => {
-                console.debug('rejected ', rejected);
-            });
-            return;
+            ressource = this.repo.state.workingTreeChanges[ressourceIndex].uri;
         }
         ressourceIndex = line - this.stagedOffset;
         if (ressourceIndex >= 0 && ressourceIndex < this.repo.state.indexChanges.length) {
-            const ressource = this.repo.state.indexChanges[ressourceIndex].uri;
-            console.debug('diff ', ressource);
-            vscode.commands.executeCommand('git.openChange', ressource).then((success) => {
-                console.debug('success ', success);
-            }, (rejected) => {
-                console.debug('rejected ', rejected);
-            });
-            return;
+            ressource = this.repo.state.indexChanges[ressourceIndex].uri;
 
+        }
+        if (!ressource) {
+            return;
+        }
+        vscode.commands.executeCommand('git.openChange', ressource).then((success) => {
+            console.debug('success ', success);
+        }, (rejected) => {
+            console.debug('rejected ', rejected);
+        });
+    }
+
+    async openFile(line: number, split: boolean) {
+        let ressourceIndex = line - this.unstagedOffset;
+        let ressource: vscode.Uri | null = null;
+        console.debug('ressourceIndex ', ressourceIndex);
+        if (ressourceIndex >= 0 && ressourceIndex < this.repo.state.workingTreeChanges.length) {
+            ressource = this.repo.state.workingTreeChanges[ressourceIndex].uri;
+        }
+        ressourceIndex = line - this.stagedOffset;
+        if (ressourceIndex >= 0 && ressourceIndex < this.repo.state.indexChanges.length) {
+            ressource = this.repo.state.indexChanges[ressourceIndex].uri;
+        }
+        if (!ressource) {
+            return;
+        }
+        const file = vscode.Uri.parse(ressource.path);
+        const doc = await vscode.workspace.openTextDocument(file);
+        if (split) {
+            await window.showTextDocument(doc, { preview: false, viewColumn: vscode.ViewColumn.Beside });
+        } else {
+            await window.showTextDocument(doc, { preview: false });
         }
     }
 

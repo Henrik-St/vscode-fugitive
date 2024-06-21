@@ -20,6 +20,9 @@
 		"Other"
 	],
 	"activationEvents": [],
+	"extensionDependencies": [
+		"vscode.git"
+	],
 	"main": "./out/extension.js",
 	"contributes": {
 		"commands": [
@@ -35,6 +38,11 @@
 			{
 				"command": "fugitive.unstage",
 				"title": "Fugitive unstage",
+				"when": "resourceScheme == fugitive"
+			},
+			{
+				"command": "fugitive.unstageAll",
+				"title": "Fugitive unstage all",
 				"when": "resourceScheme == fugitive"
 			},
 			{
@@ -72,74 +80,112 @@
 			{
 				"command": "fugitive.stage",
 				"key": "s",
-				"mac": "s",
 				"when": "vim.mode == 'Normal' && resourceScheme == fugitive"
 			},
 			{
 				"command": "fugitive.stage",
-				"key": "ctrl+s",
-				"mac": "cmd+s",
+				"key": "s",
 				"when": "!vim.mode && resourceScheme == fugitive"
 			},
 			{
 				"command": "fugitive.unstage",
 				"key": "u",
-				"mac": "u",
 				"when": "vim.mode == 'Normal' && resourceScheme == fugitive"
 			},
 			{
 				"command": "fugitive.unstage",
-				"key": "ctrl+s",
-				"mac": "cmd+s",
+				"key": "u",
+				"when": "!vim.mode && resourceScheme == fugitive"
+			},
+			{
+				"command": "fugitive.unstageAll",
+				"key": "shift+u",
+				"when": "vim.mode == 'Normal' && resourceScheme == fugitive"
+			},
+			{
+				"command": "fugitive.unstageAll",
+				"key": "shift+u",
 				"when": "!vim.mode && resourceScheme == fugitive"
 			},
 			{
 				"command": "fugitive.clean",
 				"key": "shift+x",
-				"mac": "shift+x",
 				"when": "vim.mode == 'Normal' && resourceScheme == fugitive"
 			},
 			{
 				"command": "fugitive.clean",
-				"key": "ctrl+x",
-				"mac": "cmd+x",
+				"key": "shift+x",
 				"when": "!vim.mode && resourceScheme == fugitive"
 			},
 			{
 				"command": "fugitive.openDiff",
 				"key": "d v",
-				"mac": "cmd+d",
 				"when": "vim.mode == 'Normal' && resourceScheme == fugitive"
 			},
 			{
 				"command": "fugitive.openDiff",
-				"key": "ctrl+d",
-				"mac": "cmd+d",
+				"key": "d v",
 				"when": "!vim.mode && resourceScheme == fugitive"
 			},
 			{
 				"command": "fugitive.commit",
 				"key": "c c",
-				"mac": "c c",
 				"when": "vim.mode == 'Normal' && resourceScheme == fugitive"
 			},
 			{
 				"command": "fugitive.commit",
-				"key": "ctrl+c",
-				"mac": "cmd+c",
+				"key": "c c",
 				"when": "!vim.mode && resourceScheme == fugitive"
 			},
 			{
 				"command": "fugitive.goUnstaged",
 				"key": "g u",
-				"mac": "g u",
+				"when": "vim.mode == 'Normal' && resourceScheme == fugitive"
+			},
+			{
+				"command": "fugitive.goUnstaged",
+				"key": "g u",
+				"when": "!vim.mode && resourceScheme == fugitive"
+			},
+			{
+				"command": "fugitive.goStaged",
+				"key": "g s",
 				"when": "vim.mode == 'Normal' && resourceScheme == fugitive"
 			},
 			{
 				"command": "fugitive.goStaged",
 				"key": "g s",
-				"mac": "g s",
+				"when": "!vim.mode && resourceScheme == fugitive"
+			},
+			{
+				"command": "fugitive.goUnpushed",
+				"key": "g p",
 				"when": "vim.mode == 'Normal' && resourceScheme == fugitive"
+			},
+			{
+				"command": "fugitive.goUnpushed",
+				"key": "g p",
+				"when": "!vim.mode && resourceScheme == fugitive"
+			},
+			{
+				"command": "fugitive.openFile",
+				"key": "shift+o",
+				"when": "vim.mode == 'Normal' && resourceScheme == fugitive"
+			},
+			{
+				"command": "fugitive.openFile",
+				"key": "shift+o",
+				"when": "!vim.mode && resourceScheme == fugitive"
+			},
+			{
+				"command": "fugitive.openFileSplit",
+				"key": "o",
+				"when": "vim.mode == 'Normal' && resourceScheme == fugitive"
+			},
+			{
+				"command": "fugitive.openFileSplit",
+				"key": "o",
+				"when": "!vim.mode && resourceScheme == fugitive"
 			},
 			{
 				"command": "fugitive.help",
@@ -154,8 +200,8 @@
 					"fugitive"
 				],
 				"icon": {
-					"light": "git-branch",
-					"dark": "git-branch"
+					"light": "",
+					"dark": ""
 				}
 			}
 		],
