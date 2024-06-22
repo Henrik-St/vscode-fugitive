@@ -3,24 +3,25 @@ import { window } from 'vscode';
 import { API as GitAPI, Change, Repository, Commit } from './vscode-git';
 
 export class Provider implements vscode.TextDocumentContentProvider {
-    // emitter and its event
     static myScheme = 'fugitive';
     private gitExtension: any;
     private api: GitAPI;
     repo: Repository;
-    rootUri: string;
+    private rootUri: string;
 
-    unstagedOffset: number;
-    stagedOffset: number;
-    unpushedOffset: number;
+    //location data
+    private unstagedOffset: number;
+    private stagedOffset: number;
+    private unpushedOffset: number;
 
-    unpushedCommits: Commit[];
-    line: number;
+    //cached data
+    private unpushedCommits: Commit[];
+    private line: number;
 
-    onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri>();
+    private onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri>();
     onDidChange = this.onDidChangeEmitter.event;
     private _subscriptions: vscode.Disposable;
-    mapChangeToName: (c: Change) => string;
+    private mapChangeToName: (c: Change) => string;
 
     constructor() {
         this.gitExtension = vscode.extensions.getExtension('vscode.git')?.exports;
@@ -63,7 +64,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
             this.unstagedOffset = unstagedOffset;
             this.stagedOffset = stagedOffset;
             this.unpushedOffset = stagedOffset + stagedLen + Number(stagedLen > 0) * 2;
-            console.log(this.stagedOffset + " " + this.unpushedOffset)
             this.unpushedCommits = await this.repo.log({ range: this.repo.state.remotes[0].name + "/" + this.repo.state.HEAD?.name + "..HEAD" })
             const doc = vscode.workspace.textDocuments.find(doc => doc.uri.scheme === Provider.myScheme);
             if (doc) {
@@ -166,6 +166,10 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
     }
 
+    async pushStash() {
+        // this.api.
+    }
+
     async unstageAll() {
         const files = this.repo.state.indexChanges.map((c) => c.uri.path);
         await this.repo.revert(files);
@@ -244,10 +248,8 @@ export class Provider implements vscode.TextDocumentContentProvider {
         if (operation === 'stage') {
             if (index == this.repo.state.workingTreeChanges.length - 1) {
                 if (index == 0) {
-                    console.debug("stage first and last item")
                     this.line = this.unstagedOffset;
                 } else {
-                    console.debug("stage last item")
                     this.line = this.unstagedOffset + index - 1;
                 }
             } else {
@@ -260,10 +262,8 @@ export class Provider implements vscode.TextDocumentContentProvider {
             }
             if (index == this.repo.state.indexChanges.length - 1) {
                 if (index == 0) {
-                    console.debug("unstage first and last item")
                     this.line = this.unstagedOffset + addUnstagedOffset;
                 } else {
-                    console.debug("unstage last item")
                     this.line = this.stagedOffset + index + addUnstagedOffset;
                 }
             } else {

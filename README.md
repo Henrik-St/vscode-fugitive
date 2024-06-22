@@ -11,61 +11,66 @@ There are keymaps for and without the vim plugin:
 ```json
     {
         "command": "fugitive.stage",
-        "key": "s", "mac": "s",
-        "when": "vim.mode == 'Normal' && resourceScheme == fugitive"
-    }, {
-        "command": "fugitive.stage",
-        "key": "ctrl+s", "mac": "cmd+s",
-        "when": "!vim.mode && resourceScheme == fugitive"
+        "key": "s",
     }, {
         "command": "fugitive.unstage",
-        "key": "u", "mac": "u",
-        "when": "vim.mode == 'Normal' && resourceScheme == fugitive"
+        "key": "u",
     }, {
-        "command": "fugitive.unstage",
-        "key": "ctrl+s", "mac": "cmd+s",
-        "when": "!vim.mode && resourceScheme == fugitive"
+        "command": "fugitive.unstageAll",
+        "key": "shift+u",
     }, {
         "command": "fugitive.clean",
-        "key": "shift+x", "mac": "shift+x",
-        "when": "vim.mode == 'Normal' && resourceScheme == fugitive"
-    }, {
-        "command": "fugitive.clean",
-        "key": "ctrl+x", "mac": "cmd+x",
-        "when": "!vim.mode && resourceScheme == fugitive"
+        "key": "shift+x",
     }, {
         "command": "fugitive.openDiff",
-        "key": "d v", "mac": "cmd+d",
-        "when": "vim.mode == 'Normal' && resourceScheme == fugitive"
-    }, {
-        "command": "fugitive.openDiff",
-        "key": "ctrl+d", "mac": "cmd+d",
-        "when": "!vim.mode && resourceScheme == fugitive"
+        "key": "d v",
     }, {
         "command": "fugitive.commit",
-        "key": "c c", "mac": "c c",
-        "when": "vim.mode == 'Normal' && resourceScheme == fugitive"
+        "key": "c c",
     }, {
-        "command": "fugitive.commit",
-        "key": "ctrl+c", "mac": "cmd+c",
-        "when": "!vim.mode && resourceScheme == fugitive"
+        "command": "fugitive.amend",
+        "key": "c a",
+    }, {
+        "command": "fugitive.amendNoEdit",
+        "key": "c e",
+    }, {
+        "command": "fugitive.stash",
+        "key": "c z z",
+    }, {
+        "command": "fugitive.stashStaged",
+        "key": "c z s",
+    }, {
+        "command": "fugitive.popLatestStash",
+        "key": "c z shift+p",
+    }, {
+        "command": "fugitive.popStash",
+        "key": "c z p",
     }, {
         "command": "fugitive.goUnstaged",
-        "key": "g u", "mac": "g u",
-        "when": "vim.mode == 'Normal' && resourceScheme == fugitive"
+        "key": "g u",
     }, {
         "command": "fugitive.goStaged",
-        "key": "g s", "mac": "g s",
-        "when": "vim.mode == 'Normal' && resourceScheme == fugitive"
+        "key": "g s",
+    }, {
+        "command": "fugitive.goUnpushed",
+        "key": "g p",
+    }, {
+        "command": "fugitive.openFile",
+        "key": "shift+o",
+    }, {
+        "command": "fugitive.openFileSplit",
+        "key": "o",
     }, {
         "command": "fugitive.help",
         "key": "g shift+oem_4",
-        "when": "vim.mode == 'Normal' && resourceScheme == fugitive"
     }
 
 ```
 
-## WIP
+## Current scope
+The current scope of this plugin contains only the status buffer maps from the fugitive plugin.
+The Git command functionality is not currently planned.
 
-This extension is still a work in progress.
-Many of the original fugitive plugins' functionality is not yet implemented.
+## Out of scope
+The vscode git api does not support rebasing.
+Therefore, functionality relying on rebasing is not supported.

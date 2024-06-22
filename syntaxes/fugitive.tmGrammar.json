@@ -23,7 +23,15 @@
         },
         {
             "name": "constant.character.escape",
-            "match": "M |D |R "
+            "match": "M |R "
+        },
+        {
+            "name": "string.quoted",
+            "match": "D "
+        },
+        {
+            "name": "support.type",
+            "match": "U "
         }
     ]
 }

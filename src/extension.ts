@@ -35,12 +35,8 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 		if (!document) {
 			return;
 		}
-		// const loc = window.activeTextEditor!.selection.active.line;
 		const Oldloc = window.activeTextEditor!.selection.active;
-		const loc = new vscode.Position(Oldloc.line, Oldloc.character);
-		console.log('loc ', Oldloc.line);
 		await myProvider.unstageFile(Oldloc.line);
-		// window.activeTextEditor!.selection.active = loc;
 	}));
 	subscriptions.push(commands.registerCommand('fugitive.unstageAll', async () => {
 		console.log('fugitive.unstageAll');
@@ -61,8 +57,6 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 		const loc = window.activeTextEditor!.selection.active.line;
 		console.log('loc ', loc);
 		await myProvider.cleanFile(loc);
-		// const doc = await myProvider.getDocOrRefreshIfExists(document.uri);
-		// await window.showTextDocument(doc, { preview: false });
 	}));
 
 	subscriptions.push(commands.registerCommand('fugitive.openDiff', async () => {
@@ -105,8 +99,75 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 			return;
 		}
 		await myProvider.repo.commit('', { useEditor: true });
-		// const doc = await myProvider.getDocOrRefreshIfExists(document.uri);
-		// await window.showTextDocument(doc, { preview: false });
+	}));
+
+	subscriptions.push(commands.registerCommand('fugitive.amend', async () => {
+		console.log('fugitive.amend');
+		const document = getDocument();
+		if (!document) {
+			return;
+		}
+		await myProvider.repo.commit('', { useEditor: true, amend: true });
+	}));
+	subscriptions.push(commands.registerCommand('fugitive.amendNoEdit', async () => {
+		console.log('fugitive.amend');
+		const document = getDocument();
+		if (!document) {
+			return;
+		}
+		await myProvider.repo.commit('', { amend: true });
+	}));
+
+	subscriptions.push(commands.registerCommand('fugitive.stash', async () => {
+		console.log('fugitive.stash');
+		const document = getDocument();
+		if (!document) {
+			return;
+		}
+		vscode.commands.executeCommand('git.stash', []).then((success) => {
+			console.debug('success ', success);
+		}, (rejected) => {
+			console.debug('rejected ', rejected);
+		});
+	}));
+
+	subscriptions.push(commands.registerCommand('fugitive.stashStaged', async () => {
+		console.log('fugitive.stashStaged');
+		const document = getDocument();
+		if (!document) {
+			return;
+		}
+		vscode.commands.executeCommand('git.stashStaged', []).then((success) => {
+			console.debug('success ', success);
+		}, (rejected) => {
+			console.debug('rejected ', rejected);
+		});
+	}));
+
+	subscriptions.push(commands.registerCommand('fugitive.popLatestStash', async () => {
+		console.log('fugitive.popStash');
+		const document = getDocument();
+		if (!document) {
+			return;
+		}
+		vscode.commands.executeCommand('git.stashPopLatest', []).then((success) => {
+			console.debug('success ', success);
+		}, (rejected) => {
+			console.debug('rejected ', rejected);
+		});
+	}));
+
+	subscriptions.push(commands.registerCommand('fugitive.popStash', async () => {
+		console.log('fugitive.popStash');
+		const document = getDocument();
+		if (!document) {
+			return;
+		}
+		vscode.commands.executeCommand('git.stashPop', []).then((success) => {
+			console.debug('success ', success);
+		}, (rejected) => {
+			console.debug('rejected ', rejected);
+		});
 	}));
 
 	subscriptions.push(commands.registerCommand('fugitive.goUnstaged', async () => {
@@ -116,8 +177,6 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 			return;
 		}
 		myProvider.goUnstaged();
-		// window.activeTextEditor!.selection = new vscode.Selection(new vscode.Position(5, 0), new vscode.Position(5, 0));
-		// await myProvider.repo.commit('', { useEditor: true });
 	}));
 
 	subscriptions.push(commands.registerCommand('fugitive.goUnpushed', async () => {
@@ -127,8 +186,6 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 			return;
 		}
 		myProvider.goUnpushed();
-		// window.activeTextEditor!.selection = new vscode.Selection(new vscode.Position(5, 0), new vscode.Position(5, 0));
-		// await myProvider.repo.commit('', { useEditor: true });
 	}));
 
 	subscriptions.push(commands.registerCommand('fugitive.goStaged', async () => {
@@ -138,7 +195,6 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 			return;
 		}
 		myProvider.goStaged();
-		// await myProvider.repo.commit('', { useEditor: true });
 	}));
 
 	subscriptions.push(commands.registerCommand('fugitive.help', async () => {
