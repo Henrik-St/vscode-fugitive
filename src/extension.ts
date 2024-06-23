@@ -170,13 +170,22 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 		});
 	}));
 
+	subscriptions.push(commands.registerCommand('fugitive.goUntracked', async () => {
+		console.log('fugitive.goUnstaged');
+		const document = getDocument();
+		if (!document) {
+			return;
+		}
+		myProvider.goUnstaged(false);
+	}));
+
 	subscriptions.push(commands.registerCommand('fugitive.goUnstaged', async () => {
 		console.log('fugitive.goUnstaged');
 		const document = getDocument();
 		if (!document) {
 			return;
 		}
-		myProvider.goUnstaged();
+		myProvider.goUnstaged(true);
 	}));
 
 	subscriptions.push(commands.registerCommand('fugitive.goUnpushed', async () => {

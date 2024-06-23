@@ -3,7 +3,7 @@
     "patterns": [
         {
             "name": "keyword.control.titles",
-            "match": "Head|Merge|Help|Unstaged|Staged|Unpushed"
+            "match": "Head|Merge|Help|Untracked|Unstaged|Staged|Unpushed"
         },
         {
             "name": "variable.parameter",
@@ -26,12 +26,12 @@
             "match": "M |R "
         },
         {
-            "name": "string.quoted",
+            "name": "invalid.illegal",
             "match": "D "
         },
         {
             "name": "support.type",
-            "match": "U "
+            "match": "U |A "
         }
     ]
 }

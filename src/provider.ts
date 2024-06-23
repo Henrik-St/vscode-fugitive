@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { window } from 'vscode';
-import { API as GitAPI, Change, Repository, Commit } from './vscode-git';
+import { API as GitAPI, Change, Repository, Commit, Status } from './vscode-git';
 
 export class Provider implements vscode.TextDocumentContentProvider {
     static myScheme = 'fugitive';
@@ -10,6 +10,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
     private rootUri: string;
 
     //location data
+    private untrackedOffset: number;
     private unstagedOffset: number;
     private stagedOffset: number;
     private unpushedOffset: number;
@@ -42,12 +43,14 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
         this.mapChangeToName = (c: Change) => mapStatustoString(c.status) + " " + c.originalUri.path.replace(this.rootUri, '');
 
-
-        const unstagedOffset = 5;
-        const unstagedLen = this.repo.state.workingTreeChanges.length;
+        const untrackedOffset = 5;
+        const untrackedLen = this.repo.state.workingTreeChanges.filter(c => c.status == Status.UNTRACKED).length;
+        const unstagedOffset = untrackedOffset + untrackedLen + Number(untrackedLen > 0) * 2;
+        const unstagedLen = this.repo.state.workingTreeChanges.filter(c => c.status != Status.UNTRACKED).length;
         const stagedLen = this.repo.state.indexChanges.length;
         const stagedOffset = unstagedOffset + unstagedLen + Number(unstagedLen > 0) * 2;
 
+        this.untrackedOffset = untrackedOffset;
         this.unstagedOffset = unstagedOffset;
         this.stagedOffset = stagedOffset;
         this.unpushedOffset = stagedOffset + stagedLen + Number(stagedLen > 0) * 2;
@@ -56,11 +59,14 @@ export class Provider implements vscode.TextDocumentContentProvider {
         this._subscriptions = this.repo.state.onDidChange(async () => {
             console.debug('onGitChanged');
 
-            const unstagedOffset = 5;
-            const unstagedLen = this.repo.state.workingTreeChanges.length;
+            const untrackedOffset = 5;
+            const untrackedLen = this.repo.state.workingTreeChanges.filter(c => c.status == Status.UNTRACKED).length;
+            const unstagedOffset = untrackedOffset + untrackedLen + Number(untrackedLen > 0) * 2;
+            const unstagedLen = this.repo.state.workingTreeChanges.filter(c => c.status != Status.UNTRACKED).length;
             const stagedLen = this.repo.state.indexChanges.length;
             const stagedOffset = unstagedOffset + unstagedLen + Number(unstagedLen > 0) * 2;
 
+            this.untrackedOffset = untrackedOffset;
             this.unstagedOffset = unstagedOffset;
             this.stagedOffset = stagedOffset;
             this.unpushedOffset = stagedOffset + stagedLen + Number(stagedLen > 0) * 2;
@@ -89,17 +95,23 @@ export class Provider implements vscode.TextDocumentContentProvider {
         console.debug('provideTextDocumentContent');
         const head = this.repo.state.HEAD?.name;
         let renderString = `Head: ${head}\nMerge: ${this.repo.state.remotes[0].name}/${head}\nHelp: g?`;
+        // render untracked
+        const untracked = this.repo.state.workingTreeChanges.filter(c => c.status == Status.UNTRACKED);
+        if (untracked.length > 0) {
+            const untrackedRender = untracked.map(this.mapChangeToName).join('\n');
+            renderString += `\n\nUntracked (${untracked.length}):\n${untrackedRender}`;
+        }
         // render unstaged
-        if (this.repo.state.workingTreeChanges.length > 0) {
-            const unstaged = this.repo.state.workingTreeChanges.map(this.mapChangeToName).join('\n');
-            const unstagedCount = this.repo.state.workingTreeChanges.length;
-            renderString += `\n\nUnstaged (${unstagedCount}):\n${unstaged}`;
+        const unstaged = this.repo.state.workingTreeChanges.filter(c => c.status != Status.UNTRACKED);
+        if (unstaged.length > 0) {
+            const unstagedRender = unstaged.map(this.mapChangeToName).join('\n');
+            renderString += `\n\nUnstaged (${unstaged.length}):\n${unstagedRender}`;
         }
         // render staged
-        if (this.repo.state.indexChanges.length > 0) {
-            const staged = this.repo.state.indexChanges.map(this.mapChangeToName).join('\n');
-            const stagedCount = this.repo.state.indexChanges.length;
-            renderString += `\n\nStaged (${stagedCount}):\n${staged}`;
+        const staged = this.repo.state.indexChanges;
+        if (staged.length > 0) {
+            const stagedRender = staged.map(this.mapChangeToName).join('\n');
+            renderString += `\n\nStaged (${staged.length}):\n${stagedRender}`;
         }
 
         if (this.repo.state.HEAD?.ahead) {
@@ -131,10 +143,16 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
     }
 
-    goUnstaged() {
-        if (this.repo.state.workingTreeChanges.length > 0) {
+    goUnstaged(goUnstaged: boolean) {
+        if (!goUnstaged && this.repo.state.workingTreeChanges.filter(c => c.status == Status.UNTRACKED).length > 0) {
+            window.activeTextEditor!.selection =
+                new vscode.Selection(new vscode.Position(this.untrackedOffset, 0), new vscode.Position(this.untrackedOffset, 0));
+            return;
+        }
+        if (this.repo.state.workingTreeChanges.filter(c => c.status != Status.UNTRACKED).length > 0) {
             window.activeTextEditor!.selection =
                 new vscode.Selection(new vscode.Position(this.unstagedOffset, 0), new vscode.Position(this.unstagedOffset, 0));
+            return;
         }
     }
     goUnpushed() {
@@ -145,29 +163,39 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     async stageFile(line: number) {
-        const ressourceIndex = line - this.unstagedOffset;
-        console.debug('ressourceIndex ', ressourceIndex);
-        this.setNewCursor('stage', ressourceIndex);
-        if (ressourceIndex >= 0 && ressourceIndex < this.repo.state.workingTreeChanges.length) {
-            const ressource = this.repo.state.workingTreeChanges[ressourceIndex].uri.path;
+        // is untracked
+        let ressourceIndex = line - this.untrackedOffset;
+        const untracked = this.repo.state.workingTreeChanges.filter(c => c.status === Status.UNTRACKED);
+        console.debug('index ', ressourceIndex);
+        if (ressourceIndex >= 0 && ressourceIndex < untracked.length) {
+            this.setNewCursor('track', ressourceIndex);
+            const ressource = untracked[ressourceIndex].uri.path;
+            console.debug('track ', ressource);
+            await this.repo.add([ressource]);
+            return;
+        }
+        // is unstaged
+        ressourceIndex = line - this.unstagedOffset;
+        console.debug('index ', ressourceIndex);
+        const unstaged = this.repo.state.workingTreeChanges.filter(c => c.status !== Status.UNTRACKED);
+        if (ressourceIndex >= 0 && ressourceIndex < unstaged.length) {
+            this.setNewCursor('stage', ressourceIndex);
+            const ressource = unstaged[ressourceIndex].uri.path;
             console.debug('stage ', ressource);
             await this.repo.add([ressource]);
+            return;
         }
     }
 
     async unstageFile(line: number) {
         const ressourceIndex = line - this.stagedOffset;
         console.debug('ressourceIndex ', ressourceIndex);
-        this.setNewCursor('unstage', ressourceIndex);
         if (ressourceIndex >= 0 && ressourceIndex < this.repo.state.indexChanges.length) {
+            this.setNewCursor('unstage', ressourceIndex);
             const ressource = this.repo.state.indexChanges[ressourceIndex].uri.path;
             console.debug('unstage ', ressource);
             await this.repo.revert([ressource]);
         }
-    }
-
-    async pushStash() {
-        // this.api.
     }
 
     async unstageAll() {
@@ -218,20 +246,32 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     async openFile(line: number, split: boolean) {
-        let ressourceIndex = line - this.unstagedOffset;
-        let ressource: vscode.Uri | null = null;
-        console.debug('ressourceIndex ', ressourceIndex);
-        if (ressourceIndex >= 0 && ressourceIndex < this.repo.state.workingTreeChanges.length) {
-            ressource = this.repo.state.workingTreeChanges[ressourceIndex].uri;
+        let ressource: Change | null = null;
+        let ressourceIndex = line - this.untrackedOffset;
+        // check if in untracked
+        const untracked = this.repo.state.workingTreeChanges.filter(c => c.status === Status.UNTRACKED);
+        if (ressourceIndex >= 0 && ressourceIndex < untracked.length) {
+            ressource = untracked[ressourceIndex];
         }
+        // check if in unstaged
+        ressourceIndex = line - this.unstagedOffset;
+        const unstaged = this.repo.state.workingTreeChanges.filter(c => c.status !== Status.UNTRACKED);
+        if (ressourceIndex >= 0 && ressourceIndex < unstaged.length) {
+            ressource = unstaged[ressourceIndex];
+        }
+        // check if in staged
         ressourceIndex = line - this.stagedOffset;
         if (ressourceIndex >= 0 && ressourceIndex < this.repo.state.indexChanges.length) {
-            ressource = this.repo.state.indexChanges[ressourceIndex].uri;
+            ressource = this.repo.state.indexChanges[ressourceIndex];
         }
         if (!ressource) {
             return;
         }
-        const file = vscode.Uri.parse(ressource.path);
+        if ([Status.INDEX_DELETED, Status.DELETED].includes(ressource.status)) {
+            vscode.window.showWarningMessage("File was deleted");
+            return;
+        }
+        const file = vscode.Uri.parse(ressource.uri.path);
         const doc = await vscode.workspace.openTextDocument(file);
         if (split) {
             await window.showTextDocument(doc, { preview: false, viewColumn: vscode.ViewColumn.Beside });
@@ -240,35 +280,52 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
     }
 
-    async openCommitDiff() {
-        // const result = await this.repo.diffWithHEAD(ressource);
-    }
-
-    setNewCursor(operation: 'stage' | 'unstage', index: number) {
-        if (operation === 'stage') {
-            if (index == this.repo.state.workingTreeChanges.length - 1) {
+    setNewCursor(operation: 'track' | 'stage' | 'unstage', index: number) {
+        if (operation === 'track') {
+            console.log('track')
+            const untracked = this.repo.state.workingTreeChanges.filter(c => c.status === Status.UNTRACKED);
+            if (index == untracked.length - 1) {
                 if (index == 0) {
-                    this.line = this.unstagedOffset;
+                    this.line = this.untrackedOffset;
+                } else {
+                    this.line = this.untrackedOffset + index - 1;
+                }
+            } else {
+                this.line = this.untrackedOffset + index;
+            }
+        } else if (operation === 'stage') {
+            const unstaged = this.repo.state.workingTreeChanges.filter(c => c.status !== Status.UNTRACKED);
+            if (index == unstaged.length - 1) {
+                if (index == 0) {
+                    this.line = this.untrackedOffset;
                 } else {
                     this.line = this.unstagedOffset + index - 1;
                 }
             } else {
                 this.line = this.unstagedOffset + index;
             }
-        } else {
-            let addUnstagedOffset = 0
-            if (this.repo.state.workingTreeChanges.length == 0) {
+        } else if (operation === 'unstage') {
+            const ressourceStatus = this.repo.state.indexChanges[index].status;
+            let addUnstagedOffset = 0;
+            const untrackedLen = this.repo.state.workingTreeChanges.filter(c => c.status === Status.UNTRACKED).length;
+            const unstagedLen = this.repo.state.workingTreeChanges.filter(c => c.status !== Status.UNTRACKED).length;
+            if (ressourceStatus === Status.INDEX_ADDED && untrackedLen === 0 ||
+                ressourceStatus !== Status.INDEX_ADDED && unstagedLen === 0
+            ) {
                 addUnstagedOffset = 2;
             }
             if (index == this.repo.state.indexChanges.length - 1) {
                 if (index == 0) {
-                    this.line = this.unstagedOffset + addUnstagedOffset;
+                    this.line = this.unstagedOffset;
                 } else {
-                    this.line = this.stagedOffset + index + addUnstagedOffset;
+                    this.line = this.stagedOffset + index;
                 }
             } else {
-                this.line = this.stagedOffset + index + 1 + addUnstagedOffset;
+                this.line = this.stagedOffset + index + 1;
             }
+            this.line += addUnstagedOffset
+        } else {
+            throw Error(operation + " not implemented");
         }
     }
 }

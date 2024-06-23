@@ -9,61 +9,61 @@ This extension is meant to be used with the [vscodevim.vim](https://marketplace.
 ## Keymaps
 There are keymaps for and without the vim plugin:
 ```json
-    {
-        "command": "fugitive.stage",
-        "key": "s",
-    }, {
-        "command": "fugitive.unstage",
-        "key": "u",
-    }, {
-        "command": "fugitive.unstageAll",
-        "key": "shift+u",
-    }, {
-        "command": "fugitive.clean",
-        "key": "shift+x",
-    }, {
-        "command": "fugitive.openDiff",
-        "key": "d v",
-    }, {
-        "command": "fugitive.commit",
-        "key": "c c",
-    }, {
-        "command": "fugitive.amend",
-        "key": "c a",
-    }, {
-        "command": "fugitive.amendNoEdit",
-        "key": "c e",
-    }, {
-        "command": "fugitive.stash",
-        "key": "c z z",
-    }, {
-        "command": "fugitive.stashStaged",
-        "key": "c z s",
-    }, {
-        "command": "fugitive.popLatestStash",
-        "key": "c z shift+p",
-    }, {
-        "command": "fugitive.popStash",
-        "key": "c z p",
-    }, {
-        "command": "fugitive.goUnstaged",
-        "key": "g u",
-    }, {
-        "command": "fugitive.goStaged",
-        "key": "g s",
-    }, {
-        "command": "fugitive.goUnpushed",
-        "key": "g p",
-    }, {
-        "command": "fugitive.openFile",
-        "key": "shift+o",
-    }, {
-        "command": "fugitive.openFileSplit",
-        "key": "o",
-    }, {
-        "command": "fugitive.help",
-        "key": "g shift+oem_4",
-    }
+{
+    "command": "fugitive.stage",
+    "key": "s",
+}, {
+    "command": "fugitive.unstage",
+    "key": "u",
+}, {
+    "command": "fugitive.unstageAll",
+    "key": "shift+u",
+}, {
+    "command": "fugitive.clean",
+    "key": "shift+x",
+}, {
+    "command": "fugitive.openDiff",
+    "key": "d v",
+}, {
+    "command": "fugitive.commit",
+    "key": "c c",
+}, {
+    "command": "fugitive.amend",
+    "key": "c a",
+}, {
+    "command": "fugitive.amendNoEdit",
+    "key": "c e",
+}, {
+    "command": "fugitive.stash",
+    "key": "c z z",
+}, {
+    "command": "fugitive.stashStaged",
+    "key": "c z s",
+}, {
+    "command": "fugitive.popLatestStash",
+    "key": "c z shift+p",
+}, {
+    "command": "fugitive.popStash",
+    "key": "c z p",
+}, {
+    "command": "fugitive.goUnstaged",
+    "key": "g u",
+}, {
+    "command": "fugitive.goStaged",
+    "key": "g s",
+}, {
+    "command": "fugitive.goUnpushed",
+    "key": "g p",
+}, {
+    "command": "fugitive.openFile",
+    "key": "shift+o",
+}, {
+    "command": "fugitive.openFileSplit",
+    "key": "o",
+}, {
+    "command": "fugitive.help",
+    "key": "g shift+oem_4",
+}
 
 ```
 
