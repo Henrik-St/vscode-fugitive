@@ -1,10 +1,10 @@
 import * as vscode from 'vscode';
 import { window } from 'vscode';
-import { API as GitAPI, Change, Repository, Commit, Status } from './vscode-git';
+import { API as GitAPI, Change, Repository, Commit, Status, GitExtension } from './vscode-git';
 
 export class Provider implements vscode.TextDocumentContentProvider {
     static myScheme = 'fugitive';
-    private gitExtension: any;
+    private gitExtension: GitExtension;
     private api: GitAPI;
     repo: Repository;
     private rootUri: string;
@@ -26,18 +26,11 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     constructor() {
         this.gitExtension = vscode.extensions.getExtension('vscode.git')?.exports;
-        if (!this.gitExtension) {
-            window.showInformationMessage('No git extension found.');
-        }
         this.api = this.gitExtension.getAPI(1);
-        if (this.api.repositories.length === 0) {
-            window.showInformationMessage('No git repository initialized');
-        }
-        this.repo = this.api.repositories[0];
 
+        this.repo = this.api.repositories[0];
         this.rootUri = this.repo.rootUri.path;
 
-        // this.unpushedCommits = [];
         this.unpushedCommits = [];
         this.line = 0;
 
@@ -70,7 +63,11 @@ export class Provider implements vscode.TextDocumentContentProvider {
             this.unstagedOffset = unstagedOffset;
             this.stagedOffset = stagedOffset;
             this.unpushedOffset = stagedOffset + stagedLen + Number(stagedLen > 0) * 2;
-            this.unpushedCommits = await this.repo.log({ range: this.repo.state.remotes[0].name + "/" + this.repo.state.HEAD?.name + "..HEAD" })
+            if (this.repo?.state.remotes[0]) {
+                this.unpushedCommits = await this.repo.log({ range: this.repo.state.remotes[0].name + "/" + this.repo.state.HEAD?.name + "..HEAD" })
+            } else {
+                this.unpushedCommits = await this.repo.log({ range: "HEAD" })
+            }
             const doc = vscode.workspace.textDocuments.find(doc => doc.uri.scheme === Provider.myScheme);
             if (doc) {
                 this.onDidChangeEmitter.fire(doc.uri);
@@ -94,7 +91,11 @@ export class Provider implements vscode.TextDocumentContentProvider {
     provideTextDocumentContent(uri: vscode.Uri): string {
         console.debug('provideTextDocumentContent');
         const head = this.repo.state.HEAD?.name;
-        let renderString = `Head: ${head}\nMerge: ${this.repo.state.remotes[0].name}/${head}\nHelp: g?`;
+        let merge = "Unpublished"
+        if (this.repo.state.remotes[0]?.name) {
+            merge = `Merge: ${this.repo.state.remotes[0].name}/${head}`
+        }
+        let renderString = `Head: ${head}\n${merge}\nHelp: g?`;
         // render untracked
         const untracked = this.repo.state.workingTreeChanges.filter(c => c.status == Status.UNTRACKED);
         if (untracked.length > 0) {
@@ -114,20 +115,28 @@ export class Provider implements vscode.TextDocumentContentProvider {
             renderString += `\n\nStaged (${staged.length}):\n${stagedRender}`;
         }
 
-        if (this.repo.state.HEAD?.ahead) {
+        const unpushedLen = this.unpushedCommits.length;
+        if (unpushedLen > 0) {
             const len = this.unpushedCommits.length;
-            const to = `${this.repo.state.remotes[0].name}/${head}`
+            let to = ""
+            if (this.repo.state.remotes[0]?.name) {
+                to = `to ${this.repo.state.remotes[0].name}/${head} `
+            }
             const commits = this.unpushedCommits.map(c =>
                 c.hash.slice(0, 8) + " " + c.message
             ).join('\n');
-            renderString += `\n\nUnpushed to ${to} (${len}):\n${commits}`;
+            renderString += `\n\nUnpushed ${to}(${len}):\n${commits}`;
         }
         return renderString;
     }
 
     async getDocOrRefreshIfExists(uri: vscode.Uri) {
+        if (this.repo?.state.remotes[0]) {
+            this.unpushedCommits = await this.repo.log({ range: this.repo.state.remotes[0].name + "/" + this.repo.state.HEAD?.name + "..HEAD" })
+        } else {
+            this.unpushedCommits = await this.repo.log({ range: "HEAD" })
+        }
         let doc = vscode.workspace.textDocuments.find(doc => doc.uri.scheme === Provider.myScheme);
-        this.unpushedCommits = await this.repo.log({ range: this.repo.state.remotes[0].name + "/" + this.repo.state.HEAD?.name + "..HEAD" });
         if (doc) {
             this.onDidChangeEmitter.fire(uri);
         } else {
@@ -156,7 +165,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
     }
     goUnpushed() {
-        if (this.repo.state.HEAD?.ahead) {
+        if (this.unpushedCommits.length > 0) {
             window.activeTextEditor!.selection =
                 new vscode.Selection(new vscode.Position(this.unpushedOffset, 0), new vscode.Position(this.unpushedOffset, 0));
         }
@@ -198,16 +207,46 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
     }
 
+    async toggle(line: number) {
+        // is untracked
+        let ressourceIndex = line - this.untrackedOffset;
+        const untracked = this.repo.state.workingTreeChanges.filter(c => c.status === Status.UNTRACKED);
+        if (ressourceIndex >= 0 && ressourceIndex < untracked.length) {
+            await this.stageFile(line);
+            return;
+        }
+        // is unstaged
+        ressourceIndex = line - this.unstagedOffset;
+        const unstaged = this.repo.state.workingTreeChanges.filter(c => c.status !== Status.UNTRACKED);
+        if (ressourceIndex >= 0 && ressourceIndex < unstaged.length) {
+            await this.stageFile(line);
+            return;
+        }
+        ressourceIndex = line - this.stagedOffset;
+        if (ressourceIndex >= 0 && ressourceIndex < this.repo.state.indexChanges.length) {
+            await this.unstageFile(line);
+            return;
+        }
+    }
+
     async unstageAll() {
         const files = this.repo.state.indexChanges.map((c) => c.uri.path);
         await this.repo.revert(files);
     }
 
     async cleanFile(line: number) {
-        let ressourceIndex = line - this.unstagedOffset;
-
-        if (ressourceIndex >= 0 && ressourceIndex < this.repo.state.workingTreeChanges.length) {
-            const ressource = this.repo.state.workingTreeChanges[ressourceIndex].uri.path;
+        let ressourceIndex = line - this.untrackedOffset;
+        const untracked = this.repo.state.workingTreeChanges.filter(c => c.status === Status.UNTRACKED);
+        if (ressourceIndex >= 0 && ressourceIndex < untracked.length) {
+            const ressource = untracked[ressourceIndex].uri.path;
+            console.debug('clean ', ressource);
+            await this.repo.clean([ressource]);
+            return;
+        }
+        ressourceIndex = line - this.unstagedOffset;
+        const unstaged = this.repo.state.workingTreeChanges.filter(c => c.status !== Status.UNTRACKED);
+        if (ressourceIndex >= 0 && ressourceIndex < unstaged.length) {
+            const ressource = unstaged[ressourceIndex].uri.path;
             console.debug('clean ', ressource);
             await this.repo.clean([ressource]);
             return;
@@ -318,12 +357,11 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 if (index == 0) {
                     this.line = this.unstagedOffset;
                 } else {
-                    this.line = this.stagedOffset + index;
+                    this.line = this.stagedOffset + index + addUnstagedOffset;
                 }
             } else {
-                this.line = this.stagedOffset + index + 1;
+                this.line = this.stagedOffset + index + 1 + addUnstagedOffset;
             }
-            this.line += addUnstagedOffset
         } else {
             throw Error(operation + " not implemented");
         }
@@ -332,23 +370,38 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
 function mapStatustoString(status: number) {
     switch (status) {
-        case 0:
+        case Status.INDEX_MODIFIED:
             return 'M';
-        case 1:
+        case Status.INDEX_ADDED:
             return 'A';
-        case 2:
+        case Status.INDEX_DELETED:
             return 'D';
-        case 3:
+        case Status.INDEX_RENAMED:
             return 'R';
-        case 4:
+        case Status.INDEX_COPIED:
             return 'C';
-        case 5:
+        case Status.MODIFIED:
             return 'M';
-        case 6:
+        case Status.DELETED:
             return 'D';
-        case 7:
+        case Status.UNTRACKED:
             return 'U';
         default:
             return status;
     }
+}
+
+export function checkForRepository() {
+    console.debug("checkForRepository")
+    const gitExtension: GitExtension = vscode.extensions.getExtension('vscode.git')?.exports;
+    if (!gitExtension || !gitExtension.enabled) {
+        window.showWarningMessage('Fugitive: No git extension found or not enabled.');
+        return false;
+    }
+    const api = gitExtension.getAPI(1);
+    if (api.repositories.length === 0 && !api.repositories[0]?.state.HEAD?.name) {
+        window.showWarningMessage('Fugitive: No git repository initialized');
+        return false;
+    }
+    return true;
 }

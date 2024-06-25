@@ -2,7 +2,7 @@
 	"name": "vscode-fugitive",
 	"displayName": "Fugitive for VS Code",
 	"description": "This is simple extension that adds a subset of the fugitive plugin to VS Code",
-	"version": "0.0.9",
+	"version": "0.0.10",
 	"publisher": "hnrk-str",
 	"private": true,
 	"license": "MIT",
@@ -67,6 +67,11 @@
 				"when": "resourceScheme == fugitive"
 			},
 			{
+				"command": "fugitive.close",
+				"title": "Fugitive: close",
+				"when": "resourceScheme == fugitive"
+			},
+			{
 				"command": "fugitive.goUntracked",
 				"title": "Fugitive: go to untracked/unstaged section",
 				"when": "resourceScheme == fugitive"
@@ -91,6 +96,11 @@
 			{
 				"command": "fugitive.unstage",
 				"key": "u",
+				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+			},
+			{
+				"command": "fugitive.toggle",
+				"key": "-",
 				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
 			},
 			{
@@ -171,6 +181,11 @@
 			{
 				"command": "fugitive.openFileSplit",
 				"key": "o",
+				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+			},
+			{
+				"command": "fugitive.close",
+				"key": "g q",
 				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
 			},
 			{
