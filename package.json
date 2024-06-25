@@ -25,6 +25,7 @@
 		"vscode.git-base"
 	],
 	"main": "./out/extension.js",
+	"icon": "./resources/icons/logo.png",
 	"contributes": {
 		"commands": [
 			{
