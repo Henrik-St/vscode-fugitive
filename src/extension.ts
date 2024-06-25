@@ -79,7 +79,11 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 
 	subscriptions.push(commands.registerCommand('fugitive.commit', async () => {
 		console.log('fugitive.commit');
-		await provider!.repo.commit('', { useEditor: true });
+		if (provider!.repo.state.indexChanges.length > 0) {
+			await provider!.repo.commit('', { useEditor: true });
+		} else {
+			window.showWarningMessage("Fugitive: Nothing to commit");
+		}
 	}));
 
 	subscriptions.push(commands.registerCommand('fugitive.amend', async () => {
