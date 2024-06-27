@@ -26,26 +26,23 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 			subscriptions.push(workspace.registerTextDocumentContentProvider(Provider.myScheme, provider));
 		}
 		const uri = Uri.parse('fugitive:Fugitive');
-		const line = await provider.getDocOrRefreshIfExists(uri);
-		await window.showTextDocument(line, { preview: false });
+		const doc = await provider.getDocOrRefreshIfExists(uri);
+		await window.showTextDocument(doc, { preview: false });
 	}));
 
 	subscriptions.push(commands.registerCommand('fugitive.stage', async () => {
 		console.log('fugitive.stage');
-		const line = window.activeTextEditor!.selection.active.line;
-		await provider!.stageFile(line);
+		await provider!.stageFile();
 	}));
 
 	subscriptions.push(commands.registerCommand('fugitive.unstage', async () => {
 		console.log('fugitive.unstage');
-		const line = window.activeTextEditor!.selection.active.line;
-		await provider!.unstageFile(line);
+		await provider!.unstageFile();
 	}));
 
 	subscriptions.push(commands.registerCommand('fugitive.toggle', async () => {
 		console.log('fugitive.toggle');
-		const line = window.activeTextEditor!.selection.active.line;
-		await provider!.toggle(line);
+		await provider!.toggle();
 	}));
 
 	subscriptions.push(commands.registerCommand('fugitive.unstageAll', async () => {
@@ -55,26 +52,22 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 
 	subscriptions.push(commands.registerCommand('fugitive.clean', async () => {
 		console.log('fugitive.clean');
-		const line = window.activeTextEditor!.selection.active.line;
-		await provider!.cleanFile(line);
+		await provider!.cleanFile();
 	}));
 
 	subscriptions.push(commands.registerCommand('fugitive.openDiff', async () => {
 		console.log('fugitive.openDiff');
-		const line = window.activeTextEditor!.selection.active.line;
-		await provider!.openDiff(line);
+		await provider!.openDiff();
 	}));
 
 	subscriptions.push(commands.registerCommand('fugitive.openFileSplit', async () => {
 		console.log('fugitive.openFileSplit');
-		const line = window.activeTextEditor!.selection.active.line;
-		await provider!.openFile(line, true);
+		await provider!.openFile(true);
 	}));
 
 	subscriptions.push(commands.registerCommand('fugitive.openFile', async () => {
 		console.log('fugitive.openFile');
-		const line = window.activeTextEditor!.selection.active.line;
-		await provider!.openFile(line, false);
+		await provider!.openFile(false);
 	}));
 
 	subscriptions.push(commands.registerCommand('fugitive.commit', async () => {

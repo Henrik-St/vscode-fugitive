@@ -40,5 +40,5 @@ The current scope of this plugin contains only the status buffer maps from the f
 The Git command functionality is not currently planned.
 
 ## Out of scope
-The vscode git api does not support rebasing.
+The vscode git api does not support interactive rebasing.
 Therefore, functionality relying on rebasing is not supported.

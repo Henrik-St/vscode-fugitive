@@ -2,6 +2,8 @@ import * as vscode from 'vscode';
 import { window } from 'vscode';
 import { API as GitAPI, Change, Repository, Commit, Status, GitExtension } from './vscode-git';
 
+type ResourceType = 'MergeChange' | 'Untracked' | 'Staged' | 'Unstaged'
+
 export class Provider implements vscode.TextDocumentContentProvider {
     static myScheme = 'fugitive';
     private gitExtension: GitExtension;
@@ -10,6 +12,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
     private rootUri: string;
 
     //location data
+    private mergeOffset: number;
     private untrackedOffset: number;
     private unstagedOffset: number;
     private stagedOffset: number;
@@ -21,7 +24,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     private onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri>();
     onDidChange = this.onDidChangeEmitter.event;
-    private _subscriptions: vscode.Disposable;
+    private subscriptions: vscode.Disposable;
     private mapChangeToName: (c: Change) => string;
 
     constructor() {
@@ -36,33 +39,32 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
         this.mapChangeToName = (c: Change) => mapStatustoString(c.status) + " " + c.originalUri.path.replace(this.rootUri, '');
 
-        const untrackedOffset = 5;
+        const mergeLen = this.repo.state.mergeChanges.length;
         const untrackedLen = this.repo.state.workingTreeChanges.filter(c => c.status == Status.UNTRACKED).length;
-        const unstagedOffset = untrackedOffset + untrackedLen + Number(untrackedLen > 0) * 2;
         const unstagedLen = this.repo.state.workingTreeChanges.filter(c => c.status != Status.UNTRACKED).length;
         const stagedLen = this.repo.state.indexChanges.length;
-        const stagedOffset = unstagedOffset + unstagedLen + Number(unstagedLen > 0) * 2;
 
-        this.untrackedOffset = untrackedOffset;
-        this.unstagedOffset = unstagedOffset;
-        this.stagedOffset = stagedOffset;
-        this.unpushedOffset = stagedOffset + stagedLen + Number(stagedLen > 0) * 2;
+        this.mergeOffset = 5;
+        this.untrackedOffset = this.mergeOffset + mergeLen + Number(mergeLen > 0) * 2;
+        this.unstagedOffset = this.untrackedOffset + untrackedLen + Number(untrackedLen > 0) * 2;
+        this.stagedOffset = this.unstagedOffset + unstagedLen + Number(unstagedLen > 0) * 2;
+        this.unpushedOffset = this.stagedOffset + stagedLen + Number(stagedLen > 0) * 2;
 
         // on Git Changed
-        this._subscriptions = this.repo.state.onDidChange(async () => {
+        this.subscriptions = this.repo.state.onDidChange(async () => {
             console.debug('onGitChanged');
 
-            const untrackedOffset = 5;
+            const mergeLen = this.repo.state.mergeChanges.length;
             const untrackedLen = this.repo.state.workingTreeChanges.filter(c => c.status == Status.UNTRACKED).length;
-            const unstagedOffset = untrackedOffset + untrackedLen + Number(untrackedLen > 0) * 2;
             const unstagedLen = this.repo.state.workingTreeChanges.filter(c => c.status != Status.UNTRACKED).length;
             const stagedLen = this.repo.state.indexChanges.length;
-            const stagedOffset = unstagedOffset + unstagedLen + Number(unstagedLen > 0) * 2;
 
-            this.untrackedOffset = untrackedOffset;
-            this.unstagedOffset = unstagedOffset;
-            this.stagedOffset = stagedOffset;
-            this.unpushedOffset = stagedOffset + stagedLen + Number(stagedLen > 0) * 2;
+            this.mergeOffset = 5;
+            this.untrackedOffset = this.mergeOffset + mergeLen + Number(mergeLen > 0) * 2;
+            this.unstagedOffset = this.untrackedOffset + untrackedLen + Number(untrackedLen > 0) * 2;
+            this.stagedOffset = this.unstagedOffset + unstagedLen + Number(unstagedLen > 0) * 2;
+            this.unpushedOffset = this.stagedOffset + stagedLen + Number(stagedLen > 0) * 2;
+
             if (this.repo?.state.remotes[0]) {
                 this.unpushedCommits = await this.repo.log({ range: this.repo.state.remotes[0].name + "/" + this.repo.state.HEAD?.name + "..HEAD" })
             } else {
@@ -85,31 +87,64 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     dispose() {
-        this._subscriptions.dispose();
+        this.subscriptions.dispose();
     }
+
+    private untracked() {
+        return this.repo.state.workingTreeChanges.filter(c => c.status == Status.UNTRACKED);
+    }
+
+    private unstaged() {
+        let unstagedTypes = [
+            Status.ADDED_BY_US,
+            Status.DELETED_BY_US,
+            Status.MODIFIED,
+            Status.BOTH_MODIFIED,
+            Status.BOTH_ADDED,
+        ];
+        return this.repo.state.workingTreeChanges.filter(c => unstagedTypes.includes(c.status));
+    }
+
+    private staged() {
+        return this.repo.state.indexChanges;
+    }
+
     //@TODO: set correct merge name
     provideTextDocumentContent(uri: vscode.Uri): string {
         console.debug('provideTextDocumentContent');
-        const head = this.repo.state.HEAD?.name;
+        let head = "Detached";
+        console.log(this.repo.state)
+        console.log()
+        if (this.repo.state.HEAD?.name) {
+            head = this.repo.state.HEAD.name;
+        }
+        if (this.repo.state.rebaseCommit) {
+            head = this.repo.state.rebaseCommit.hash.slice(0, 8);
+        }
         let merge = "Unpublished"
         if (this.repo.state.remotes[0]?.name) {
             merge = `Merge: ${this.repo.state.remotes[0].name}/${head}`
         }
         let renderString = `Head: ${head}\n${merge}\nHelp: g?`;
         // render untracked
-        const untracked = this.repo.state.workingTreeChanges.filter(c => c.status == Status.UNTRACKED);
+        const mergeChanges = this.repo.state.mergeChanges;
+        if (mergeChanges.length > 0) {
+            const untrackedRender = mergeChanges.map(this.mapChangeToName).join('\n');
+            renderString += `\n\nMerge Changes (${mergeChanges.length}):\n${untrackedRender}`;
+        }
+        const untracked = this.untracked();
         if (untracked.length > 0) {
             const untrackedRender = untracked.map(this.mapChangeToName).join('\n');
             renderString += `\n\nUntracked (${untracked.length}):\n${untrackedRender}`;
         }
         // render unstaged
-        const unstaged = this.repo.state.workingTreeChanges.filter(c => c.status != Status.UNTRACKED);
+        const unstaged = this.unstaged();
         if (unstaged.length > 0) {
             const unstagedRender = unstaged.map(this.mapChangeToName).join('\n');
             renderString += `\n\nUnstaged (${unstaged.length}):\n${unstagedRender}`;
         }
         // render staged
-        const staged = this.repo.state.indexChanges;
+        const staged = this.staged();
         if (staged.length > 0) {
             const stagedRender = staged.map(this.mapChangeToName).join('\n');
             renderString += `\n\nStaged (${staged.length}):\n${stagedRender}`;
@@ -146,24 +181,25 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     goStaged() {
-        if (this.repo.state.indexChanges.length > 0) {
+        if (this.staged().length > 0) {
             window.activeTextEditor!.selection =
                 new vscode.Selection(new vscode.Position(this.stagedOffset, 0), new vscode.Position(this.stagedOffset, 0));
         }
     }
 
     goUnstaged(goUnstaged: boolean) {
-        if (!goUnstaged && this.repo.state.workingTreeChanges.filter(c => c.status == Status.UNTRACKED).length > 0) {
+        if (!goUnstaged && this.untracked().length > 0) {
             window.activeTextEditor!.selection =
                 new vscode.Selection(new vscode.Position(this.untrackedOffset, 0), new vscode.Position(this.untrackedOffset, 0));
             return;
         }
-        if (this.repo.state.workingTreeChanges.filter(c => c.status != Status.UNTRACKED).length > 0) {
+        if (this.unstaged().length > 0) {
             window.activeTextEditor!.selection =
                 new vscode.Selection(new vscode.Position(this.unstagedOffset, 0), new vscode.Position(this.unstagedOffset, 0));
             return;
         }
     }
+
     goUnpushed() {
         if (this.unpushedCommits.length > 0) {
             window.activeTextEditor!.selection =
@@ -171,146 +207,104 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
     }
 
-    async stageFile(line: number) {
-        // is untracked
-        let ressourceIndex = line - this.untrackedOffset;
-        const untracked = this.repo.state.workingTreeChanges.filter(c => c.status === Status.UNTRACKED);
-        console.debug('index ', ressourceIndex);
-        if (ressourceIndex >= 0 && ressourceIndex < untracked.length) {
-            this.setNewCursor('track', ressourceIndex);
-            const ressource = untracked[ressourceIndex].uri.path;
-            console.debug('track ', ressource);
-            await this.repo.add([ressource]);
+    async stageFile() {
+        let resource = this.getResourceUnderCursor();
+        if (!resource) {
             return;
         }
-        // is unstaged
-        ressourceIndex = line - this.unstagedOffset;
-        console.debug('index ', ressourceIndex);
-        const unstaged = this.repo.state.workingTreeChanges.filter(c => c.status !== Status.UNTRACKED);
-        if (ressourceIndex >= 0 && ressourceIndex < unstaged.length) {
-            this.setNewCursor('stage', ressourceIndex);
-            const ressource = unstaged[ressourceIndex].uri.path;
-            console.debug('stage ', ressource);
-            await this.repo.add([ressource]);
+        if (resource.type === "MergeChange") {
+            this.setNewCursor('merge', resource.index);
+            console.debug('merge add ', resource.ressource.uri.path);
+            await this.repo.add([resource.ressource.uri.path]);
+            return;
+        }
+        if (resource.type === "Untracked") {
+            this.setNewCursor('track', resource.index);
+            console.debug('track ', resource.ressource.uri.path);
+            await this.repo.add([resource.ressource.uri.path]);
+            return;
+        }
+        if (resource.type == "Unstaged") {
+            this.setNewCursor('stage', resource.index);
+            console.debug('stage ', resource.ressource.uri.path);
+            await this.repo.add([resource.ressource.uri.path]);
             return;
         }
     }
 
-    async unstageFile(line: number) {
-        const ressourceIndex = line - this.stagedOffset;
-        console.debug('ressourceIndex ', ressourceIndex);
-        if (ressourceIndex >= 0 && ressourceIndex < this.repo.state.indexChanges.length) {
-            this.setNewCursor('unstage', ressourceIndex);
-            const ressource = this.repo.state.indexChanges[ressourceIndex].uri.path;
-            console.debug('unstage ', ressource);
-            await this.repo.revert([ressource]);
+    async unstageFile() {
+        let resource = this.getResourceUnderCursor();
+        if (!resource) {
+            return;
+        }
+        if (resource.type === "Staged") {
+            this.setNewCursor('unstage', resource.index);
+            console.debug('unstage ', resource.ressource.uri.path);
+            await this.repo.revert([resource.ressource.uri.path]);
         }
     }
 
-    async toggle(line: number) {
-        // is untracked
-        let ressourceIndex = line - this.untrackedOffset;
-        const untracked = this.repo.state.workingTreeChanges.filter(c => c.status === Status.UNTRACKED);
-        if (ressourceIndex >= 0 && ressourceIndex < untracked.length) {
-            await this.stageFile(line);
+    async toggle() {
+        let resource = this.getResourceUnderCursor();
+        if (!resource) {
             return;
         }
-        // is unstaged
-        ressourceIndex = line - this.unstagedOffset;
-        const unstaged = this.repo.state.workingTreeChanges.filter(c => c.status !== Status.UNTRACKED);
-        if (ressourceIndex >= 0 && ressourceIndex < unstaged.length) {
-            await this.stageFile(line);
+        if (["Untracked", "Unstaged"].includes(resource.type)) {
+            await this.stageFile();
             return;
         }
-        ressourceIndex = line - this.stagedOffset;
-        if (ressourceIndex >= 0 && ressourceIndex < this.repo.state.indexChanges.length) {
-            await this.unstageFile(line);
+        if (resource.type === "Staged") {
+            await this.unstageFile();
             return;
         }
     }
 
     async unstageAll() {
-        const files = this.repo.state.indexChanges.map((c) => c.uri.path);
+        const files = this.staged().map((c) => c.uri.path);
         await this.repo.revert(files);
     }
 
-    async cleanFile(line: number) {
-        let ressourceIndex = line - this.untrackedOffset;
-        const untracked = this.repo.state.workingTreeChanges.filter(c => c.status === Status.UNTRACKED);
-        if (ressourceIndex >= 0 && ressourceIndex < untracked.length) {
-            const ressource = untracked[ressourceIndex].uri.path;
-            console.debug('clean ', ressource);
-            await this.repo.clean([ressource]);
+    async cleanFile() {
+        let ressource = this.getResourceUnderCursor();
+        if (!ressource) {
             return;
         }
-        ressourceIndex = line - this.unstagedOffset;
-        const unstaged = this.repo.state.workingTreeChanges.filter(c => c.status !== Status.UNTRACKED);
-        if (ressourceIndex >= 0 && ressourceIndex < unstaged.length) {
-            const ressource = unstaged[ressourceIndex].uri.path;
+        if (["Untracked", "Unstaged"].includes(ressource.type)) {
             console.debug('clean ', ressource);
-            await this.repo.clean([ressource]);
+            await this.repo.clean([ressource.ressource.uri.path]);
             return;
         }
-        ressourceIndex = line - this.stagedOffset;
-        if (ressourceIndex >= 0 && ressourceIndex < this.repo.state.indexChanges.length) {
-            const ressource = this.repo.state.indexChanges[ressourceIndex].uri.path;
+
+        if (ressource.type === "Staged") {
             console.debug('clean ', ressource);
-            await this.repo.revert([ressource]);
-            await this.repo.clean([ressource]);
+            await this.repo.revert([ressource.ressource.uri.path]);
+            await this.repo.clean([ressource.ressource.uri.path]);
             return;
         }
     }
 
-    async openDiff(line: number) {
-        let ressourceIndex = line - this.unstagedOffset;
-        let ressource: vscode.Uri | null = null;
-
-        console.debug('ressourceIndex ', ressourceIndex);
-        if (ressourceIndex >= 0 && ressourceIndex < this.repo.state.workingTreeChanges.length) {
-            ressource = this.repo.state.workingTreeChanges[ressourceIndex].uri;
-        }
-        ressourceIndex = line - this.stagedOffset;
-        if (ressourceIndex >= 0 && ressourceIndex < this.repo.state.indexChanges.length) {
-            ressource = this.repo.state.indexChanges[ressourceIndex].uri;
-
-        }
+    async openDiff() {
+        let ressource = this.getResourceUnderCursor()?.ressource;
         if (!ressource) {
             return;
         }
-        vscode.commands.executeCommand('git.openChange', ressource).then((success) => {
+        vscode.commands.executeCommand('git.openChange', ressource.uri).then((success) => {
             console.debug('success ', success);
         }, (rejected) => {
             console.debug('rejected ', rejected);
         });
     }
 
-    async openFile(line: number, split: boolean) {
-        let ressource: Change | null = null;
-        let ressourceIndex = line - this.untrackedOffset;
-        // check if in untracked
-        const untracked = this.repo.state.workingTreeChanges.filter(c => c.status === Status.UNTRACKED);
-        if (ressourceIndex >= 0 && ressourceIndex < untracked.length) {
-            ressource = untracked[ressourceIndex];
-        }
-        // check if in unstaged
-        ressourceIndex = line - this.unstagedOffset;
-        const unstaged = this.repo.state.workingTreeChanges.filter(c => c.status !== Status.UNTRACKED);
-        if (ressourceIndex >= 0 && ressourceIndex < unstaged.length) {
-            ressource = unstaged[ressourceIndex];
-        }
-        // check if in staged
-        ressourceIndex = line - this.stagedOffset;
-        if (ressourceIndex >= 0 && ressourceIndex < this.repo.state.indexChanges.length) {
-            ressource = this.repo.state.indexChanges[ressourceIndex];
-        }
-        if (!ressource) {
+    async openFile(split: boolean) {
+        let resource = this.getResourceUnderCursor()?.ressource;
+        if (!resource) {
             return;
         }
-        if ([Status.INDEX_DELETED, Status.DELETED].includes(ressource.status)) {
+        if ([Status.INDEX_DELETED, Status.DELETED].includes(resource.status)) {
             vscode.window.showWarningMessage("File was deleted");
             return;
         }
-        const file = vscode.Uri.parse(ressource.uri.path);
+        const file = vscode.Uri.parse(resource.uri.path);
         const doc = await vscode.workspace.openTextDocument(file);
         if (split) {
             await window.showTextDocument(doc, { preview: false, viewColumn: vscode.ViewColumn.Beside });
@@ -319,8 +313,55 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
     }
 
-    setNewCursor(operation: 'track' | 'stage' | 'unstage', index: number) {
-        if (operation === 'track') {
+    getResourceUnderCursor(): { type: ResourceType, ressource: Change, index: number } | null {
+        let ressource: Change | null = null;
+        const line = window.activeTextEditor!.selection.active.line;
+        let ressourceIndex = line - this.mergeOffset;
+        // check if in merge changes
+        const merge = this.repo.state.mergeChanges;
+        if (ressourceIndex >= 0 && ressourceIndex < merge.length) {
+            ressource = merge[ressourceIndex];
+            return { type: 'MergeChange', ressource: ressource, index: ressourceIndex };
+        }
+        ressourceIndex = line - this.untrackedOffset;
+        // check if in untracked
+        const untracked = this.repo.state.workingTreeChanges.filter(c => c.status === Status.UNTRACKED);
+        if (ressourceIndex >= 0 && ressourceIndex < untracked.length) {
+            return { type: 'Untracked', ressource: untracked[ressourceIndex], index: ressourceIndex };
+        }
+        // check if in unstaged
+        ressourceIndex = line - this.unstagedOffset;
+        const unstaged = this.repo.state.workingTreeChanges.filter(c => c.status !== Status.UNTRACKED);
+        if (ressourceIndex >= 0 && ressourceIndex < unstaged.length) {
+            return { type: 'Unstaged', ressource: unstaged[ressourceIndex], index: ressourceIndex };
+        }
+        // check if in staged
+        ressourceIndex = line - this.stagedOffset;
+        if (ressourceIndex >= 0 && ressourceIndex < this.repo.state.indexChanges.length) {
+            return {
+                type: 'Staged',
+                ressource: this.repo.state.indexChanges[ressourceIndex],
+                index: ressourceIndex
+            };
+        }
+        return null;
+
+    }
+
+    setNewCursor(operation: 'merge' | 'track' | 'stage' | 'unstage', index: number) {
+        if (operation === 'merge') {
+            console.log('merge')
+            const merge = this.repo.state.mergeChanges;
+            if (index == merge.length - 1) {
+                if (index == 0) {
+                    this.line = this.mergeOffset;
+                } else {
+                    this.line = this.mergeOffset + index - 1;
+                }
+            } else {
+                this.line = this.untrackedOffset + index;
+            }
+        } else if (operation === 'track') {
             console.log('track')
             const untracked = this.repo.state.workingTreeChanges.filter(c => c.status === Status.UNTRACKED);
             if (index == untracked.length - 1) {
@@ -386,6 +427,28 @@ function mapStatustoString(status: number) {
             return 'D';
         case Status.UNTRACKED:
             return 'U';
+        case Status.IGNORED:
+            return 'I';
+        case Status.INTENT_TO_ADD:
+            return 'A';
+        case Status.INTENT_TO_RENAME:
+            return 'R';
+        case Status.TYPE_CHANGED:
+            return 'T';
+        case Status.ADDED_BY_US:
+            return 'A';
+        case Status.ADDED_BY_THEM:
+            return 'A';
+        case Status.DELETED_BY_US:
+            return 'D';
+        case Status.DELETED_BY_THEM:
+            return 'D';
+        case Status.BOTH_ADDED:
+            return 'A';
+        case Status.BOTH_DELETED:
+            return 'D';
+        case Status.BOTH_MODIFIED:
+            return 'M';
         default:
             return status;
     }
