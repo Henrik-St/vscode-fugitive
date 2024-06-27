@@ -1,14 +1,10 @@
 import * as vscode from 'vscode';
-import { window, workspace, commands, Uri, TextDocument } from 'vscode';
+import { window, workspace, commands, Uri } from 'vscode';
 import { Provider, checkForRepository } from './provider';
 
-// for syntax highlighting
-// see https://github.com/microsoft/vscode-extension-samples/blob/main/contentprovider-sample/locations-syntax.json
 export function activate({ subscriptions }: vscode.ExtensionContext) {
 
-	console.log('activate');
-	// register a content provider for the fugitive-scheme
-
+	console.log('fugitive.activate');
 	let provider: Provider | null = null;
 	if (checkForRepository()) {
 		provider = new Provider()
@@ -123,6 +119,45 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 		}, (rejected) => {
 			console.debug('rejected ', rejected);
 		});
+	}));
+
+	subscriptions.push(commands.registerCommand('fugitive.checkoutBranch', async () => {
+		console.log('fugitive.checkoutBranch');
+		vscode.commands.executeCommand('git.checkout', []).then((success) => {
+			console.debug('success ', success);
+		}, (rejected) => {
+			console.debug('rejected ', rejected);
+		});
+	}));
+
+	subscriptions.push(commands.registerCommand('fugitive.goUp', async () => {
+		if (!window.activeTextEditor) {
+			return;
+		}
+		let lineCount = window.activeTextEditor.document.lineCount
+		let line = window.activeTextEditor!.selection.active.line;
+		let newLine = Math.max(line - 1, 0);
+		window.activeTextEditor!.selection =
+			new vscode.Selection(new vscode.Position(newLine, 0), new vscode.Position(newLine, 0));
+	}));
+
+	subscriptions.push(commands.registerCommand('fugitive.goDown', async () => {
+		if (!window.activeTextEditor) {
+			return;
+		}
+		let lineCount = window.activeTextEditor.document.lineCount
+		let line = window.activeTextEditor!.selection.active.line;
+		let newLine = Math.min(line + 1, lineCount - 1);
+		window.activeTextEditor!.selection =
+			new vscode.Selection(new vscode.Position(newLine, 0), new vscode.Position(newLine, 0));
+	}));
+
+	subscriptions.push(commands.registerCommand('fugitive.gitExclude', async () => {
+		provider!.gitExclude(false);
+	}));
+
+	subscriptions.push(commands.registerCommand('fugitive.gitIgnore', async () => {
+		provider!.gitExclude(true);
 	}));
 
 	subscriptions.push(commands.registerCommand('fugitive.goUntracked', async () => {

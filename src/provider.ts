@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { window } from 'vscode';
 import { API as GitAPI, Change, Repository, Commit, Status, GitExtension } from './vscode-git';
+import { error } from 'console';
 
 type ResourceType = 'MergeChange' | 'Untracked' | 'Staged' | 'Unstaged'
 
@@ -109,12 +110,9 @@ export class Provider implements vscode.TextDocumentContentProvider {
         return this.repo.state.indexChanges;
     }
 
-    //@TODO: set correct merge name
     provideTextDocumentContent(uri: vscode.Uri): string {
         console.debug('provideTextDocumentContent');
         let head = "Detached";
-        console.log(this.repo.state)
-        console.log()
         if (this.repo.state.HEAD?.name) {
             head = this.repo.state.HEAD.name;
         }
@@ -311,6 +309,34 @@ export class Provider implements vscode.TextDocumentContentProvider {
         } else {
             await window.showTextDocument(doc, { preview: false });
         }
+    }
+
+    async gitExclude(gitIgnore: boolean) {
+        let fileUnderCursor = this.getResourceUnderCursor();
+        let uri = gitIgnore ?
+            vscode.Uri.parse(this.rootUri + "/.gitignore") :
+            vscode.Uri.parse(this.rootUri + "/.git/info/exclude");
+
+        try {
+            await vscode.workspace.fs.stat(uri);
+        } catch {
+            await vscode.workspace.fs.writeFile(uri, new Uint8Array());
+        }
+
+        if (fileUnderCursor) {
+            let contents = await vscode.workspace.fs.readFile(uri);
+            var enc = new TextEncoder(); // always utf-8
+            const filename = enc.encode(fileUnderCursor.ressource.originalUri.path.replace(this.rootUri, ''))
+
+            let newContents = new Uint8Array(contents.length + filename.length + 1);
+            newContents.set(contents);
+            newContents.set(enc.encode("\n"), contents.length);
+            newContents.set(filename, contents.length + 1);
+            await vscode.workspace.fs.writeFile(uri, newContents);
+        }
+
+        let doc = await vscode.workspace.openTextDocument(uri);
+        await window.showTextDocument(doc, { preview: false, viewColumn: vscode.ViewColumn.Beside });
     }
 
     getResourceUnderCursor(): { type: ResourceType, ressource: Change, index: number } | null {

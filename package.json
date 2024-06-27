@@ -2,7 +2,7 @@
 	"name": "vscode-fugitive",
 	"displayName": "Fugitive for VS Code",
 	"description": "This is simple extension that adds a subset of the fugitive plugin to VS Code",
-	"version": "0.0.13",
+	"version": "0.0.14",
 	"publisher": "hnrk-str",
 	"private": true,
 	"license": "MIT",
@@ -83,6 +83,21 @@
 				"when": "resourceScheme == fugitive"
 			},
 			{
+				"command": "fugitive.checkoutBranch",
+				"title": "Fugitive: checkout a branch",
+				"when": "resourceScheme == fugitive"
+			},
+			{
+				"command": "fugitive.gitExclude",
+				"title": "Fugitive: exclude file under cursor",
+				"when": "resourceScheme == fugitive"
+			},
+			{
+				"command": "fugitive.gitIgnore",
+				"title": "Fugitive: ignore file under cursor",
+				"when": "resourceScheme == fugitive"
+			},
+			{
 				"command": "fugitive.goStaged",
 				"title": "Fugitive: go to staged section",
 				"when": "resourceScheme == fugitive"
@@ -155,6 +170,16 @@
 				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
 			},
 			{
+				"command": "fugitive.goUp",
+				"key": "k",
+				"when": "!vim.mode && resourceScheme == fugitive && editorTextFocus"
+			},
+			{
+				"command": "fugitive.goDown",
+				"key": "j",
+				"when": "!vim.mode && resourceScheme == fugitive && editorTextFocus"
+			},
+			{
 				"command": "fugitive.goUntracked",
 				"key": "g u",
 				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
@@ -182,6 +207,21 @@
 			{
 				"command": "fugitive.openFileSplit",
 				"key": "o",
+				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+			},
+			{
+				"command": "fugitive.checkoutBranch",
+				"key": "c o b",
+				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+			},
+			{
+				"command": "fugitive.gitExclude",
+				"key": "g i",
+				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+			},
+			{
+				"command": "fugitive.gitIgnore",
+				"key": "g shift+i",
 				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
 			},
 			{
