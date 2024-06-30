@@ -1,7 +1,6 @@
 import * as vscode from 'vscode';
 import { window } from 'vscode';
 import { API as GitAPI, Change, Repository, Commit, Status, GitExtension } from './vscode-git';
-import { error } from 'console';
 
 type ResourceType = 'MergeChange' | 'Untracked' | 'Staged' | 'Unstaged'
 
@@ -67,9 +66,9 @@ export class Provider implements vscode.TextDocumentContentProvider {
             this.unpushedOffset = this.stagedOffset + stagedLen + Number(stagedLen > 0) * 2;
 
             if (this.repo?.state.remotes[0]) {
-                this.unpushedCommits = await this.repo.log({ range: this.repo.state.remotes[0].name + "/" + this.repo.state.HEAD?.name + "..HEAD" })
+                this.unpushedCommits = await this.repo.log({ range: this.repo.state.remotes[0].name + "/" + this.repo.state.HEAD?.name + "..HEAD" });
             } else {
-                this.unpushedCommits = await this.repo.log({ range: "HEAD" })
+                this.unpushedCommits = await this.repo.log({ range: "HEAD" });
             }
             const doc = vscode.workspace.textDocuments.find(doc => doc.uri.scheme === Provider.myScheme);
             if (doc) {
@@ -83,7 +82,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 window.activeTextEditor!.selection =
                     new vscode.Selection(new vscode.Position(this.line, 0), new vscode.Position(this.line, 0));
             }
-        })
+        });
 
     }
 
@@ -96,7 +95,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     private unstaged() {
-        let unstagedTypes = [
+        const unstagedTypes = [
             Status.ADDED_BY_US,
             Status.DELETED_BY_US,
             Status.MODIFIED,
@@ -110,18 +109,20 @@ export class Provider implements vscode.TextDocumentContentProvider {
         return this.repo.state.indexChanges;
     }
 
-    provideTextDocumentContent(uri: vscode.Uri): string {
+    provideTextDocumentContent(_uri: vscode.Uri): string {
         console.debug('provideTextDocumentContent');
         let head = "Detached";
         if (this.repo.state.HEAD?.name) {
             head = this.repo.state.HEAD.name;
+        } else if (this.repo.state.HEAD?.commit) {
+            head += " at " + this.repo.state.HEAD.commit.slice(0, 8);
         }
         if (this.repo.state.rebaseCommit) {
-            head = this.repo.state.rebaseCommit.hash.slice(0, 8);
+            head = "Rebasing at " + this.repo.state.rebaseCommit.hash.slice(0, 8);
         }
-        let merge = "Unpublished"
+        let merge = "Unpublished";
         if (this.repo.state.remotes[0]?.name) {
-            merge = `Merge: ${this.repo.state.remotes[0].name}/${head}`
+            merge = `Merge: ${this.repo.state.remotes[0].name}/${head}`;
         }
         let renderString = `Head: ${head}\n${merge}\nHelp: g?`;
         // render untracked
@@ -151,9 +152,9 @@ export class Provider implements vscode.TextDocumentContentProvider {
         const unpushedLen = this.unpushedCommits.length;
         if (unpushedLen > 0) {
             const len = this.unpushedCommits.length;
-            let to = ""
+            let to = "";
             if (this.repo.state.remotes[0]?.name) {
-                to = `to ${this.repo.state.remotes[0].name}/${head} `
+                to = `to ${this.repo.state.remotes[0].name}/${head} `;
             }
             const commits = this.unpushedCommits.map(c =>
                 c.hash.slice(0, 8) + " " + c.message
@@ -165,9 +166,9 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     async getDocOrRefreshIfExists(uri: vscode.Uri) {
         if (this.repo?.state.remotes[0]) {
-            this.unpushedCommits = await this.repo.log({ range: this.repo.state.remotes[0].name + "/" + this.repo.state.HEAD?.name + "..HEAD" })
+            this.unpushedCommits = await this.repo.log({ range: this.repo.state.remotes[0].name + "/" + this.repo.state.HEAD?.name + "..HEAD" });
         } else {
-            this.unpushedCommits = await this.repo.log({ range: "HEAD" })
+            this.unpushedCommits = await this.repo.log({ range: "HEAD" });
         }
         let doc = vscode.workspace.textDocuments.find(doc => doc.uri.scheme === Provider.myScheme);
         if (doc) {
@@ -206,14 +207,17 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     async stageFile() {
-        let resource = this.getResourceUnderCursor();
+        const resource = this.getResourceUnderCursor();
         if (!resource) {
             return;
         }
         if (resource.type === "MergeChange") {
             this.setNewCursor('merge', resource.index);
             console.debug('merge add ', resource.ressource.uri.path);
-            await this.repo.add([resource.ressource.uri.path]);
+            const uri = vscode.Uri.parse(resource.ressource.uri.path);
+            if (await this.checkForConflictMarker(uri)) {
+                await this.repo.add([resource.ressource.uri.path]);
+            }
             return;
         }
         if (resource.type === "Untracked") {
@@ -230,8 +234,21 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
     }
 
+    async checkForConflictMarker(uri: vscode.Uri): Promise<boolean> {
+        const buffer = await vscode.workspace.fs.readFile(uri);
+        if (buffer.toString().includes("<<<<<<<")) {
+            const options: vscode.QuickPickOptions = {
+                title: "Merge with conflicts?",
+            };
+
+            const value = await window.showQuickPick(["Merge conflicts", "cancel"], options);
+            return value === "Merge with conflicts";
+        }
+        return true;
+    }
+
     async unstageFile() {
-        let resource = this.getResourceUnderCursor();
+        const resource = this.getResourceUnderCursor();
         if (!resource) {
             return;
         }
@@ -243,7 +260,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     async toggle() {
-        let resource = this.getResourceUnderCursor();
+        const resource = this.getResourceUnderCursor();
         if (!resource) {
             return;
         }
@@ -263,7 +280,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     async cleanFile() {
-        let ressource = this.getResourceUnderCursor();
+        const ressource = this.getResourceUnderCursor();
         if (!ressource) {
             return;
         }
@@ -282,7 +299,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     async openDiff() {
-        let ressource = this.getResourceUnderCursor()?.ressource;
+        const ressource = this.getResourceUnderCursor()?.ressource;
         if (!ressource) {
             return;
         }
@@ -294,7 +311,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     async openFile(split: boolean) {
-        let resource = this.getResourceUnderCursor()?.ressource;
+        const resource = this.getResourceUnderCursor()?.ressource;
         if (!resource) {
             return;
         }
@@ -312,8 +329,8 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     async gitExclude(gitIgnore: boolean) {
-        let fileUnderCursor = this.getResourceUnderCursor();
-        let uri = gitIgnore ?
+        const fileUnderCursor = this.getResourceUnderCursor();
+        const uri = gitIgnore ?
             vscode.Uri.parse(this.rootUri + "/.gitignore") :
             vscode.Uri.parse(this.rootUri + "/.git/info/exclude");
 
@@ -324,18 +341,18 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
 
         if (fileUnderCursor) {
-            let contents = await vscode.workspace.fs.readFile(uri);
-            var enc = new TextEncoder(); // always utf-8
-            const filename = enc.encode(fileUnderCursor.ressource.originalUri.path.replace(this.rootUri, ''))
+            const contents = await vscode.workspace.fs.readFile(uri);
+            const enc = new TextEncoder(); // always utf-8
+            const filename = enc.encode(fileUnderCursor.ressource.originalUri.path.replace(this.rootUri, ''));
 
-            let newContents = new Uint8Array(contents.length + filename.length + 1);
+            const newContents = new Uint8Array(contents.length + filename.length + 1);
             newContents.set(contents);
             newContents.set(enc.encode("\n"), contents.length);
             newContents.set(filename, contents.length + 1);
             await vscode.workspace.fs.writeFile(uri, newContents);
         }
 
-        let doc = await vscode.workspace.openTextDocument(uri);
+        const doc = await vscode.workspace.openTextDocument(uri);
         await window.showTextDocument(doc, { preview: false, viewColumn: vscode.ViewColumn.Beside });
     }
 
@@ -376,7 +393,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     setNewCursor(operation: 'merge' | 'track' | 'stage' | 'unstage', index: number) {
         if (operation === 'merge') {
-            console.log('merge')
+            console.log('merge');
             const merge = this.repo.state.mergeChanges;
             if (index == merge.length - 1) {
                 if (index == 0) {
@@ -388,8 +405,8 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 this.line = this.untrackedOffset + index;
             }
         } else if (operation === 'track') {
-            console.log('track')
-            const untracked = this.repo.state.workingTreeChanges.filter(c => c.status === Status.UNTRACKED);
+            console.log('track');
+            const untracked = this.untracked();
             if (index == untracked.length - 1) {
                 if (index == 0) {
                     this.line = this.untrackedOffset;
@@ -400,7 +417,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 this.line = this.untrackedOffset + index;
             }
         } else if (operation === 'stage') {
-            const unstaged = this.repo.state.workingTreeChanges.filter(c => c.status !== Status.UNTRACKED);
+            const unstaged = this.unstaged();
             if (index == unstaged.length - 1) {
                 if (index == 0) {
                     this.line = this.untrackedOffset;
@@ -413,8 +430,8 @@ export class Provider implements vscode.TextDocumentContentProvider {
         } else if (operation === 'unstage') {
             const ressourceStatus = this.repo.state.indexChanges[index].status;
             let addUnstagedOffset = 0;
-            const untrackedLen = this.repo.state.workingTreeChanges.filter(c => c.status === Status.UNTRACKED).length;
-            const unstagedLen = this.repo.state.workingTreeChanges.filter(c => c.status !== Status.UNTRACKED).length;
+            const untrackedLen = this.untracked().length;
+            const unstagedLen = this.unstaged().length;
             if (ressourceStatus === Status.INDEX_ADDED && untrackedLen === 0 ||
                 ressourceStatus !== Status.INDEX_ADDED && unstagedLen === 0
             ) {
@@ -481,7 +498,7 @@ function mapStatustoString(status: number) {
 }
 
 export function checkForRepository() {
-    console.debug("checkForRepository")
+    console.debug("checkForRepository");
     const gitExtension: GitExtension = vscode.extensions.getExtension('vscode.git')?.exports;
     if (!gitExtension || !gitExtension.enabled) {
         window.showWarningMessage('Fugitive: No git extension found or not enabled.');

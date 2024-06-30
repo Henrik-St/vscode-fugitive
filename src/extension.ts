@@ -7,7 +7,7 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 	console.log('fugitive.activate');
 	let provider: Provider | null = null;
 	if (checkForRepository()) {
-		provider = new Provider()
+		provider = new Provider();
 		subscriptions.push(workspace.registerTextDocumentContentProvider(Provider.myScheme, provider));
 	}
 
@@ -40,6 +40,27 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 		console.log('fugitive.toggle');
 		await provider!.toggle();
 	}));
+
+	// subscriptions.push(commands.registerCommand('fugitive.populateCommit', async () => {
+	// 	console.log('fugitive.populateCommit');
+	// 	const term: vscode.Terminal = getTerminal();
+	// 	term.show();
+	// 	term.sendText("git commit ", false);
+	// }));
+
+	// subscriptions.push(commands.registerCommand('fugitive.populateMerge', async () => {
+	// 	console.log('fugitive.populateCommit');
+	// 	const term: vscode.Terminal = getTerminal();
+	// 	term.show();
+	// 	term.sendText("git merge ", false);
+	// }));
+
+	// subscriptions.push(commands.registerCommand('fugitive.populateRevert', async () => {
+	// 	console.log('fugitive.populateRevert');
+	// 	const term: vscode.Terminal = getTerminal();
+	// 	term.show();
+	// 	term.sendText("git revert ", false);
+	// }));
 
 	subscriptions.push(commands.registerCommand('fugitive.unstageAll', async () => {
 		console.log('fugitive.unstageAll');
@@ -134,9 +155,8 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 		if (!window.activeTextEditor) {
 			return;
 		}
-		let lineCount = window.activeTextEditor.document.lineCount
-		let line = window.activeTextEditor!.selection.active.line;
-		let newLine = Math.max(line - 1, 0);
+		const line = window.activeTextEditor!.selection.active.line;
+		const newLine = Math.max(line - 1, 0);
 		window.activeTextEditor!.selection =
 			new vscode.Selection(new vscode.Position(newLine, 0), new vscode.Position(newLine, 0));
 	}));
@@ -145,9 +165,9 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 		if (!window.activeTextEditor) {
 			return;
 		}
-		let lineCount = window.activeTextEditor.document.lineCount
-		let line = window.activeTextEditor!.selection.active.line;
-		let newLine = Math.min(line + 1, lineCount - 1);
+		const lineCount = window.activeTextEditor.document.lineCount;
+		const line = window.activeTextEditor!.selection.active.line;
+		const newLine = Math.min(line + 1, lineCount - 1);
 		window.activeTextEditor!.selection =
 			new vscode.Selection(new vscode.Position(newLine, 0), new vscode.Position(newLine, 0));
 	}));
@@ -190,3 +210,15 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 		vscode.commands.executeCommand('workbench.action.closeActiveEditor');
 	}));
 }
+
+function _getTerminal(): vscode.Terminal {
+	const query = vscode.window.terminals.filter(c => c.name === Provider.myScheme);
+	const term: vscode.Terminal =
+		query.length > 0 ?
+			query[0]
+			:
+			vscode.window.createTerminal(Provider.myScheme);
+	term.sendText("Ctrl+c");
+	return term;
+}
+
