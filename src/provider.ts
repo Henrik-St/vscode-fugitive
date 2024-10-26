@@ -26,6 +26,10 @@ export class Provider implements vscode.TextDocumentContentProvider {
     onDidChange = this.onDidChangeEmitter.event;
     private subscriptions: vscode.Disposable;
     private mapChangeToName: (c: Change) => string;
+    private mergeChanges: () => Change[];
+    private untracked: () => Change[];
+    private unstaged: () => Change[];
+    private staged: () => Change[];
 
     constructor() {
         this.gitExtension = vscode.extensions.getExtension('vscode.git')?.exports;
@@ -38,11 +42,15 @@ export class Provider implements vscode.TextDocumentContentProvider {
         this.line = 0;
 
         this.mapChangeToName = (c: Change) => mapStatustoString(c.status) + " " + c.originalUri.path.replace(this.rootUri, '');
+        this.mergeChanges = mergeChange.bind(this);
+        this.untracked = untracked.bind(this);
+        this.unstaged = unstaged.bind(this);
+        this.staged = staged.bind(this);
 
-        const mergeLen = this.repo.state.mergeChanges.length;
-        const untrackedLen = this.repo.state.workingTreeChanges.filter(c => c.status == Status.UNTRACKED).length;
-        const unstagedLen = this.repo.state.workingTreeChanges.filter(c => c.status != Status.UNTRACKED).length;
-        const stagedLen = this.repo.state.indexChanges.length;
+        const mergeLen = this.mergeChanges().length;
+        const untrackedLen = this.untracked().length;
+        const unstagedLen = this.unstaged().length;
+        const stagedLen = this.staged().length;
 
         this.mergeOffset = 5;
         this.untrackedOffset = this.mergeOffset + mergeLen + Number(mergeLen > 0) * 2;
@@ -54,10 +62,10 @@ export class Provider implements vscode.TextDocumentContentProvider {
         this.subscriptions = this.repo.state.onDidChange(async () => {
             console.debug('onGitChanged');
 
-            const mergeLen = this.repo.state.mergeChanges.length;
-            const untrackedLen = this.repo.state.workingTreeChanges.filter(c => c.status == Status.UNTRACKED).length;
-            const unstagedLen = this.repo.state.workingTreeChanges.filter(c => c.status != Status.UNTRACKED).length;
-            const stagedLen = this.repo.state.indexChanges.length;
+            const mergeLen = this.mergeChanges().length;
+            const untrackedLen = this.untracked().length;
+            const unstagedLen = this.unstaged().length;
+            const stagedLen = this.staged().length;
 
             this.mergeOffset = 5;
             this.untrackedOffset = this.mergeOffset + mergeLen + Number(mergeLen > 0) * 2;
@@ -88,25 +96,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     dispose() {
         this.subscriptions.dispose();
-    }
-
-    private untracked() {
-        return this.repo.state.workingTreeChanges.filter(c => c.status == Status.UNTRACKED);
-    }
-
-    private unstaged() {
-        const unstagedTypes = [
-            Status.ADDED_BY_US,
-            Status.DELETED_BY_US,
-            Status.MODIFIED,
-            Status.BOTH_MODIFIED,
-            Status.BOTH_ADDED,
-        ];
-        return this.repo.state.workingTreeChanges.filter(c => unstagedTypes.includes(c.status));
-    }
-
-    private staged() {
-        return this.repo.state.indexChanges;
     }
 
     provideTextDocumentContent(_uri: vscode.Uri): string {
@@ -157,7 +146,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 to = `to ${this.repo.state.remotes[0].name}/${head} `;
             }
             const commits = this.unpushedCommits.map(c =>
-                c.hash.slice(0, 8) + " " + c.message
+                c.hash.slice(0, 8) + " " + c.message.split("\n")[0].slice(0, 80)
             ).join('\n');
             renderString += `\n\nUnpushed ${to}(${len}):\n${commits}`;
         }
@@ -226,7 +215,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
             await this.repo.add([resource.ressource.uri.path]);
             return;
         }
-        if (resource.type == "Unstaged") {
+        if (resource.type === "Unstaged") {
             this.setNewCursor('stage', resource.index);
             console.debug('stage ', resource.ressource.uri.path);
             await this.repo.add([resource.ressource.uri.path]);
@@ -395,8 +384,8 @@ export class Provider implements vscode.TextDocumentContentProvider {
         if (operation === 'merge') {
             console.log('merge');
             const merge = this.repo.state.mergeChanges;
-            if (index == merge.length - 1) {
-                if (index == 0) {
+            if (index === merge.length - 1) {
+                if (index === 0) {
                     this.line = this.mergeOffset;
                 } else {
                     this.line = this.mergeOffset + index - 1;
@@ -407,8 +396,8 @@ export class Provider implements vscode.TextDocumentContentProvider {
         } else if (operation === 'track') {
             console.log('track');
             const untracked = this.untracked();
-            if (index == untracked.length - 1) {
-                if (index == 0) {
+            if (index === untracked.length - 1) {
+                if (index === 0) {
                     this.line = this.untrackedOffset;
                 } else {
                     this.line = this.untrackedOffset + index - 1;
@@ -418,8 +407,8 @@ export class Provider implements vscode.TextDocumentContentProvider {
             }
         } else if (operation === 'stage') {
             const unstaged = this.unstaged();
-            if (index == unstaged.length - 1) {
-                if (index == 0) {
+            if (index === unstaged.length - 1) {
+                if (index === 0) {
                     this.line = this.untrackedOffset;
                 } else {
                     this.line = this.unstagedOffset + index - 1;
@@ -437,8 +426,8 @@ export class Provider implements vscode.TextDocumentContentProvider {
             ) {
                 addUnstagedOffset = 2;
             }
-            if (index == this.repo.state.indexChanges.length - 1) {
-                if (index == 0) {
+            if (index === this.repo.state.indexChanges.length - 1) {
+                if (index === 0) {
                     this.line = this.unstagedOffset;
                 } else {
                     this.line = this.stagedOffset + index + addUnstagedOffset;
@@ -510,4 +499,27 @@ export function checkForRepository() {
         return false;
     }
     return true;
+}
+
+function untracked(this: Provider) {
+    return this.repo.state.workingTreeChanges.filter(c => c.status === Status.UNTRACKED);
+}
+
+function unstaged(this: Provider) {
+    const unstagedTypes = [
+        Status.ADDED_BY_US,
+        Status.DELETED_BY_US,
+        Status.MODIFIED,
+        Status.BOTH_MODIFIED,
+        Status.BOTH_ADDED,
+    ];
+    return this.repo.state.workingTreeChanges.filter(c => unstagedTypes.includes(c.status));
+}
+
+function staged(this: Provider) {
+    return this.repo.state.indexChanges;
+}
+
+function mergeChange(this: Provider) {
+    return this.repo.state.mergeChanges;
 }
