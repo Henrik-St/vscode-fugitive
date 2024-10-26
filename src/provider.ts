@@ -368,22 +368,23 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
         ressourceIndex = line - this.untrackedOffset;
         // check if in untracked
-        const untracked = this.repo.state.workingTreeChanges.filter(c => c.status === Status.UNTRACKED);
+        const untracked = this.untracked();
         if (ressourceIndex >= 0 && ressourceIndex < untracked.length) {
             return { type: 'Untracked', ressource: untracked[ressourceIndex], index: ressourceIndex };
         }
         // check if in unstaged
         ressourceIndex = line - this.unstagedOffset;
-        const unstaged = this.repo.state.workingTreeChanges.filter(c => c.status !== Status.UNTRACKED);
+        const unstaged = this.unstaged();
         if (ressourceIndex >= 0 && ressourceIndex < unstaged.length) {
             return { type: 'Unstaged', ressource: unstaged[ressourceIndex], index: ressourceIndex };
         }
         // check if in staged
         ressourceIndex = line - this.stagedOffset;
-        if (ressourceIndex >= 0 && ressourceIndex < this.repo.state.indexChanges.length) {
+        const staged = this.staged();
+        if (ressourceIndex >= 0 && ressourceIndex < staged.length) {
             return {
                 type: 'Staged',
-                ressource: this.repo.state.indexChanges[ressourceIndex],
+                ressource: staged[ressourceIndex],
                 index: ressourceIndex
             };
         }
@@ -520,6 +521,7 @@ function unstaged(this: Provider) {
     const unstagedTypes = [
         Status.ADDED_BY_US,
         Status.DELETED_BY_US,
+        Status.DELETED,
         Status.MODIFIED,
         Status.BOTH_MODIFIED,
         Status.BOTH_ADDED,
