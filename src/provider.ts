@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { window } from 'vscode';
-import { API as GitAPI, Change, Repository, Commit, Status, GitExtension } from './vscode-git';
+import { API as GitAPI, Change, Repository, Commit, Status, GitExtension, Ref } from './vscode-git';
 
 type ResourceType = 'MergeChange' | 'Untracked' | 'Staged' | 'Unstaged'
 
@@ -20,6 +20,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     //cached data
     private unpushedCommits: Commit[];
+    private refs: Ref[];
     private line: number;
 
     private onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri>();
@@ -39,6 +40,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         this.rootUri = this.repo.rootUri.path;
 
         this.unpushedCommits = [];
+        this.refs = [];
         this.line = 0;
 
         this.mapChangeToName = (c: Change) => mapStatustoString(c.status) + " " + c.originalUri.path.replace(this.rootUri, '');
@@ -73,10 +75,12 @@ export class Provider implements vscode.TextDocumentContentProvider {
             this.stagedOffset = this.unstagedOffset + unstagedLen + Number(unstagedLen > 0) * 2;
             this.unpushedOffset = this.stagedOffset + stagedLen + Number(stagedLen > 0) * 2;
 
-            if (this.repo?.state.remotes[0]) {
+            this.refs = await this.repo.getRefs({});
+            const hasRemoteBranch = this.repo?.state.remotes[0] &&
+                this.refs.some(branch => branch.name === this.repo.state.remotes[0].name + "/" + this.repo.state.HEAD?.name); //e.g. origin/branchname
+
+            if (hasRemoteBranch) {
                 this.unpushedCommits = await this.repo.log({ range: this.repo.state.remotes[0].name + "/" + this.repo.state.HEAD?.name + "..HEAD" });
-            } else {
-                this.unpushedCommits = await this.repo.log({ range: "HEAD" });
             }
             const doc = vscode.workspace.textDocuments.find(doc => doc.uri.scheme === Provider.myScheme);
             if (doc) {
@@ -110,7 +114,10 @@ export class Provider implements vscode.TextDocumentContentProvider {
             head = "Rebasing at " + this.repo.state.rebaseCommit.hash.slice(0, 8);
         }
         let merge = "Unpublished";
-        if (this.repo.state.remotes[0]?.name) {
+        const hasRemoteBranch = this.repo?.state.remotes[0] &&
+            this.refs.some(branch => branch.name === this.repo.state.remotes[0].name + "/" + this.repo.state.HEAD?.name); //e.g. origin/branchname
+
+        if (hasRemoteBranch) {
             merge = `Merge: ${this.repo.state.remotes[0].name}/${head}`;
         }
         let renderString = `Head: ${head}\n${merge}\nHelp: g?`;
@@ -154,10 +161,14 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     async getDocOrRefreshIfExists(uri: vscode.Uri) {
-        if (this.repo?.state.remotes[0]) {
+        this.refs = await this.repo.getRefs({});
+        const hasRemoteBranch = this.repo?.state.remotes[0] &&
+            this.refs.some(branch => branch.name === this.repo.state.remotes[0].name + "/" + this.repo.state.HEAD?.name); //e.g. origin/branchname
+
+        if (hasRemoteBranch) {
             this.unpushedCommits = await this.repo.log({ range: this.repo.state.remotes[0].name + "/" + this.repo.state.HEAD?.name + "..HEAD" });
         } else {
-            this.unpushedCommits = await this.repo.log({ range: "HEAD" });
+            this.unpushedCommits = [];
         }
         let doc = vscode.workspace.textDocuments.find(doc => doc.uri.scheme === Provider.myScheme);
         if (doc) {
@@ -382,7 +393,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     setNewCursor(operation: 'merge' | 'track' | 'stage' | 'unstage', index: number) {
         if (operation === 'merge') {
-            console.log('merge');
+            console.debug('merge');
             const merge = this.repo.state.mergeChanges;
             if (index === merge.length - 1) {
                 if (index === 0) {
@@ -394,7 +405,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 this.line = this.untrackedOffset + index;
             }
         } else if (operation === 'track') {
-            console.log('track');
+            console.debug('track');
             const untracked = this.untracked();
             if (index === untracked.length - 1) {
                 if (index === 0) {
