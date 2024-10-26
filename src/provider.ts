@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { window } from 'vscode';
-import { API as GitAPI, Change, Repository, Commit, Status, GitExtension } from './vscode-git';
+import { API as GitAPI, Change, Repository, Commit, Status, GitExtension, Ref } from './vscode-git';
 
 type ResourceType = 'MergeChange' | 'Untracked' | 'Staged' | 'Unstaged'
 
@@ -20,12 +20,17 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     //cached data
     private unpushedCommits: Commit[];
+    private refs: Ref[];
     private line: number;
 
     private onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri>();
     onDidChange = this.onDidChangeEmitter.event;
     private subscriptions: vscode.Disposable;
     private mapChangeToName: (c: Change) => string;
+    private mergeChanges: () => Change[];
+    private untracked: () => Change[];
+    private unstaged: () => Change[];
+    private staged: () => Change[];
 
     constructor() {
         this.gitExtension = vscode.extensions.getExtension('vscode.git')?.exports;
@@ -35,14 +40,19 @@ export class Provider implements vscode.TextDocumentContentProvider {
         this.rootUri = this.repo.rootUri.path;
 
         this.unpushedCommits = [];
+        this.refs = [];
         this.line = 0;
 
         this.mapChangeToName = (c: Change) => mapStatustoString(c.status) + " " + c.originalUri.path.replace(this.rootUri, '');
+        this.mergeChanges = mergeChange.bind(this);
+        this.untracked = untracked.bind(this);
+        this.unstaged = unstaged.bind(this);
+        this.staged = staged.bind(this);
 
-        const mergeLen = this.repo.state.mergeChanges.length;
-        const untrackedLen = this.repo.state.workingTreeChanges.filter(c => c.status == Status.UNTRACKED).length;
-        const unstagedLen = this.repo.state.workingTreeChanges.filter(c => c.status != Status.UNTRACKED).length;
-        const stagedLen = this.repo.state.indexChanges.length;
+        const mergeLen = this.mergeChanges().length;
+        const untrackedLen = this.untracked().length;
+        const unstagedLen = this.unstaged().length;
+        const stagedLen = this.staged().length;
 
         this.mergeOffset = 5;
         this.untrackedOffset = this.mergeOffset + mergeLen + Number(mergeLen > 0) * 2;
@@ -54,10 +64,10 @@ export class Provider implements vscode.TextDocumentContentProvider {
         this.subscriptions = this.repo.state.onDidChange(async () => {
             console.debug('onGitChanged');
 
-            const mergeLen = this.repo.state.mergeChanges.length;
-            const untrackedLen = this.repo.state.workingTreeChanges.filter(c => c.status == Status.UNTRACKED).length;
-            const unstagedLen = this.repo.state.workingTreeChanges.filter(c => c.status != Status.UNTRACKED).length;
-            const stagedLen = this.repo.state.indexChanges.length;
+            const mergeLen = this.mergeChanges().length;
+            const untrackedLen = this.untracked().length;
+            const unstagedLen = this.unstaged().length;
+            const stagedLen = this.staged().length;
 
             this.mergeOffset = 5;
             this.untrackedOffset = this.mergeOffset + mergeLen + Number(mergeLen > 0) * 2;
@@ -65,10 +75,12 @@ export class Provider implements vscode.TextDocumentContentProvider {
             this.stagedOffset = this.unstagedOffset + unstagedLen + Number(unstagedLen > 0) * 2;
             this.unpushedOffset = this.stagedOffset + stagedLen + Number(stagedLen > 0) * 2;
 
-            if (this.repo?.state.remotes[0]) {
+            this.refs = await this.repo.getRefs({});
+            const hasRemoteBranch = this.repo?.state.remotes[0] &&
+                this.refs.some(branch => branch.name === this.repo.state.remotes[0].name + "/" + this.repo.state.HEAD?.name); //e.g. origin/branchname
+
+            if (hasRemoteBranch) {
                 this.unpushedCommits = await this.repo.log({ range: this.repo.state.remotes[0].name + "/" + this.repo.state.HEAD?.name + "..HEAD" });
-            } else {
-                this.unpushedCommits = await this.repo.log({ range: "HEAD" });
             }
             const doc = vscode.workspace.textDocuments.find(doc => doc.uri.scheme === Provider.myScheme);
             if (doc) {
@@ -90,25 +102,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
         this.subscriptions.dispose();
     }
 
-    private untracked() {
-        return this.repo.state.workingTreeChanges.filter(c => c.status == Status.UNTRACKED);
-    }
-
-    private unstaged() {
-        const unstagedTypes = [
-            Status.ADDED_BY_US,
-            Status.DELETED_BY_US,
-            Status.MODIFIED,
-            Status.BOTH_MODIFIED,
-            Status.BOTH_ADDED,
-        ];
-        return this.repo.state.workingTreeChanges.filter(c => unstagedTypes.includes(c.status));
-    }
-
-    private staged() {
-        return this.repo.state.indexChanges;
-    }
-
     provideTextDocumentContent(_uri: vscode.Uri): string {
         console.debug('provideTextDocumentContent');
         let head = "Detached";
@@ -121,7 +114,10 @@ export class Provider implements vscode.TextDocumentContentProvider {
             head = "Rebasing at " + this.repo.state.rebaseCommit.hash.slice(0, 8);
         }
         let merge = "Unpublished";
-        if (this.repo.state.remotes[0]?.name) {
+        const hasRemoteBranch = this.repo?.state.remotes[0] &&
+            this.refs.some(branch => branch.name === this.repo.state.remotes[0].name + "/" + this.repo.state.HEAD?.name); //e.g. origin/branchname
+
+        if (hasRemoteBranch) {
             merge = `Merge: ${this.repo.state.remotes[0].name}/${head}`;
         }
         let renderString = `Head: ${head}\n${merge}\nHelp: g?`;
@@ -157,7 +153,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 to = `to ${this.repo.state.remotes[0].name}/${head} `;
             }
             const commits = this.unpushedCommits.map(c =>
-                c.hash.slice(0, 8) + " " + c.message
+                c.hash.slice(0, 8) + " " + c.message.split("\n")[0].slice(0, 80)
             ).join('\n');
             renderString += `\n\nUnpushed ${to}(${len}):\n${commits}`;
         }
@@ -165,10 +161,14 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     async getDocOrRefreshIfExists(uri: vscode.Uri) {
-        if (this.repo?.state.remotes[0]) {
+        this.refs = await this.repo.getRefs({});
+        const hasRemoteBranch = this.repo?.state.remotes[0] &&
+            this.refs.some(branch => branch.name === this.repo.state.remotes[0].name + "/" + this.repo.state.HEAD?.name); //e.g. origin/branchname
+
+        if (hasRemoteBranch) {
             this.unpushedCommits = await this.repo.log({ range: this.repo.state.remotes[0].name + "/" + this.repo.state.HEAD?.name + "..HEAD" });
         } else {
-            this.unpushedCommits = await this.repo.log({ range: "HEAD" });
+            this.unpushedCommits = [];
         }
         let doc = vscode.workspace.textDocuments.find(doc => doc.uri.scheme === Provider.myScheme);
         if (doc) {
@@ -226,7 +226,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
             await this.repo.add([resource.ressource.uri.path]);
             return;
         }
-        if (resource.type == "Unstaged") {
+        if (resource.type === "Unstaged") {
             this.setNewCursor('stage', resource.index);
             console.debug('stage ', resource.ressource.uri.path);
             await this.repo.add([resource.ressource.uri.path]);
@@ -393,10 +393,10 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     setNewCursor(operation: 'merge' | 'track' | 'stage' | 'unstage', index: number) {
         if (operation === 'merge') {
-            console.log('merge');
+            console.debug('merge');
             const merge = this.repo.state.mergeChanges;
-            if (index == merge.length - 1) {
-                if (index == 0) {
+            if (index === merge.length - 1) {
+                if (index === 0) {
                     this.line = this.mergeOffset;
                 } else {
                     this.line = this.mergeOffset + index - 1;
@@ -405,10 +405,10 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 this.line = this.untrackedOffset + index;
             }
         } else if (operation === 'track') {
-            console.log('track');
+            console.debug('track');
             const untracked = this.untracked();
-            if (index == untracked.length - 1) {
-                if (index == 0) {
+            if (index === untracked.length - 1) {
+                if (index === 0) {
                     this.line = this.untrackedOffset;
                 } else {
                     this.line = this.untrackedOffset + index - 1;
@@ -418,8 +418,8 @@ export class Provider implements vscode.TextDocumentContentProvider {
             }
         } else if (operation === 'stage') {
             const unstaged = this.unstaged();
-            if (index == unstaged.length - 1) {
-                if (index == 0) {
+            if (index === unstaged.length - 1) {
+                if (index === 0) {
                     this.line = this.untrackedOffset;
                 } else {
                     this.line = this.unstagedOffset + index - 1;
@@ -437,8 +437,8 @@ export class Provider implements vscode.TextDocumentContentProvider {
             ) {
                 addUnstagedOffset = 2;
             }
-            if (index == this.repo.state.indexChanges.length - 1) {
-                if (index == 0) {
+            if (index === this.repo.state.indexChanges.length - 1) {
+                if (index === 0) {
                     this.line = this.unstagedOffset;
                 } else {
                     this.line = this.stagedOffset + index + addUnstagedOffset;
@@ -510,4 +510,27 @@ export function checkForRepository() {
         return false;
     }
     return true;
+}
+
+function untracked(this: Provider) {
+    return this.repo.state.workingTreeChanges.filter(c => c.status === Status.UNTRACKED);
+}
+
+function unstaged(this: Provider) {
+    const unstagedTypes = [
+        Status.ADDED_BY_US,
+        Status.DELETED_BY_US,
+        Status.MODIFIED,
+        Status.BOTH_MODIFIED,
+        Status.BOTH_ADDED,
+    ];
+    return this.repo.state.workingTreeChanges.filter(c => unstagedTypes.includes(c.status));
+}
+
+function staged(this: Provider) {
+    return this.repo.state.indexChanges;
+}
+
+function mergeChange(this: Provider) {
+    return this.repo.state.mergeChanges;
 }
