@@ -76,6 +76,13 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 		await provider!.cleanFile();
 	}));
 
+	subscriptions.push(commands.registerCommand('fugitive.toggleInlineDiff', async () => {
+		console.debug('fugitive.toggleInlineDiff');
+		provider!.toggleInlineDiff();
+	}));
+
+
+
 	subscriptions.push(commands.registerCommand('fugitive.openDiff', async () => {
 		console.debug('fugitive.openDiff');
 		await provider!.openDiff();

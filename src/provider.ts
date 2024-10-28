@@ -3,10 +3,12 @@ import { window } from 'vscode';
 import { API as GitAPI, Change, Commit, Status, Ref } from './vscode-git';
 import { GitWrapper } from './git-wrapper';
 
-type ResourceType = 'MergeChange' | 'Untracked' | 'Staged' | 'Unstaged'
+type ResourceType = 'MergeChange' | 'Untracked' | 'Staged' | 'Unstaged' | 'UnstagedDiff' | 'StagedDiff'
+type RessourceAtCursor = { type: ResourceType, ressource: Change, index: number }
 
 export class Provider implements vscode.TextDocumentContentProvider {
     static myScheme = 'fugitive';
+
     public git: GitWrapper;
 
     //render data
@@ -18,6 +20,8 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     //status data
     private line: number;
+    private openedChangesMap: Map<string, string>; // Maps file uri to diff string
+    private openedIndexChangesMap: Map<string, string>; // Maps file uri to diff string
 
     private onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri>();
     onDidChange = this.onDidChangeEmitter.event;
@@ -27,7 +31,10 @@ export class Provider implements vscode.TextDocumentContentProvider {
         this.git = new GitWrapper(gitAPI);
 
         this.line = 0;
-        const offsets = calculateOffsets(this.git);
+        this.openedChangesMap = new Map();
+        this.openedIndexChangesMap = new Map();
+
+        const offsets = calculateOffsets(this.git, this.openedChangesMap, this.openedIndexChangesMap);
         this.mergeOffset = offsets.mergeOffset;
         this.untrackedOffset = offsets.untrackedOffset;
         this.unstagedOffset = offsets.unstagedOffset;
@@ -38,7 +45,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         this.subscriptions = this.git.repo.state.onDidChange(async () => {
             console.debug('onGitChanged');
 
-            const offsets = calculateOffsets(this.git);
+            const offsets = calculateOffsets(this.git, this.openedChangesMap, this.openedIndexChangesMap);
             this.mergeOffset = offsets.mergeOffset;
             this.untrackedOffset = offsets.untrackedOffset;
             this.unstagedOffset = offsets.unstagedOffset;
@@ -63,9 +70,28 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     }
 
-    renderChange(c: Change) {
-        return mapStatustoString(c.status) + " " + c.originalUri.path.replace(this.git.rootUri, '');
+    private setOffsets() {
+        const offsets = calculateOffsets(this.git, this.openedChangesMap, this.openedIndexChangesMap);
+        this.mergeOffset = offsets.mergeOffset;
+        this.untrackedOffset = offsets.untrackedOffset;
+        this.unstagedOffset = offsets.unstagedOffset;
+        this.stagedOffset = offsets.stagedOffset;
+        this.unpushedOffset = offsets.unpushedOffset;
     }
+
+    private renderChange(c: Change, type: ResourceType) {
+        let diffString = "";
+        switch (type) {
+            case 'Unstaged':
+                diffString = this.openedChangesMap.get(c.uri.path) ?? "";
+                break;
+            case 'Staged':
+                diffString = this.openedIndexChangesMap.get(c.uri.path) ?? "";
+                break;
+        }
+        return mapStatustoString(c.status) + " " + c.originalUri.path.replace(this.git.rootUri, '') + diffString;
+    }
+
 
     dispose() {
         this.subscriptions.dispose();
@@ -92,24 +118,24 @@ export class Provider implements vscode.TextDocumentContentProvider {
         // render untracked
         const mergeChanges = this.git.repo.state.mergeChanges;
         if (mergeChanges.length > 0) {
-            const untrackedRender = mergeChanges.map((c) => this.renderChange(c)).join('\n');
+            const untrackedRender = mergeChanges.map((c) => this.renderChange(c, "MergeChange")).join('\n');
             renderString += `\n\nMerge Changes (${mergeChanges.length}):\n${untrackedRender}`;
         }
         const untracked = this.git.untracked();
         if (untracked.length > 0) {
-            const untrackedRender = untracked.map((c) => this.renderChange(c)).join('\n');
+            const untrackedRender = untracked.map((c) => this.renderChange(c, "Untracked")).join('\n');
             renderString += `\n\nUntracked (${untracked.length}):\n${untrackedRender}`;
         }
         // render unstaged
         const unstaged = this.git.unstaged();
         if (unstaged.length > 0) {
-            const unstagedRender = unstaged.map((c) => this.renderChange(c)).join('\n');
+            const unstagedRender = unstaged.map((c) => this.renderChange(c, "Unstaged")).join('\n');
             renderString += `\n\nUnstaged (${unstaged.length}):\n${unstagedRender}`;
         }
         // render staged
         const staged = this.git.staged();
         if (staged.length > 0) {
-            const stagedRender = staged.map((c) => this.renderChange(c)).join('\n');
+            const stagedRender = staged.map((c) => this.renderChange(c, "Staged")).join('\n');
             renderString += `\n\nStaged (${staged.length}):\n${stagedRender}`;
         }
 
@@ -135,12 +161,15 @@ export class Provider implements vscode.TextDocumentContentProvider {
         if (doc) {
             this.onDidChangeEmitter.fire(uri);
         } else {
+            this.openedChangesMap.clear();
+            this.openedIndexChangesMap.clear();
             doc = await vscode.workspace.openTextDocument(uri); // calls back into the provider
         }
         return doc;
     }
 
     goStaged() {
+        console.debug("goStaged");
         if (this.git.staged().length > 0) {
             window.activeTextEditor!.selection =
                 new vscode.Selection(new vscode.Position(this.stagedOffset, 0), new vscode.Position(this.stagedOffset, 0));
@@ -259,6 +288,53 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
     }
 
+    async toggleInlineDiff() {
+        const ressource = this.getResourceUnderCursor();
+        if (!ressource?.ressource) {
+            return;
+        }
+
+        if (ressource.type == "Unstaged") {
+            if (this.openedChangesMap.has(ressource.ressource.uri.path)) {
+                this.openedChangesMap.delete(ressource.ressource.uri.path);
+            } else {
+                const diffString = await this.getDiffString(ressource.ressource.uri.path, ressource.type);
+                this.openedChangesMap.set(ressource.ressource.uri.path, diffString);
+            }
+            this.setNewCursor("diff", ressource.index);
+        }
+        if (ressource.type == "Staged") {
+            if (this.openedIndexChangesMap.has(ressource.ressource.uri.path)) {
+                this.openedIndexChangesMap.delete(ressource.ressource.uri.path);
+            } else {
+                const diffString = await this.getDiffString(ressource.ressource.uri.path, ressource.type);
+                this.openedIndexChangesMap.set(ressource.ressource.uri.path, diffString);
+            }
+            this.setNewCursor("diffIndex", ressource.index);
+        }
+        if (ressource.type == "StagedDiff") {
+            this.openedIndexChangesMap.delete(ressource.ressource.uri.path);
+            this.setNewCursor("diffIndex", ressource.index);
+        }
+        if (ressource.type == "UnstagedDiff") {
+            this.openedChangesMap.delete(ressource.ressource.uri.path);
+            this.setNewCursor("diff", ressource.index);
+        }
+        this.setOffsets();
+
+        this.onDidChangeEmitter.fire(vscode.Uri.parse('fugitive:Fugitive'));
+    }
+
+    async getDiffString(path: string, type: ResourceType) {
+        if (type === "Unstaged") {
+            return "\n" + (await this.git.repo.diffWithHEAD(path)).split('\n').slice(4).join("\n");
+        }
+        if (type === "Staged") {
+            return "\n" + (await this.git.repo.diffIndexWithHEAD(path)).split('\n').slice(4).join("\n");
+        }
+        return "";
+    }
+
     async openDiff() {
         const ressource = this.getResourceUnderCursor()?.ressource;
         if (!ressource) {
@@ -317,12 +393,12 @@ export class Provider implements vscode.TextDocumentContentProvider {
         await window.showTextDocument(doc, { preview: false, viewColumn: vscode.ViewColumn.Beside });
     }
 
-    getResourceUnderCursor(): { type: ResourceType, ressource: Change, index: number } | null {
+    private getResourceUnderCursor(): RessourceAtCursor | null {
         let ressource: Change | null = null;
         const line = window.activeTextEditor!.selection.active.line;
         let ressourceIndex = line - this.mergeOffset;
         // check if in merge changes
-        const merge = this.git.repo.state.mergeChanges;
+        const merge = this.git.mergeChanges();
         if (ressourceIndex >= 0 && ressourceIndex < merge.length) {
             ressource = merge[ressourceIndex];
             return { type: 'MergeChange', ressource: ressource, index: ressourceIndex };
@@ -336,24 +412,38 @@ export class Provider implements vscode.TextDocumentContentProvider {
         // check if in unstaged
         ressourceIndex = line - this.unstagedOffset;
         const unstaged = this.git.unstaged();
-        if (ressourceIndex >= 0 && ressourceIndex < unstaged.length) {
-            return { type: 'Unstaged', ressource: unstaged[ressourceIndex], index: ressourceIndex };
+        const unstagedMock: RessourceAtCursor[] = this.getMockRessources(unstaged, "Unstaged");
+        if (ressourceIndex >= 0 && ressourceIndex < unstagedMock.length) {
+            return unstagedMock[ressourceIndex];
         }
         // check if in staged
         ressourceIndex = line - this.stagedOffset;
         const staged = this.git.staged();
-        if (ressourceIndex >= 0 && ressourceIndex < staged.length) {
-            return {
-                type: 'Staged',
-                ressource: staged[ressourceIndex],
-                index: ressourceIndex
-            };
+        const stagedMock: RessourceAtCursor[] = this.getMockRessources(staged, "Staged");
+        if (ressourceIndex >= 0 && ressourceIndex < stagedMock.length) {
+            return stagedMock[ressourceIndex];
         }
         return null;
 
     }
 
-    setNewCursor(operation: 'merge' | 'track' | 'stage' | 'unstage', index: number) {
+    private getMockRessources(changes: Change[], type: ResourceType): RessourceAtCursor[] {
+        const unstagedMock: RessourceAtCursor[] = [];
+        let index = 0;
+        const map = type === "Staged" ? this.openedIndexChangesMap : this.openedChangesMap;
+        const diffType = type === "Staged" ? "StagedDiff" : "UnstagedDiff";
+        for (const c of changes) {
+            unstagedMock.push({ type: type, ressource: c, index: index });
+            const arr = (map.get(c.uri.path) ?? "").split("\n");
+            arr.pop();
+            const mappedArr: RessourceAtCursor[] = arr.map((_, i) => ({ type: diffType, ressource: c, index: index }));
+            unstagedMock.push(...mappedArr);
+            index += arr.length + 1;
+        }
+        return unstagedMock;
+    }
+
+    private setNewCursor(operation: 'merge' | 'track' | 'stage' | 'unstage' | 'diff' | 'diffIndex', index: number) {
         if (operation === 'merge') {
             console.debug('merge');
             const merge = this.git.repo.state.mergeChanges;
@@ -408,6 +498,10 @@ export class Provider implements vscode.TextDocumentContentProvider {
             } else {
                 this.line = this.stagedOffset + index + 1 + addUnstagedOffset;
             }
+        } else if (operation === 'diff') {
+            this.line = this.unstagedOffset + index;
+        } else if (operation === 'diffIndex') {
+            this.line = this.stagedOffset + index;
         } else {
             throw Error(operation + " not implemented");
         }
@@ -460,16 +554,19 @@ function mapStatustoString(status: number) {
 }
 
 
-function calculateOffsets(git: GitWrapper) {
+function calculateOffsets(git: GitWrapper, diffs: Map<string, string>, indexDiffs: Map<string, string>) {
     const mergeLen = git.mergeChanges().length;
     const untrackedLen = git.untracked().length;
     const unstagedLen = git.unstaged().length;
     const stagedLen = git.staged().length;
 
+    const unstagedDiffLen = Array.from(diffs.values()).map(str => str.split("\n").length - 1).reduce((a, b) => a + b, 0);
+    const stagedDiffLen = Array.from(indexDiffs.values()).map(str => str.split("\n").length - 1).reduce((a, b) => a + b, 0);
+
     const mergeOffset = 5;
     const untrackedOffset = mergeOffset + mergeLen + Number(mergeLen > 0) * 2;
     const unstagedOffset = untrackedOffset + untrackedLen + Number(untrackedLen > 0) * 2;
-    const stagedOffset = unstagedOffset + unstagedLen + Number(unstagedLen > 0) * 2;
-    const unpushedOffset = stagedOffset + stagedLen + Number(stagedLen > 0) * 2;
+    const stagedOffset = unstagedOffset + unstagedLen + Number(unstagedLen > 0) * 2 + unstagedDiffLen;
+    const unpushedOffset = stagedOffset + stagedLen + Number(stagedLen > 0) * 2 + stagedDiffLen;
     return { mergeOffset, untrackedOffset, unstagedOffset, stagedOffset, unpushedOffset };
 }

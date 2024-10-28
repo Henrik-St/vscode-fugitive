@@ -53,6 +53,11 @@
 				"when": "resourceScheme == fugitive"
 			},
 			{
+				"command": "fugitive.toggleInlineDiff",
+				"title": "Fugitive: Toggle inline diff",
+				"when": "resourceScheme == fugitive"
+			},
+			{
 				"command": "fugitive.commit",
 				"title": "Fugitive: commit",
 				"when": "resourceScheme == fugitive"
@@ -127,6 +132,11 @@
 			{
 				"command": "fugitive.clean",
 				"key": "shift+x",
+				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+			},
+			{
+				"command": "fugitive.toggleInlineDiff",
+				"key": "shift+0",
 				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
 			},
 			{

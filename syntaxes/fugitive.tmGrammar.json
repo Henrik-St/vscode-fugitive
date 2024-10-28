@@ -22,6 +22,18 @@
             "match": "(?<=\\().(?=\\):\n)"
         },
         {
+            "name": "comment.line.double-dash",
+            "match": "@@.*@@"
+        },
+        {
+            "name": "constant.numeric",
+            "match": "^\\+.*"
+        },
+        {
+            "name": "invalid.illegal",
+            "match": "^\\-.*"
+        },
+        {
             "name": "constant.character.escape",
             "match": "M |R "
         },
