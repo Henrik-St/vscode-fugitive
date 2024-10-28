@@ -8,6 +8,7 @@ type RessourceAtCursor = { type: ResourceType, ressource: Change, index: number 
 
 export class Provider implements vscode.TextDocumentContentProvider {
     static myScheme = 'fugitive';
+    static uri = vscode.Uri.parse(Provider.myScheme + ':Fugitive');
 
     public git: GitWrapper;
 
@@ -154,16 +155,16 @@ export class Provider implements vscode.TextDocumentContentProvider {
         return renderString;
     }
 
-    async getDocOrRefreshIfExists(uri: vscode.Uri) {
+    async getDocOrRefreshIfExists() {
         console.debug("getDocOrRefreshIfExists");
         await this.git.cacheInfo();
-        let doc = vscode.workspace.textDocuments.find(doc => doc.uri.scheme === Provider.myScheme);
+        let doc = vscode.workspace.textDocuments.find(doc => doc.uri === Provider.uri);
         if (doc) {
-            this.onDidChangeEmitter.fire(uri);
+            this.onDidChangeEmitter.fire(Provider.uri);
         } else {
             this.openedChangesMap.clear();
             this.openedIndexChangesMap.clear();
-            doc = await vscode.workspace.openTextDocument(uri); // calls back into the provider
+            doc = await vscode.workspace.openTextDocument(Provider.uri);
         }
         return doc;
     }
@@ -218,6 +219,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
         if (resource.type === "Unstaged") {
             this.setNewCursor('stage', resource.index);
+            this.openedChangesMap.delete(resource.ressource.uri.path);
             console.debug('stage ', resource.ressource.uri.path);
             await this.git.repo.add([resource.ressource.uri.path]);
             return;
@@ -244,6 +246,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
         if (resource.type === "Staged") {
             this.setNewCursor('unstage', resource.index);
+            this.openedChangesMap.delete(resource.ressource.uri.path);
             console.debug('unstage ', resource.ressource.uri.path);
             await this.git.repo.revert([resource.ressource.uri.path]);
         }
@@ -322,7 +325,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
         this.setOffsets();
 
-        this.onDidChangeEmitter.fire(vscode.Uri.parse('fugitive:Fugitive'));
+        this.onDidChangeEmitter.fire(Provider.uri);
     }
 
     async getDiffString(path: string, type: ResourceType) {

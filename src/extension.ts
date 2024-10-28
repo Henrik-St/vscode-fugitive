@@ -25,8 +25,7 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 			provider = new Provider(dependencies.gitAPI);
 			subscriptions.push(workspace.registerTextDocumentContentProvider(Provider.myScheme, provider));
 		}
-		const uri = Uri.parse('fugitive:Fugitive');
-		const doc = await provider.getDocOrRefreshIfExists(uri);
+		const doc = await provider.getDocOrRefreshIfExists();
 		await window.showTextDocument(doc, { preview: false });
 	}));
 
