@@ -1,13 +1,15 @@
 import * as vscode from 'vscode';
 import { window, workspace, commands, Uri } from 'vscode';
-import { Provider, checkForRepository } from './provider';
+import { Provider } from './provider';
+import { GitExtension } from './vscode-git';
 
 export function activate({ subscriptions }: vscode.ExtensionContext) {
 
 	console.debug('fugitive.activate');
 	let provider: Provider | null = null;
-	if (checkForRepository()) {
-		provider = new Provider();
+	const dependencies = getDependencies();
+	if (dependencies) {
+		provider = new Provider(dependencies.gitAPI);
 		subscriptions.push(workspace.registerTextDocumentContentProvider(Provider.myScheme, provider));
 	}
 
@@ -15,15 +17,15 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 	subscriptions.push(commands.registerCommand('fugitive.open', async () => {
 		console.debug('fugitive.open');
 
-		if (!provider?.repo) {
-			if (!checkForRepository()) {
+		if (!provider) {
+			const dependencies = getDependencies();
+			if (!dependencies) {
 				return;
 			}
-			provider = new Provider();
+			provider = new Provider(dependencies.gitAPI);
 			subscriptions.push(workspace.registerTextDocumentContentProvider(Provider.myScheme, provider));
 		}
-		const uri = Uri.parse('fugitive:Fugitive');
-		const doc = await provider.getDocOrRefreshIfExists(uri);
+		const doc = await provider.getDocOrRefreshIfExists();
 		await window.showTextDocument(doc, { preview: false });
 	}));
 
@@ -73,6 +75,13 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 		await provider!.cleanFile();
 	}));
 
+	subscriptions.push(commands.registerCommand('fugitive.toggleInlineDiff', async () => {
+		console.debug('fugitive.toggleInlineDiff');
+		provider!.toggleInlineDiff();
+	}));
+
+
+
 	subscriptions.push(commands.registerCommand('fugitive.openDiff', async () => {
 		console.debug('fugitive.openDiff');
 		await provider!.openDiff();
@@ -90,8 +99,8 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 
 	subscriptions.push(commands.registerCommand('fugitive.commit', async () => {
 		console.debug('fugitive.commit');
-		if (provider!.repo.state.indexChanges.length > 0) {
-			await provider!.repo.commit('', { useEditor: true });
+		if (provider!.git.repo.state.indexChanges.length > 0) {
+			await provider!.git.repo.commit('', { useEditor: true });
 		} else {
 			window.showWarningMessage("Fugitive: Nothing to commit");
 		}
@@ -99,11 +108,11 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 
 	subscriptions.push(commands.registerCommand('fugitive.amend', async () => {
 		console.debug('fugitive.amend');
-		await provider!.repo.commit('', { useEditor: true, amend: true });
+		await provider!.git.repo.commit('', { useEditor: true, amend: true });
 	}));
 	subscriptions.push(commands.registerCommand('fugitive.amendNoEdit', async () => {
 		console.debug('fugitive.amend');
-		await provider!.repo.commit('', { amend: true });
+		await provider!.git.repo.commit('', { amend: true });
 	}));
 
 	subscriptions.push(commands.registerCommand('fugitive.stash', async () => {
@@ -223,3 +232,18 @@ function _getTerminal(): vscode.Terminal {
 	return term;
 }
 
+
+function getDependencies() {
+	console.debug("checkForRepository");
+	const gitExtension: GitExtension = vscode.extensions.getExtension('vscode.git')?.exports;
+	if (!gitExtension || !gitExtension.enabled) {
+		window.showWarningMessage('Fugitive: No git extension found or not enabled.');
+		return null;
+	}
+	const api = gitExtension.getAPI(1);
+	if (api.repositories.length === 0 && !api.repositories[0]?.state.HEAD?.name) {
+		window.showWarningMessage('Fugitive: No git repository initialized');
+		return null;
+	}
+	return { gitAPI: api };
+}

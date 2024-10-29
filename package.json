@@ -2,7 +2,7 @@
 	"name": "vscode-fugitive",
 	"displayName": "Fugitive for VS Code",
 	"description": "This is simple extension that adds a subset of the fugitive plugin to VS Code",
-	"version": "0.0.15",
+	"version": "0.0.17",
 	"publisher": "hnrk-str",
 	"private": true,
 	"license": "MIT",
@@ -50,6 +50,11 @@
 			{
 				"command": "fugitive.clean",
 				"title": "Fugitive: clean",
+				"when": "resourceScheme == fugitive"
+			},
+			{
+				"command": "fugitive.toggleInlineDiff",
+				"title": "Fugitive: Toggle inline diff",
 				"when": "resourceScheme == fugitive"
 			},
 			{
@@ -127,6 +132,11 @@
 			{
 				"command": "fugitive.clean",
 				"key": "shift+x",
+				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+			},
+			{
+				"command": "fugitive.toggleInlineDiff",
+				"key": "shift+0",
 				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
 			},
 			{
