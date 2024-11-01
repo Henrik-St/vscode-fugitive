@@ -331,13 +331,14 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     async getDiffString(path: string, type: ResourceType) {
-        if (type === "Unstaged") {
-            return "\n" + (await this.git.repo.diffWithHEAD(path)).split('\n').slice(4).join("\n");
+        if (type !== "Staged" && type !== "Unstaged") {
+            return "";
         }
-        if (type === "Staged") {
-            return "\n" + (await this.git.repo.diffIndexWithHEAD(path)).split('\n').slice(4).join("\n");
+        const diff = await this.git.getDiffString(path, type);
+        if (!diff) {
+            return "";
         }
-        return "";
+        return "\n" + diff;
     }
 
     async openDiff() {
@@ -419,7 +420,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
         const unstaged = this.git.unstaged();
         const unstagedMock: RessourceAtCursor[] = this.getMockRessources(unstaged, "Unstaged");
         if (ressourceIndex >= 0 && ressourceIndex < unstagedMock.length) {
-            console.log(unstagedMock[ressourceIndex]);
             return unstagedMock[ressourceIndex];
         }
         // check if in staged
@@ -427,7 +427,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
         const staged = this.git.staged();
         const stagedMock: RessourceAtCursor[] = this.getMockRessources(staged, "Staged");
         if (ressourceIndex >= 0 && ressourceIndex < stagedMock.length) {
-            console.log(stagedMock[ressourceIndex]);
             return stagedMock[ressourceIndex];
         }
         return null;
@@ -444,7 +443,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
             unstagedMock.push({ type: type, ressource: c, changeIndex: changeIndex, renderIndex: renderIndex });
             const diffRender = (map.get(c.uri.path) ?? "").split("\n");
             diffRender.pop();
-            console.log(diffRender.length);
             const mappedArr: RessourceAtCursor[] = diffRender.map((_, i) => ({ type: diffType, ressource: c, changeIndex: changeIndex, renderIndex: renderIndex }));
             unstagedMock.push(...mappedArr);
             changeIndex += 1;
@@ -490,7 +488,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 this.line = this.unstagedOffset + changeIndex;
             }
         } else if (operation === 'unstage') {
-            console.log(changeIndex);
             const ressourceStatus = this.git.staged()[changeIndex].status;
             let addUnstagedOffset = 0;
             const untrackedLen = this.git.untracked().length;
@@ -512,6 +509,12 @@ export class Provider implements vscode.TextDocumentContentProvider {
         } else if (operation === 'diff') {
             this.line = this.unstagedOffset + changeIndex;
         } else if (operation === 'diffIndex') {
+            this.line = this.stagedOffset + changeIndex;
+        } else if (operation === 'cleanUntracked') {
+            this.line = this.untrackedOffset + changeIndex;
+        } else if (operation === 'cleanUnstaged') {
+            this.line = this.unstagedOffset + changeIndex;
+        } else if (operation === 'cleanStaged') {
             this.line = this.stagedOffset + changeIndex;
         } else {
             throw Error(operation + " not implemented");

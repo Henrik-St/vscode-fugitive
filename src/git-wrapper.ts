@@ -45,15 +45,6 @@ export class GitWrapper {
     }
 
     unstaged() {
-        // const unstagedTypes = [
-        //     Status.ADDED_BY_US,
-        //     Status.DELETED_BY_US,
-        //     Status.DELETED,
-        //     Status.MODIFIED,
-        //     Status.BOTH_MODIFIED,
-        //     Status.BOTH_ADDED,
-        // ];
-        // return this.repo.state.workingTreeChanges.filter(c => unstagedTypes.includes(c.status));
         return this.repo.state.workingTreeChanges.filter(c => c.status !== Status.UNTRACKED);
     }
 
@@ -63,6 +54,27 @@ export class GitWrapper {
 
     mergeChanges() {
         return this.repo.state.mergeChanges;
+    }
+
+    async getDiffString(path: string, type: "Unstaged" | "Staged") {
+        let diff: string = "";
+        if (type === "Unstaged") {
+            diff = await this.repo.diffWithHEAD(path); // remove diff --git ...
+        } else {
+            diff = await this.repo.diffIndexWithHEAD(path);
+        }
+        const diffArr = diff.split('\n').slice(1); // remove diff --git ...
+        const newDiff = [];
+        let diffStarted = false;
+        for (const line of diffArr) {
+            if (diffStarted || line.startsWith("@@")) { //diff starts
+                diffStarted = true;
+                newDiff.push(line);
+            } else {
+                continue;
+            }
+        }
+        return newDiff.join("\n");
     }
 
 }
