@@ -7,7 +7,7 @@ This extension ports the [Fugitive](https://github.com/tpope/vim-fugitive.git) p
 This extension is meant to be used with the [vscodevim.vim](https://marketplace.visualstudio.com/items?itemName=vscodevim.vim) plugin.
 
 ## Keymaps
-The following table shows available keymaps.
+The following table shows the available keymaps.
 Keymaps with an asterisk are done with a VS Code specific customization.
 
 | Command                   | Keymapping | Description                                            |
