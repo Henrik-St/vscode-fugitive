@@ -226,8 +226,9 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 title: "Merge with conflicts?",
             };
 
-            const value = await window.showQuickPick(["Merge conflicts", "cancel"], options);
-            return value === "Merge with conflicts";
+            const success_text = "Merge conflicts";
+            const value = await window.showQuickPick(["cancel", success_text], options);
+            return value === success_text;
         }
         return true;
     }
