@@ -1,8 +1,8 @@
 {
 	"name": "vscode-fugitive",
 	"displayName": "Fugitive for VS Code",
-	"description": "This is simple extension that adds a subset of the fugitive plugin to VS Code",
-	"version": "0.0.17",
+	"description": "This is a simple extension that adds a subset of the fugitive plugin to VS Code",
+	"version": "0.0.18",
 	"publisher": "hnrk-str",
 	"private": true,
 	"license": "MIT",
