@@ -36,7 +36,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
         this.openedIndexChangesMap = new Map();
 
         const offsets = calculateOffsets(this.git, this.openedChangesMap, this.openedIndexChangesMap);
-        console.log(offsets);
         this.mergeOffset = offsets.mergeOffset;
         this.untrackedOffset = offsets.untrackedOffset;
         this.unstagedOffset = offsets.unstagedOffset;
@@ -67,7 +66,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     private setOffsets() {
         const offsets = calculateOffsets(this.git, this.openedChangesMap, this.openedIndexChangesMap);
-        console.log(offsets);
         this.mergeOffset = offsets.mergeOffset;
         this.untrackedOffset = offsets.untrackedOffset;
         this.unstagedOffset = offsets.unstagedOffset;
@@ -527,13 +525,12 @@ function calculateOffsets(git: GitWrapper, diffs: Map<string, string>, indexDiff
     const unstagedLen = git.unstaged().length;
     const stagedLen = git.staged().length;
     const unpushedLen = git.cachedUnpushedCommits.length;
-    const baseLen = 0;
 
     if ((mergeLen + untrackedLen + unstagedLen + stagedLen + unpushedLen) === 0) {
         return { mergeOffset: 0, untrackedOffset: 0, unstagedOffset: 0, stagedOffset: 0, unpushedOffset: 0 };
     }
 
-    const offsetArr = [baseLen, mergeLen, untrackedLen, unstagedLen, stagedLen, unpushedLen];
+    const offsetArr = [0, mergeLen, untrackedLen, unstagedLen, stagedLen, unpushedLen];
     const lenArr = offsetArr.map(len => len > 0 ? len + 2 : 0);
     offsetArr[0] = 5;
 
@@ -550,7 +547,6 @@ function calculateOffsets(git: GitWrapper, diffs: Map<string, string>, indexDiff
         }
         offsetArr[i] = offsetArr[j] + lenArr[j];
     }
-    console.log(offsetArr);
 
 
     const unstagedDiffLen = Array.from(diffs.values()).map(str => str.split("\n").length - 1).reduce((a, b) => a + b, 0);
