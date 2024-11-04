@@ -36,6 +36,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         this.openedIndexChangesMap = new Map();
 
         const offsets = calculateOffsets(this.git, this.openedChangesMap, this.openedIndexChangesMap);
+        console.log(offsets);
         this.mergeOffset = offsets.mergeOffset;
         this.untrackedOffset = offsets.untrackedOffset;
         this.unstagedOffset = offsets.unstagedOffset;
@@ -66,6 +67,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     private setOffsets() {
         const offsets = calculateOffsets(this.git, this.openedChangesMap, this.openedIndexChangesMap);
+        console.log(offsets);
         this.mergeOffset = offsets.mergeOffset;
         this.untrackedOffset = offsets.untrackedOffset;
         this.unstagedOffset = offsets.unstagedOffset;
@@ -525,14 +527,40 @@ function calculateOffsets(git: GitWrapper, diffs: Map<string, string>, indexDiff
     const unstagedLen = git.unstaged().length;
     const stagedLen = git.staged().length;
     const unpushedLen = git.cachedUnpushedCommits.length;
+    const baseLen = 0;
+
+    if ((mergeLen + untrackedLen + unstagedLen + stagedLen + unpushedLen) === 0) {
+        return { mergeOffset: 0, untrackedOffset: 0, unstagedOffset: 0, stagedOffset: 0, unpushedOffset: 0 };
+    }
+
+    const offsetArr = [baseLen, mergeLen, untrackedLen, unstagedLen, stagedLen, unpushedLen];
+    const lenArr = offsetArr.map(len => len > 0 ? len + 2 : 0);
+    offsetArr[0] = 5;
+
+    for (let i = 1; i < offsetArr.length; i++) {
+        if (lenArr[i] === 0) {
+            offsetArr[i] = offsetArr[i - 1];
+            continue;
+        }
+        let j = i - 1;
+        for (; j > 0; j--) {
+            if (lenArr[j] > 0) {
+                break;
+            }
+        }
+        offsetArr[i] = offsetArr[j] + lenArr[j];
+    }
+    console.log(offsetArr);
+
 
     const unstagedDiffLen = Array.from(diffs.values()).map(str => str.split("\n").length - 1).reduce((a, b) => a + b, 0);
     const stagedDiffLen = Array.from(indexDiffs.values()).map(str => str.split("\n").length - 1).reduce((a, b) => a + b, 0);
 
-    const mergeOffset = (mergeLen + untrackedLen + unstagedLen + stagedLen + unpushedLen) > 0 ? 5 : 0;
-    const untrackedOffset = mergeOffset + Number(stagedLen > 0) * (mergeLen + Number(mergeLen > 0) * 2);
-    const unstagedOffset = untrackedOffset + Number(unstagedLen > 0) * (untrackedLen + Number(untrackedLen > 0) * 2);
-    const stagedOffset = unstagedOffset + Number(stagedLen > 0) * (unstagedLen + Number(unstagedLen > 0) * 2) + unstagedDiffLen;
-    const unpushedOffset = stagedOffset + Number(unpushedLen > 0) * (stagedLen + Number(stagedLen > 0) * 2) + stagedDiffLen;
-    return { mergeOffset, untrackedOffset, unstagedOffset, stagedOffset, unpushedOffset };
+    // const mergeOffset = (mergeLen + untrackedLen + unstagedLen + stagedLen + unpushedLen) > 0 ? 5 : 0; // 5 if there is content
+    // const untrackedOffset = startOfNextSection;
+    // const unstagedOffset = startOfNextSection;
+    // untrackedOffset + Number(untrackedLen > 0) * (untrackedLen + 2) + Number(untrackedLen === 0 && mergeLen > 0) * (mergeLen + 2);
+    // const stagedOffset = unstagedOffset + Number(mergeLen + untrackedLen + unstagedLen > 0) * (unstagedLen + 2) + unstagedDiffLen;
+    // const unpushedOffset = stagedOffset + Number(mergeLen + untrackedLen + unstagedLen + stagedLen > 0) * (stagedLen + 2) + stagedDiffLen;
+    return { mergeOffset: offsetArr[1], untrackedOffset: offsetArr[2], unstagedOffset: offsetArr[3], stagedOffset: offsetArr[4] + unstagedDiffLen, unpushedOffset: offsetArr[5] + stagedDiffLen };
 }
