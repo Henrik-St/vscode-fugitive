@@ -2,7 +2,7 @@ import { API as GitAPI, Repository, Commit, Status, GitExtension, Ref } from './
 
 export class GitWrapper {
 
-    private api: GitAPI;
+    api: GitAPI;
     repo: Repository;
     rootUri: string;
 
@@ -56,25 +56,29 @@ export class GitWrapper {
         return this.repo.state.mergeChanges;
     }
 
-    async getDiffString(path: string, type: "Unstaged" | "Staged") {
+    async getDiffStrings(path: string, type: "Unstaged" | "Staged") {
         let diff: string = "";
         if (type === "Unstaged") {
             diff = await this.repo.diffWithHEAD(path); // remove diff --git ...
         } else {
             diff = await this.repo.diffIndexWithHEAD(path);
         }
-        const diffArr = diff.split('\n').slice(1); // remove diff --git ...
-        const newDiff = [];
-        let diffStarted = false;
-        for (const line of diffArr) {
-            if (diffStarted || line.startsWith("@@")) { //diff starts
-                diffStarted = true;
-                newDiff.push(line);
-            } else {
-                continue;
+        const diffArr = diff.split('\n'); // remove diff --git ...
+
+        const newDiffs: string[][] = [[]];
+        let diffIndex = 0;
+        for (const line in diffArr) {
+            if (line.startsWith("@@")) {
+                diffIndex += 1;
+                newDiffs.push([]);
             }
+            newDiffs[diffIndex].push(line);
         }
-        return newDiff.join("\n");
+        newDiffs.shift(); // remove first empty array
+        const newDiffStrings = newDiffs.map(diff => diff.join("\n"));
+
+
+        return newDiffStrings;
     }
 
 }
