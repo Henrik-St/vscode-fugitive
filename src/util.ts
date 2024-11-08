@@ -15,7 +15,7 @@ export async function applyPatchToFile(stagedFile: string, patch: string, revers
         return { line: line.slice(1), index: index + patchOffset, operation: lineToDiffOperation(line, reverse) };
     });
 
-    // console.log(fileLines);
+    // create new file with patch applied
     const newFile = oldfileLines.splice(0, patchOffset - 1);
     for (const patchLine of parsedPatchLines) {
         if (patchLine.operation === "Add") {
@@ -24,7 +24,9 @@ export async function applyPatchToFile(stagedFile: string, patch: string, revers
             // Skip the line
             oldfileLines.splice(0, 1);
         } else {
-            newFile.push(oldfileLines.splice(0, 1)[0]);
+            let oldLine = oldfileLines.splice(0, 1)[0];
+            oldLine = !oldLine && !patchLine.line ? "" : oldLine; //Handle trailing newlines
+            (oldLine || oldLine === "") && newFile.push(oldLine);
         }
     }
     newFile.push(...oldfileLines);

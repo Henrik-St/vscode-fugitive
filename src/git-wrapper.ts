@@ -9,6 +9,8 @@ export class GitWrapper {
 
     cachedRefs: Ref[];
     cachedUnpushedCommits: Commit[];
+    cachedUnstagedDiffs: Map<string, string[]>;
+    cachedStagedDiffs: Map<string, string[]>;
 
     constructor(gitAPI: GitAPI) {
         this.api = gitAPI;
@@ -16,6 +18,8 @@ export class GitWrapper {
         this.rootUri = this.repo.rootUri.path;
         this.cachedRefs = [];
         this.cachedUnpushedCommits = [];
+        this.cachedUnstagedDiffs = new Map<string, string[]>();
+        this.cachedStagedDiffs = new Map<string, string[]>();
     }
 
     async getRefs(): Promise<Ref[]> {
@@ -57,49 +61,40 @@ export class GitWrapper {
         return this.repo.state.mergeChanges;
     }
 
-    async getDiffStrings(path: string, type: "Unstaged" | "Staged") {
-        let diff: string = "";
-        if (type === "Unstaged") {
-            diff = await this.getDiffPerPath(path);
-            console.log("diff", diff);
-        } else {
-            diff = await this.repo.diffIndexWithHEAD(path);
-        }
-        const diffArr = diff.split('\n');
-
-        const newDiffs: string[][] = [[]];
-        let diffIndex = 0;
-        for (const line of diffArr) {
-            if (line.startsWith("@@")) {
-                diffIndex += 1;
-                newDiffs.push([]);
-            }
-            newDiffs[diffIndex].push(line);
-        }
-        newDiffs.shift(); // remove first empty array
-        const newDiffStrings = newDiffs.map(diff => diff.join("\n"));
-
-        return newDiffStrings;
-    }
-
-
-    private async getDiffPerPath(path: string): Promise<string> {
-        const shortPath = path.replace(this.rootUri, "");
-        const diffs = (await this.repo.diff(false)).split("\n");
-        const resultDiff = [];
-        let diffStarted = false;
+    public async updateDiffMap(index: boolean): Promise<void> {
+        let currentPath = "";
+        const diffs = (await this.repo.diff(index)).split("\n");
+        const resultMap = new Map<string, string[]>();
+        let diffCount = -1;
         for (const line of diffs) {
             if (line.startsWith("diff --git")) {
-                if (line.search(shortPath) !== -1) {
-                    diffStarted = true;
-                } else {
-                    diffStarted = false;
-                }
+                const match = line.match(/diff --git a\/(.*) b\/(.*)/);
+                currentPath = match ? (this.rootUri + "/" + match[1]) : "";
+                diffCount = -1;
                 continue;
             } else {
-                diffStarted && resultDiff.push(line);
+                if (line.startsWith("@@")) {
+                    diffCount += 1;
+                }
+                if (diffCount >= 0 && currentPath) {
+                    const change = resultMap.get(currentPath);
+                    if (change) {
+                        if (change.length > diffCount) {
+                            change[diffCount] = change[diffCount].concat("\n", line);
+                            resultMap.set(currentPath, change);
+                        } else {
+                            change.push(line);
+                        }
+                    } else {
+                        resultMap.set(currentPath, [line]);
+                    }
+                }
             }
         }
-        return resultDiff.join("\n");
+        if (index) {
+            this.cachedStagedDiffs = resultMap;
+        } else {
+            this.cachedUnstagedDiffs = resultMap;
+        }
     }
 }
