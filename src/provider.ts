@@ -5,7 +5,7 @@ import { GitWrapper } from './git-wrapper';
 import { applyPatchToFile } from './util';
 
 type ResourceType = 'MergeChange' | 'Untracked' | 'Staged' | 'Unstaged' | 'UnstagedDiff' | 'StagedDiff'
-type RessourceAtCursor = { type: ResourceType, ressource: Change, changeIndex: number, renderIndex: number }
+type RessourceAtCursor = { type: ResourceType, ressource: Change, changeIndex: number, renderIndex: number, diffIndex?: number }
 
 export class Provider implements vscode.TextDocumentContentProvider {
     static myScheme = 'fugitive';
@@ -67,6 +67,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     private setOffsets() {
         const offsets = calculateOffsets(this.git, this.openedChangesMap, this.openedIndexChangesMap);
+        console.log(offsets);
         this.mergeOffset = offsets.mergeOffset;
         this.untrackedOffset = offsets.untrackedOffset;
         this.unstagedOffset = offsets.unstagedOffset;
@@ -83,6 +84,9 @@ export class Provider implements vscode.TextDocumentContentProvider {
             case 'Staged':
                 diffString = (this.openedIndexChangesMap.get(c.uri.path) ?? []).join("\n");
                 break;
+        }
+        if (diffString) {
+            diffString = "\n" + diffString;
         }
         return mapStatustoString(c.status) + " " + c.originalUri.path.replace(this.git.rootUri, '') + diffString;
     }
@@ -221,11 +225,14 @@ export class Provider implements vscode.TextDocumentContentProvider {
         if (resource.type === "UnstagedDiff") {
             console.log("test");
             const diff = await this.git.getDiffStrings(resource.ressource.uri.path, "Unstaged"); // remove diff --git ...
-            const indexedFileVersion = await this.git.repo.show("HEAD", resource.ressource.uri.path);
-            const diffAtIndex = diff[0];
+            const indexedFileVersion = await this.git.repo.show("", resource.ressource.uri.path);
 
+            if (!resource.diffIndex && resource.diffIndex !== 0) {
+                return Promise.reject("No diff index: " + resource.diffIndex);
+            }
+
+            const diffAtIndex = diff[resource.diffIndex];
             const patchedFile = await applyPatchToFile(indexedFileVersion, diffAtIndex, false);
-
             if (!patchedFile) {
                 vscode.window.showErrorMessage("Failed to stage hunk");
             }
@@ -236,12 +243,17 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 originalUri: vscode.Uri.parse("Default"), // not needed
                 mapping: "", //not needed
             };
-            vscode.commands.executeCommand('git.diff.stageHunk', stageParams).then((success) => {
-                console.debug('success ', success);
+            vscode.commands.executeCommand('git.diff.stageHunk', stageParams).then(async (success) => {
+                console.debug('git.diff.stageHunk: success: ', success);
+                if (this.git.unstaged().filter(r => r.uri === resource.ressource.uri).length > 0) {
+                    const diffStrings = await this.getDiffStrings(resource.ressource.uri.path, resource.type);
+                    this.openedChangesMap.set(resource.ressource.uri.path, diffStrings);
+                } else {
+                    this.openedChangesMap.delete(resource.ressource.uri.path);
+                }
             }, (rejected) => {
-                console.debug('rejected ', rejected);
+                console.debug('git.diff.stageHunk:rejected: ', rejected);
             });
-            // this.git.repo.buffer(diff);
         }
     }
 
@@ -332,8 +344,8 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 if (this.openedChangesMap.has(ressource.ressource.uri.path)) {
                     this.openedChangesMap.delete(ressource.ressource.uri.path);
                 } else {
-                    const diffString = await this.getDiffStrings(ressource.ressource.uri.path, ressource.type);
-                    this.openedChangesMap.set(ressource.ressource.uri.path, diffString);
+                    const diffStrings = await this.getDiffStrings(ressource.ressource.uri.path, ressource.type);
+                    this.openedChangesMap.set(ressource.ressource.uri.path, diffStrings);
                 }
                 this.setNewCursor("Unstaged", ressource.renderIndex);
                 break;
@@ -359,7 +371,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         this.onDidChangeEmitter.fire(Provider.uri);
     }
 
-    async getDiffStrings(path: string, type: ResourceType) {
+    async getDiffStrings(path: string, type: ResourceType): Promise<string[]> {
         switch (type) {
             case "Unstaged":
             case "Staged":
@@ -386,7 +398,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
         let uriLeft = ressource.ressource.uri;
         let uriRight = ressource.ressource.uri;
-        let titleType = "Working Tree";
+        let titleType = "(Working Tree)";
         switch (ressource.type) {
             case "Unstaged": {
                 uriLeft = this.git.api.toGitUri(ressource.ressource.uri, "~"); // ?
@@ -479,6 +491,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         const unstaged = this.git.unstaged();
         const unstagedMock: RessourceAtCursor[] = this.getMockRessources(unstaged, "Unstaged");
         if (ressourceIndex >= 0 && ressourceIndex < unstagedMock.length) {
+            console.log(ressourceIndex, " in unstaged");
             return unstagedMock[ressourceIndex];
         }
         // check if in staged
@@ -492,7 +505,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     }
 
-    private getMockRessources(changes: Change[], type: ResourceType): RessourceAtCursor[] {
+    private getMockRessources(changes: Change[], type: "Staged" | "Unstaged"): RessourceAtCursor[] {
         const unstagedMock: RessourceAtCursor[] = [];
         let changeIndex = 0;
         let renderIndex = 0;
@@ -500,13 +513,14 @@ export class Provider implements vscode.TextDocumentContentProvider {
         const diffType = type === "Staged" ? "StagedDiff" : "UnstagedDiff";
         for (const c of changes) {
             unstagedMock.push({ type: type, ressource: c, changeIndex: changeIndex, renderIndex: renderIndex });
-            const diffRender = (map.get(c.uri.path)?.join("\n") ?? "").split("\n");
-            diffRender.pop();
-            const mappedArr: RessourceAtCursor[] = diffRender.map((_, i) => ({ type: diffType, ressource: c, changeIndex: changeIndex, renderIndex: renderIndex }));
+            const diffRender = (map.get(c.uri.path) ?? []).map(str => str.split("\n"));
+            // diffRender.pop();
+            const mappedArr: RessourceAtCursor[] = diffRender.flatMap((diff, diffIndex) => diff.map((_) => ({ type: diffType, ressource: c, changeIndex: changeIndex, renderIndex: renderIndex, diffIndex: diffIndex })));
             unstagedMock.push(...mappedArr);
             changeIndex += 1;
             renderIndex += diffRender.length + 1;
         }
+        console.log(unstagedMock);
         return unstagedMock;
     }
 
@@ -607,8 +621,8 @@ function calculateOffsets(git: GitWrapper, diffs: Map<string, string[]>, indexDi
     }
 
 
-    const unstagedDiffLen = Array.from(diffs.values()).map(str => str.join("\n").split("\n").length - 1).reduce((a, b) => a + b, 0);
-    const stagedDiffLen = Array.from(indexDiffs.values()).map(str => str.join("\n").split("\n").length - 1).reduce((a, b) => a + b, 0);
+    const unstagedDiffLen = Array.from(diffs.values()).flatMap(diffs => diffs.map(str => str.split("\n").length)).reduce((a, b) => a + b, 0);
+    const stagedDiffLen = Array.from(indexDiffs.values()).flatMap(diffs => diffs.map(str => str.split("\n").length)).reduce((a, b) => a + b, 0);
 
     return { mergeOffset: offsetArr[1], untrackedOffset: offsetArr[2], unstagedOffset: offsetArr[3], stagedOffset: offsetArr[4] + unstagedDiffLen, unpushedOffset: offsetArr[5] + stagedDiffLen };
 }

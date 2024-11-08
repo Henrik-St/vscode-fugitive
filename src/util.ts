@@ -1,4 +1,3 @@
-import * as vscode from 'vscode';
 
 type DiffOperation = "Add" | "Delete" | "NoOp"
 
@@ -33,7 +32,7 @@ export async function applyPatchToFile(stagedFile: string, patch: string, revers
 }
 
 function lineToDiffOperation(line: string, reverse: boolean): DiffOperation {
-    if (!line || line.startsWith(" ")) {
+    if (!line || line.startsWith(" ") || line.startsWith("\\ No newline")) {
         return "NoOp";
     } else if (line.startsWith("+") || (line.startsWith("-") && reverse)) {
         return "Add";

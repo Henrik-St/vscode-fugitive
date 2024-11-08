@@ -1,3 +1,4 @@
+import * as vscode from 'vscode';
 import { API as GitAPI, Repository, Commit, Status, GitExtension, Ref } from './vscode-git';
 
 export class GitWrapper {
@@ -59,15 +60,16 @@ export class GitWrapper {
     async getDiffStrings(path: string, type: "Unstaged" | "Staged") {
         let diff: string = "";
         if (type === "Unstaged") {
-            diff = await this.repo.diffWithHEAD(path); // remove diff --git ...
+            diff = await this.getDiffPerPath(path);
+            console.log("diff", diff);
         } else {
             diff = await this.repo.diffIndexWithHEAD(path);
         }
-        const diffArr = diff.split('\n'); // remove diff --git ...
+        const diffArr = diff.split('\n');
 
         const newDiffs: string[][] = [[]];
         let diffIndex = 0;
-        for (const line in diffArr) {
+        for (const line of diffArr) {
             if (line.startsWith("@@")) {
                 diffIndex += 1;
                 newDiffs.push([]);
@@ -77,8 +79,27 @@ export class GitWrapper {
         newDiffs.shift(); // remove first empty array
         const newDiffStrings = newDiffs.map(diff => diff.join("\n"));
 
-
         return newDiffStrings;
     }
 
+
+    private async getDiffPerPath(path: string): Promise<string> {
+        const shortPath = path.replace(this.rootUri, "");
+        const diffs = (await this.repo.diff(false)).split("\n");
+        const resultDiff = [];
+        let diffStarted = false;
+        for (const line of diffs) {
+            if (line.startsWith("diff --git")) {
+                if (line.search(shortPath) !== -1) {
+                    diffStarted = true;
+                } else {
+                    diffStarted = false;
+                }
+                continue;
+            } else {
+                diffStarted && resultDiff.push(line);
+            }
+        }
+        return resultDiff.join("\n");
+    }
 }
