@@ -24,9 +24,14 @@ export async function applyPatchToFile(stagedFile: string, patch: string, revers
             // Skip the line
             oldfileLines.splice(0, 1);
         } else {
-            let oldLine = oldfileLines.splice(0, 1)[0];
-            oldLine = !oldLine && !patchLine.line ? "" : oldLine; //Handle trailing newlines
-            (oldLine || oldLine === "") && newFile.push(oldLine);
+            const oldLine = oldfileLines.splice(0, 1)[0];
+            if (oldLine || oldLine === "") {
+                newFile.push(oldLine);
+                continue;
+            } else if (patchLine.line === "") {
+                newFile.push(patchLine.line);
+                continue;
+            }
         }
     }
     newFile.push(...oldfileLines);

@@ -31,7 +31,7 @@ export class GitWrapper {
         return this.cachedRefs;
     }
 
-    async cacheInfo(): Promise<void> {
+    async updateBranchInfo(): Promise<void> {
         this.cachedRefs = await this.repo.getRefs({});
         if (this.getCachedHasRemoteBranch()) {
             this.cachedUnpushedCommits = await this.repo.log({ range: this.repo.state.remotes[0].name + "/" + this.repo.state.HEAD?.name + "..HEAD" });
@@ -64,6 +64,7 @@ export class GitWrapper {
     public async updateDiffMap(index: boolean): Promise<void> {
         let currentPath = "";
         const diffs = (await this.repo.diff(index)).split("\n");
+        diffs.pop(); // last line is always empty
         const resultMap = new Map<string, string[]>();
         let diffCount = -1;
         for (const line of diffs) {
