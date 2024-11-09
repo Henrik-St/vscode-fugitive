@@ -40,7 +40,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         this.openedChanges = new Set();
         this.openedIndexChanges = new Set();
 
-        const offsets = calculateOffsets(this.git, this.getOpenedDiffMap("Unstaged"), this.getOpenedDiffMap("Staged"));
+        const offsets = this.calculateOffsets();
         this.mergeOffset = offsets.mergeOffset;
         this.untrackedOffset = offsets.untrackedOffset;
         this.unstagedOffset = offsets.unstagedOffset;
@@ -59,7 +59,9 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
             this.renderedChanges = this.getMockRessources("Unstaged");
             this.renderedIndexChanges = this.getMockRessources("Staged");
-            this.updateCursor();
+            if (vscode.window.activeTextEditor?.document.uri.scheme === Provider.myScheme) {
+                this.updateCursor();
+            }
             const doc = vscode.workspace.textDocuments.find(doc => doc.uri.scheme === Provider.myScheme);
             if (doc) {
                 this.onDidChangeEmitter.fire(doc.uri);
@@ -68,7 +70,8 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
         // override cursor behaviour
         vscode.workspace.onDidChangeTextDocument((e: vscode.TextDocumentChangeEvent) => {
-            if (vscode.window.activeTextEditor && e.document.uri.scheme === Provider.myScheme) {
+            if (vscode.window.activeTextEditor?.document.uri === Provider.uri) {
+                console.log('onDidChangeTextDocument');
                 window.activeTextEditor!.selection =
                     new vscode.Selection(new vscode.Position(this.line, 0), new vscode.Position(this.line, 0));
             }
@@ -77,7 +80,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     private setOffsets() {
-        const offsets = calculateOffsets(this.git, this.getOpenedDiffMap("Unstaged"), this.getOpenedDiffMap("Staged"));
+        const offsets = this.calculateOffsets();
         this.mergeOffset = offsets.mergeOffset;
         this.untrackedOffset = offsets.untrackedOffset;
         this.unstagedOffset = offsets.unstagedOffset;
@@ -567,6 +570,44 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 console.error("updateCursor: " + this.resourceUnderCursor.type + " not implemented");
         }
     }
+    calculateOffsets() {
+        const diffs = this.getOpenedDiffMap("Unstaged");
+        const indexDiffs = this.getOpenedDiffMap("Staged");
+
+        const mergeLen = this.git.mergeChanges().length;
+        const untrackedLen = this.git.untracked().length;
+        const unstagedLen = this.git.unstaged().length;
+        const stagedLen = this.git.staged().length;
+        const unpushedLen = this.git.cachedUnpushedCommits.length;
+
+        if ((mergeLen + untrackedLen + unstagedLen + stagedLen + unpushedLen) === 0) {
+            return { mergeOffset: 0, untrackedOffset: 0, unstagedOffset: 0, stagedOffset: 0, unpushedOffset: 0 };
+        }
+
+        const offsetArr = [0, mergeLen, untrackedLen, unstagedLen, stagedLen, unpushedLen];
+        const lenArr = offsetArr.map(len => len > 0 ? len + 2 : 0);
+        offsetArr[0] = 5;
+
+        for (let i = 1; i < offsetArr.length; i++) {
+            if (lenArr[i] === 0) {
+                offsetArr[i] = offsetArr[i - 1];
+                continue;
+            }
+            let j = i - 1;
+            for (; j > 0; j--) {
+                if (lenArr[j] > 0) {
+                    break;
+                }
+            }
+            offsetArr[i] = offsetArr[j] + lenArr[j];
+        }
+
+
+        const unstagedDiffLen = Array.from(diffs.values()).flatMap(diffs => diffs.map(str => str.split("\n").length)).reduce((a, b) => a + b, 0);
+        const stagedDiffLen = Array.from(indexDiffs.values()).flatMap(diffs => diffs.map(str => str.split("\n").length)).reduce((a, b) => a + b, 0);
+
+        return { mergeOffset: offsetArr[1], untrackedOffset: offsetArr[2], unstagedOffset: offsetArr[3], stagedOffset: offsetArr[4] + unstagedDiffLen, unpushedOffset: offsetArr[5] + stagedDiffLen };
+    }
 }
 
 function mapStatustoString(status: number) {
@@ -614,39 +655,3 @@ function mapStatustoString(status: number) {
     }
 }
 
-
-function calculateOffsets(git: GitWrapper, diffs: Map<string, string[]>, indexDiffs: Map<string, string[]>) {
-    const mergeLen = git.mergeChanges().length;
-    const untrackedLen = git.untracked().length;
-    const unstagedLen = git.unstaged().length;
-    const stagedLen = git.staged().length;
-    const unpushedLen = git.cachedUnpushedCommits.length;
-
-    if ((mergeLen + untrackedLen + unstagedLen + stagedLen + unpushedLen) === 0) {
-        return { mergeOffset: 0, untrackedOffset: 0, unstagedOffset: 0, stagedOffset: 0, unpushedOffset: 0 };
-    }
-
-    const offsetArr = [0, mergeLen, untrackedLen, unstagedLen, stagedLen, unpushedLen];
-    const lenArr = offsetArr.map(len => len > 0 ? len + 2 : 0);
-    offsetArr[0] = 5;
-
-    for (let i = 1; i < offsetArr.length; i++) {
-        if (lenArr[i] === 0) {
-            offsetArr[i] = offsetArr[i - 1];
-            continue;
-        }
-        let j = i - 1;
-        for (; j > 0; j--) {
-            if (lenArr[j] > 0) {
-                break;
-            }
-        }
-        offsetArr[i] = offsetArr[j] + lenArr[j];
-    }
-
-
-    const unstagedDiffLen = Array.from(diffs.values()).flatMap(diffs => diffs.map(str => str.split("\n").length)).reduce((a, b) => a + b, 0);
-    const stagedDiffLen = Array.from(indexDiffs.values()).flatMap(diffs => diffs.map(str => str.split("\n").length)).reduce((a, b) => a + b, 0);
-
-    return { mergeOffset: offsetArr[1], untrackedOffset: offsetArr[2], unstagedOffset: offsetArr[3], stagedOffset: offsetArr[4] + unstagedDiffLen, unpushedOffset: offsetArr[5] + stagedDiffLen };
-}
