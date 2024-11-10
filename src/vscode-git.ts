@@ -409,3 +409,14 @@ export const enum GitErrorCodes {
 	BranchNotYetBorn = 'BranchNotYetBorn',
 	TagConflict = 'TagConflict'
 }
+
+export interface DiffEditorSelectionHunkToolbarContext {
+	mapping: unknown;
+	/**
+	 * The original text with the selected modified changes applied.
+	*/
+	originalWithModifiedChanges: string;
+
+	modifiedUri: Uri;
+	originalUri: Uri;
+}

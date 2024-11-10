@@ -1,13 +1,15 @@
-import { API as GitAPI, Repository, Commit, Status, GitExtension, Ref } from './vscode-git';
+import { API as GitAPI, Repository, Commit, Status, Ref } from './vscode-git';
 
 export class GitWrapper {
 
-    private api: GitAPI;
+    api: GitAPI;
     repo: Repository;
     rootUri: string;
 
     cachedRefs: Ref[];
     cachedUnpushedCommits: Commit[];
+    cachedUnstagedDiffs: Map<string, string[]>;
+    cachedStagedDiffs: Map<string, string[]>;
 
     constructor(gitAPI: GitAPI) {
         this.api = gitAPI;
@@ -15,6 +17,8 @@ export class GitWrapper {
         this.rootUri = this.repo.rootUri.path;
         this.cachedRefs = [];
         this.cachedUnpushedCommits = [];
+        this.cachedUnstagedDiffs = new Map<string, string[]>();
+        this.cachedStagedDiffs = new Map<string, string[]>();
     }
 
     async getRefs(): Promise<Ref[]> {
@@ -26,7 +30,7 @@ export class GitWrapper {
         return this.cachedRefs;
     }
 
-    async cacheInfo(): Promise<void> {
+    async updateBranchInfo(): Promise<void> {
         this.cachedRefs = await this.repo.getRefs({});
         if (this.getCachedHasRemoteBranch()) {
             this.cachedUnpushedCommits = await this.repo.log({ range: this.repo.state.remotes[0].name + "/" + this.repo.state.HEAD?.name + "..HEAD" });
@@ -45,15 +49,6 @@ export class GitWrapper {
     }
 
     unstaged() {
-        // const unstagedTypes = [
-        //     Status.ADDED_BY_US,
-        //     Status.DELETED_BY_US,
-        //     Status.DELETED,
-        //     Status.MODIFIED,
-        //     Status.BOTH_MODIFIED,
-        //     Status.BOTH_ADDED,
-        // ];
-        // return this.repo.state.workingTreeChanges.filter(c => unstagedTypes.includes(c.status));
         return this.repo.state.workingTreeChanges.filter(c => c.status !== Status.UNTRACKED);
     }
 
@@ -65,4 +60,41 @@ export class GitWrapper {
         return this.repo.state.mergeChanges;
     }
 
+    public async updateDiffMap(index: boolean): Promise<void> {
+        let currentPath = "";
+        const diffs = (await this.repo.diff(index)).split("\n");
+        diffs.pop(); // last line is always empty
+        const resultMap = new Map<string, string[]>();
+        let diffCount = -1;
+        for (const line of diffs) {
+            if (line.startsWith("diff --git")) {
+                const match = line.match(/diff --git a\/(.*) b\/(.*)/);
+                currentPath = match ? (this.rootUri + "/" + match[1]) : "";
+                diffCount = -1;
+                continue;
+            } else {
+                if (line.startsWith("@@")) {
+                    diffCount += 1;
+                }
+                if (diffCount >= 0 && currentPath) {
+                    const change = resultMap.get(currentPath);
+                    if (change) {
+                        if (change.length > diffCount) {
+                            change[diffCount] = change[diffCount].concat("\n", line);
+                            resultMap.set(currentPath, change);
+                        } else {
+                            change.push(line);
+                        }
+                    } else {
+                        resultMap.set(currentPath, [line]);
+                    }
+                }
+            }
+        }
+        if (index) {
+            this.cachedStagedDiffs = resultMap;
+        } else {
+            this.cachedUnstagedDiffs = resultMap;
+        }
+    }
 }
