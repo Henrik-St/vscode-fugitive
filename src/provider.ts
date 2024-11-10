@@ -30,7 +30,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     private onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri>();
     onDidChange = this.onDidChangeEmitter.event;
-    private subscriptions: vscode.Disposable;
+    private subscriptions: vscode.Disposable[];
 
     constructor(gitAPI: GitAPI) {
         this.git = new GitWrapper(gitAPI);
@@ -51,7 +51,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         this.renderedIndexChanges = this.getMockRessources("Staged");
 
         // on Git Changed
-        this.subscriptions = this.git.repo.state.onDidChange(async () => {
+        const gitDisposable = this.git.repo.state.onDidChange(async () => {
             console.debug('onGitChanged');
             this.setOffsets();
             await this.git.updateBranchInfo();
@@ -69,13 +69,15 @@ export class Provider implements vscode.TextDocumentContentProvider {
         });
 
         // override cursor behaviour
-        vscode.workspace.onDidChangeTextDocument((e: vscode.TextDocumentChangeEvent) => {
-            if (vscode.window.activeTextEditor?.document.uri === Provider.uri) {
-                console.log('onDidChangeTextDocument');
+        const docDispose = vscode.workspace.onDidChangeTextDocument((e: vscode.TextDocumentChangeEvent) => {
+            if (vscode.window.activeTextEditor?.document.uri.toString() === Provider.uri.toString() &&
+                e.document.uri.toString() === Provider.uri.toString()) {
+                console.debug('onDidChangeTextDocument');
                 window.activeTextEditor!.selection =
                     new vscode.Selection(new vscode.Position(this.line, 0), new vscode.Position(this.line, 0));
             }
         });
+        this.subscriptions = [gitDisposable, docDispose];
 
     }
 
@@ -106,7 +108,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
 
     dispose() {
-        this.subscriptions.dispose();
+        this.subscriptions.forEach(e => e.dispose());
     }
 
     provideTextDocumentContent(_uri: vscode.Uri): string {
