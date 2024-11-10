@@ -25,8 +25,8 @@ export class Provider implements vscode.TextDocumentContentProvider {
     private renderedIndexChanges: RessourceAtCursor[];
     private line: number;
     private resourceUnderCursor: RessourceAtCursor | null;
-    private openedChanges: Set<string>; // Maps file uri to multiple diff strings
-    private openedIndexChanges: Set<string>; // Maps file uri to multiple diff strings
+    private openedChanges: Set<string>;
+    private openedIndexChanges: Set<string>;
 
     private onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri>();
     onDidChange = this.onDidChangeEmitter.event;

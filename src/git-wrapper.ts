@@ -1,5 +1,4 @@
-import * as vscode from 'vscode';
-import { API as GitAPI, Repository, Commit, Status, GitExtension, Ref } from './vscode-git';
+import { API as GitAPI, Repository, Commit, Status, Ref } from './vscode-git';
 
 export class GitWrapper {
 
