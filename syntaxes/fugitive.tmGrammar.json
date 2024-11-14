@@ -15,11 +15,7 @@
         },
         {
             "name": "constant.numeric",
-            "match": "(?<=Staged \\().(?=\\):\n)"
-        },
-        {
-            "name": "constant.numeric",
-            "match": "(?<=\\().(?=\\):\n)"
+            "match": "(?<=\\()\\d+(?=\\):\n)"
         },
         {
             "name": "comment.line.double-dash",
@@ -27,15 +23,15 @@
         },
         {
             "name": "constant.character.escape",
-            "match": "M |R "
+            "match": "^M |^R "
         },
         {
             "name": "invalid.illegal",
-            "match": "D "
+            "match": "^D "
         },
         {
             "name": "support.type",
-            "match": "U |A "
+            "match": "^U |^A "
         },
         {
             "captures": {
