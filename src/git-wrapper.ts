@@ -1,4 +1,6 @@
-import { API as GitAPI, Repository, Commit, Status, Ref } from './vscode-git';
+import * as vscode from 'vscode';
+import { API as GitAPI, Repository, Commit, Status, Ref, DiffEditorSelectionHunkToolbarContext } from './vscode-git';
+import { readFile } from './util';
 
 export class GitWrapper {
 
@@ -97,4 +99,64 @@ export class GitWrapper {
             this.cachedUnstagedDiffs = resultMap;
         }
     }
+
+    async applyPatchToFile(resourceUri: vscode.Uri, diffIndex: number, action: "stage" | "unstage"): Promise<void> {
+        const diff = action === "stage" ?
+            this.cachedUnstagedDiffs.get(resourceUri.path) :
+            this.cachedStagedDiffs.get(resourceUri.path)
+            ;
+        if (!diff) {
+            return Promise.reject("No diff found for " + resourceUri);
+        }
+
+        const targetFile = await this.repo.show(":0", resourceUri.path);
+        const sourceFile = action === "stage" ?
+            await readFile(resourceUri) :
+            await this.repo.show("HEAD", resourceUri.path)
+            ;
+
+        const targetLines = targetFile.split("\n");
+        const sourceLines = sourceFile.split("\n");
+        const patchLines = diff[diffIndex].split("\n");
+
+
+        const patchMatches = patchLines.splice(0, 1)[0].match(/^@@ -(\d+),(\d+) \+(\d+),(\d) @@/);
+        if (!patchMatches) {
+            throw Error("Could not parse diff");
+        }
+        const [_, patchTargetStart, patchTargetLength, patchSourceStart, patchSourceLength] = patchMatches.map(Number);
+        const patchAtEoF = (patchTargetStart + patchTargetLength >= targetLines.length);
+
+        targetLines.splice(patchTargetStart - 1, patchTargetLength,); // Remove patched Lines
+        const newFileArr = [
+            ...targetLines.splice(0, patchTargetStart - 1),
+            ...sourceLines.splice(patchSourceStart - 1, patchSourceLength),
+        ];
+
+        if (!patchAtEoF) {
+            newFileArr.push(...targetLines.splice(0, targetLines.length));
+        } else if (patchedFileHasNewLine(patchLines)) {
+            newFileArr.push("");
+            // } else {
+            //     newFileArr[newFileArr.length - 1];
+        }
+        const newFile = newFileArr.join("\n");
+
+        const stageParams: DiffEditorSelectionHunkToolbarContext = {
+            modifiedUri: resourceUri,
+            originalWithModifiedChanges: newFile,
+            originalUri: vscode.Uri.parse("Default"), // not needed
+            mapping: "", //not needed
+        };
+
+        vscode.commands.executeCommand('git.diff.stageHunk', stageParams).then(async (success) => {
+            console.debug('git.diff.stageHunk: success: ', success);
+        }, (rejected) => {
+            console.debug('git.diff.stageHunk: rejected: ', rejected);
+        });
+    }
+}
+
+function patchedFileHasNewLine(patchLines: string[]): boolean {
+    return !patchLines[patchLines.length - 1].startsWith("\\ No newline at end of file");
 }

@@ -420,3 +420,7 @@ export interface DiffEditorSelectionHunkToolbarContext {
 	modifiedUri: Uri;
 	originalUri: Uri;
 }
+
+export async function APIUsageExamples() {
+	//await git.repo.show(":0", resourceUri.path); // index file as string
+}
