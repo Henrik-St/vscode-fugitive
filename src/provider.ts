@@ -272,10 +272,10 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 break;
             }
             case "StagedDiff": {
-                // if (resource.diffIndex === undefined) {
-                //     return Promise.reject("No diff index: " + resource.diffIndex);
-                // }
-                // await this.git.applyPatchToFile(resource.change.uri, resource.diffIndex, "unstage");
+                if (resource.diffIndex === undefined) {
+                    return Promise.reject("No diff index: " + resource.diffIndex);
+                }
+                await this.git.applyPatchToFile(resource.change.uri, resource.diffIndex, "unstage");
                 break;
             }
         }

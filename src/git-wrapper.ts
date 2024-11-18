@@ -109,39 +109,37 @@ export class GitWrapper {
             return Promise.reject("No diff found for " + resourceUri);
         }
 
-        const targetFile = await this.repo.show(":0", resourceUri.path);
-        const sourceFile = action === "stage" ?
-            await readFile(resourceUri) :
-            await this.repo.show("HEAD", resourceUri.path)
+        const targetLines = (await this.repo.show(":0", resourceUri.path)).split("\n"); //index
+        const sourceLines = action === "stage" ?
+            (await readFile(resourceUri)).split("\n") :
+            (await this.repo.show("HEAD", resourceUri.path)).split("\n")
             ;
-
-        const targetLines = targetFile.split("\n");
-        const sourceLines = sourceFile.split("\n");
         const patchLines = diff[diffIndex].split("\n");
-
-
         const patchMatches = patchLines.splice(0, 1)[0].match(/^@@ -(\d+),(\d+) \+(\d+),(\d) @@/);
         if (!patchMatches) {
             throw Error("Could not parse diff");
         }
-        const [_, patchTargetStart, patchTargetLength, patchSourceStart, patchSourceLength] = patchMatches.map(Number);
-        const patchAtEoF = (patchTargetStart + patchTargetLength >= targetLines.length);
+        let [, patchTargetStart, patchTargetLength, patchSourceStart, patchSourceLength] = patchMatches.map(Number);
+        if (action === "unstage") {
+            [patchTargetStart, patchSourceStart] = [patchSourceStart, patchTargetStart];
+            [patchTargetLength, patchSourceLength] = [patchSourceLength, patchTargetLength];
+        }
 
-        targetLines.splice(patchTargetStart - 1, patchTargetLength,); // Remove patched Lines
+        const patchAtEoF = (patchTargetStart + patchTargetLength >= targetLines.length);
+        targetLines.splice(patchTargetStart - 1, patchTargetLength); // Remove patched Lines
         const newFileArr = [
             ...targetLines.splice(0, patchTargetStart - 1),
             ...sourceLines.splice(patchSourceStart - 1, patchSourceLength),
         ];
 
+        const hasNewLine = patchedFileHasNewLine(patchLines, action);
         if (!patchAtEoF) {
             newFileArr.push(...targetLines.splice(0, targetLines.length));
-        } else if (patchedFileHasNewLine(patchLines)) {
+        } else if (hasNewLine) {
             newFileArr.push("");
-            // } else {
-            //     newFileArr[newFileArr.length - 1];
         }
-        const newFile = newFileArr.join("\n");
 
+        const newFile = newFileArr.join("\n");
         const stageParams: DiffEditorSelectionHunkToolbarContext = {
             modifiedUri: resourceUri,
             originalWithModifiedChanges: newFile,
@@ -157,6 +155,16 @@ export class GitWrapper {
     }
 }
 
-function patchedFileHasNewLine(patchLines: string[]): boolean {
-    return !patchLines[patchLines.length - 1].startsWith("\\ No newline at end of file");
+function patchedFileHasNewLine(patchLines: string[], action: "stage" | "unstage"): boolean {
+    const noNewLineIndex = patchLines.findIndex(line => line.startsWith("\\ No newline at end of file"));
+    const newLineIsAdded = patchLines[noNewLineIndex - 1].charAt(0) === "+";
+    if (noNewLineIndex === -1) {
+        return true;
+    }
+    if (action === "stage") {
+        return noNewLineIndex !== patchLines.length - 1;
+    } else if (action === "unstage") {
+        return newLineIsAdded && noNewLineIndex === patchLines.length - 1;
+    }
+    throw Error("Fugitive: Invalid action");
 }
