@@ -117,7 +117,7 @@ export class GitWrapper {
         const patchLines = diff[diffIndex].split("\n");
         const patchMatches = patchLines.splice(0, 1)[0].match(/^@@ -(\d+),(\d+) \+(\d+),(\d) @@/);
         if (!patchMatches) {
-            throw Error("Could not parse diff");
+            throw Error("Fugitive: Could not parse diff");
         }
         let [, patchTargetStart, patchTargetLength, patchSourceStart, patchSourceLength] = patchMatches.map(Number);
         if (action === "unstage") {
@@ -157,10 +157,10 @@ export class GitWrapper {
 
 function patchedFileHasNewLine(patchLines: string[], action: "stage" | "unstage"): boolean {
     const noNewLineIndex = patchLines.findIndex(line => line.startsWith("\\ No newline at end of file"));
-    const newLineIsAdded = patchLines[noNewLineIndex - 1].charAt(0) === "+";
-    if (noNewLineIndex === -1) {
+    if (noNewLineIndex <= 0) {
         return true;
     }
+    const newLineIsAdded = patchLines[noNewLineIndex - 1].charAt(0) === "+";
     if (action === "stage") {
         return noNewLineIndex !== patchLines.length - 1;
     } else if (action === "unstage") {
