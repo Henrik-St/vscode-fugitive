@@ -115,7 +115,7 @@ export class GitWrapper {
             (await this.repo.show("HEAD", resourceUri.path)).split("\n")
             ;
         const patchLines = diff[diffIndex].split("\n");
-        const patchMatches = patchLines.splice(0, 1)[0].match(/^@@ -(\d+),(\d+) \+(\d+),(\d) @@/);
+        const patchMatches = patchLines.splice(0, 1)[0].match(/^@@ -(\d+),(\d+) \+(\d+),(\d+) @@/);
         if (!patchMatches) {
             throw Error("Fugitive: Could not parse diff");
         }
