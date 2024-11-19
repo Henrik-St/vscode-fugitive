@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { window } from 'vscode';
 import { API as GitAPI, Change, Status } from './vscode-git';
 import { GitWrapper } from './git-wrapper';
+import { mapStatustoString } from './util';
 
 type ResourceType = 'MergeChange' | 'Untracked' | 'Staged' | 'Unstaged' | 'UnstagedDiff' | 'StagedDiff'
 type ResourceAtCursor = { type: ResourceType, change: Change, changeIndex: number, renderIndex: number, diffIndex?: number }
@@ -72,7 +72,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
             if (vscode.window.activeTextEditor?.document.uri.toString() === Provider.uri.toString() &&
                 e.document.uri.toString() === Provider.uri.toString()) {
                 console.debug('onDidChangeTextDocument');
-                window.activeTextEditor!.selection =
+                vscode.window.activeTextEditor!.selection =
                     new vscode.Selection(new vscode.Position(this.line, 0), new vscode.Position(this.line, 0));
             }
         });
@@ -188,19 +188,19 @@ export class Provider implements vscode.TextDocumentContentProvider {
     goStaged() {
         console.debug("goStaged");
         if (this.git.staged().length > 0) {
-            window.activeTextEditor!.selection =
+            vscode.window.activeTextEditor!.selection =
                 new vscode.Selection(new vscode.Position(this.stagedOffset, 0), new vscode.Position(this.stagedOffset, 0));
         }
     }
 
     goUnstaged(goUnstaged: boolean) {
         if (!goUnstaged && this.git.untracked().length > 0) {
-            window.activeTextEditor!.selection =
+            vscode.window.activeTextEditor!.selection =
                 new vscode.Selection(new vscode.Position(this.untrackedOffset, 0), new vscode.Position(this.untrackedOffset, 0));
             return;
         }
         if (this.git.unstaged().length > 0) {
-            window.activeTextEditor!.selection =
+            vscode.window.activeTextEditor!.selection =
                 new vscode.Selection(new vscode.Position(this.unstagedOffset, 0), new vscode.Position(this.unstagedOffset, 0));
             return;
         }
@@ -208,7 +208,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     goUnpushed() {
         if (this.git.cachedUnpushedCommits.length > 0) {
-            window.activeTextEditor!.selection =
+            vscode.window.activeTextEditor!.selection =
                 new vscode.Selection(new vscode.Position(this.unpushedOffset, 0), new vscode.Position(this.unpushedOffset, 0));
         }
     }
@@ -253,7 +253,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
             };
 
             const success_text = "Merge conflicts";
-            const value = await window.showQuickPick(["cancel", success_text], options);
+            const value = await vscode.window.showQuickPick(["cancel", success_text], options);
             return value === success_text;
         }
         return true;
@@ -419,9 +419,9 @@ export class Provider implements vscode.TextDocumentContentProvider {
         const file = vscode.Uri.parse(resource.uri.path);
         const doc = await vscode.workspace.openTextDocument(file);
         if (split) {
-            await window.showTextDocument(doc, { preview: false, viewColumn: vscode.ViewColumn.Beside });
+            await vscode.window.showTextDocument(doc, { preview: false, viewColumn: vscode.ViewColumn.Beside });
         } else {
-            await window.showTextDocument(doc, { preview: false });
+            await vscode.window.showTextDocument(doc, { preview: false });
         }
     }
 
@@ -450,12 +450,12 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
 
         const doc = await vscode.workspace.openTextDocument(uri);
-        await window.showTextDocument(doc, { preview: false, viewColumn: vscode.ViewColumn.Beside });
+        await vscode.window.showTextDocument(doc, { preview: false, viewColumn: vscode.ViewColumn.Beside });
     }
 
     private getResourceUnderCursor(): ResourceAtCursor | null {
         let ressource: Change | null = null;
-        const line = window.activeTextEditor!.selection.active.line;
+        const line = vscode.window.activeTextEditor!.selection.active.line;
         // check if in merge changes
         let ressourceIndex = line - this.mergeOffset;
         const merge = this.git.mergeChanges();
@@ -520,7 +520,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
     private updateCursor() {
         this.setOffsets();
         if (!this.resourceUnderCursor) {
-            // do this
             return;
         }
         switch (this.resourceUnderCursor.type) {
@@ -558,6 +557,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 console.error("updateCursor: " + this.resourceUnderCursor.type + " not implemented");
         }
     }
+
     calculateOffsets() {
         const diffs = this.getOpenedDiffMap("Unstaged");
         const indexDiffs = this.getOpenedDiffMap("Staged");
@@ -597,49 +597,3 @@ export class Provider implements vscode.TextDocumentContentProvider {
         return { mergeOffset: offsetArr[1], untrackedOffset: offsetArr[2], unstagedOffset: offsetArr[3], stagedOffset: offsetArr[4] + unstagedDiffLen, unpushedOffset: offsetArr[5] + stagedDiffLen };
     }
 }
-
-function mapStatustoString(status: number) {
-    switch (status) {
-        case Status.INDEX_MODIFIED:
-            return 'M';
-        case Status.INDEX_ADDED:
-            return 'A';
-        case Status.INDEX_DELETED:
-            return 'D';
-        case Status.INDEX_RENAMED:
-            return 'R';
-        case Status.INDEX_COPIED:
-            return 'C';
-        case Status.MODIFIED:
-            return 'M';
-        case Status.DELETED:
-            return 'D';
-        case Status.UNTRACKED:
-            return 'U';
-        case Status.IGNORED:
-            return 'I';
-        case Status.INTENT_TO_ADD:
-            return 'A';
-        case Status.INTENT_TO_RENAME:
-            return 'R';
-        case Status.TYPE_CHANGED:
-            return 'T';
-        case Status.ADDED_BY_US:
-            return 'A';
-        case Status.ADDED_BY_THEM:
-            return 'A';
-        case Status.DELETED_BY_US:
-            return 'D';
-        case Status.DELETED_BY_THEM:
-            return 'D';
-        case Status.BOTH_ADDED:
-            return 'A';
-        case Status.BOTH_DELETED:
-            return 'D';
-        case Status.BOTH_MODIFIED:
-            return 'M';
-        default:
-            return status;
-    }
-}
-
