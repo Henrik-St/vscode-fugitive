@@ -92,6 +92,15 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 		await provider!.openFile(true);
 	}));
 
+	subscriptions.push(commands.registerCommand('fugitive.previousHunk', async () => {
+		console.debug('fugitive.previousHunk');
+		provider!.goPreviousHunk();
+	}));
+	subscriptions.push(commands.registerCommand('fugitive.nextHunk', async () => {
+		console.debug('fugitive.nextHunk');
+		provider!.goNextHunk();
+	}));
+
 	subscriptions.push(commands.registerCommand('fugitive.openFile', async () => {
 		console.debug('fugitive.openFile');
 		await provider!.openFile(false);

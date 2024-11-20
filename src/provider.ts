@@ -1,10 +1,10 @@
 import * as vscode from 'vscode';
 import { API as GitAPI, Change, Status } from './vscode-git';
 import { GitWrapper } from './git-wrapper';
-import { mapStatustoString } from './util';
+import { mapStatustoString, isEqualResource, setCursorWithView } from './util';
 
-type ResourceType = 'MergeChange' | 'Untracked' | 'Staged' | 'Unstaged' | 'UnstagedDiff' | 'StagedDiff'
-type ResourceAtCursor = { type: ResourceType, change: Change, changeIndex: number, renderIndex: number, diffIndex?: number }
+export type ResourceType = 'MergeChange' | 'Untracked' | 'Staged' | 'Unstaged' | 'UnstagedDiff' | 'StagedDiff' | 'UI';
+export type ResourceAtCursor = { type: ResourceType, change: Change, changeIndex: number, renderIndex: number, diffIndex?: number }
 
 export class Provider implements vscode.TextDocumentContentProvider {
     static myScheme = 'fugitive';
@@ -212,6 +212,65 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 new vscode.Selection(new vscode.Position(this.unpushedOffset, 0), new vscode.Position(this.unpushedOffset, 0));
         }
     }
+    goPreviousHunk() {
+        const currentLine = vscode.window.activeTextEditor?.selection.active.line;
+        if (!currentLine) {
+            console.log('no current line');
+            return;
+        }
+        const mock = this.getAllMockRessources();
+
+        let diffIndex: number | undefined = undefined;
+        for (let i = currentLine - 1; i >= 0; i--) {
+            if (mock[i].type === 'UI') {
+                continue;
+            }
+
+            if (mock[i].diffIndex === undefined) {
+                this.line = i;
+                setCursorWithView(this.line);
+                return;
+            } else if (diffIndex === undefined && mock[i].diffIndex !== undefined) {
+                diffIndex = mock[i].diffIndex;
+                while (i >= 0 && mock[i].diffIndex === diffIndex) {
+                    i--;
+                }
+                this.line = i + 1;
+                setCursorWithView(this.line);
+                return;
+            } else if (diffIndex !== undefined && diffIndex !== mock[i].diffIndex) {
+                this.line = i + 1;
+                setCursorWithView(this.line);
+                return;
+            }
+        }
+    }
+
+    goNextHunk() {
+        const currentLine = vscode.window.activeTextEditor?.selection.active.line;
+        if (!currentLine) {
+            console.log('no current line');
+            return;
+        }
+        const mock = this.getAllMockRessources();
+
+        const diffIndex = mock[currentLine].diffIndex;
+        for (let i = currentLine + 1; i < mock.length; i++) {
+            if (mock[i].type === 'UI') {
+                continue;
+            }
+            if (mock[i].diffIndex === undefined) {
+                this.line = i;
+                setCursorWithView(this.line);
+                return;
+            } else if (diffIndex !== mock[i].diffIndex) {
+                this.line = i;
+                setCursorWithView(this.line);
+                return;
+            }
+        }
+    }
+
 
     async stageFile() {
         const resource = this.getResourceUnderCursor();
@@ -505,6 +564,41 @@ export class Provider implements vscode.TextDocumentContentProvider {
             renderIndex += diffRender.flat().length + 1;
         }
         return unstagedMock;
+    }
+
+    private getAllMockRessources(): ResourceAtCursor[] {
+        const dummyChange: Change = { uri: vscode.Uri.parse("dummy"), status: Status.INDEX_ADDED, originalUri: vscode.Uri.parse("dummy"), renameUri: vscode.Uri.parse("dummy") };
+        const uiHeader = Array(this.mergeOffset - 2).fill(0).map((_, i): ResourceAtCursor => (
+            { type: 'UI', change: dummyChange, changeIndex: i, renderIndex: i }
+        ));
+        const uiSeparator = Array(2).fill(0).map((_, i): ResourceAtCursor => (
+            { type: 'UI', change: dummyChange, changeIndex: i, renderIndex: i }
+        ));
+        const renderedMergeChanges = this.git.mergeChanges().map((c, i): ResourceAtCursor => ({
+            type: 'MergeChange', change: c, changeIndex: i, renderIndex: i
+        }));
+        const renderedUntrackedChanges = this.git.mergeChanges().map((c, i): ResourceAtCursor => ({
+            type: 'Untracked', change: c, changeIndex: i, renderIndex: i
+        }));
+        const renderedUnstagedChanges = this.getMockResources("Unstaged");
+        const renderedStagedChanges = this.getMockResources("Staged");
+        const renderedUnpushed = this.git.cachedUnpushedCommits.map((c, i): ResourceAtCursor => ({
+            type: 'UI', change: dummyChange, changeIndex: i, renderIndex: i
+        }));
+        const result = [
+            ...uiHeader,
+            ...(renderedMergeChanges.length > 0 ? uiSeparator : []),
+            ...renderedMergeChanges,
+            ...(renderedUntrackedChanges.length > 0 ? uiSeparator : []),
+            ...renderedUntrackedChanges,
+            ...(renderedUnstagedChanges.length > 0 ? uiSeparator : []),
+            ...renderedUnstagedChanges,
+            ...(renderedStagedChanges.length > 0 ? uiSeparator : []),
+            ...renderedStagedChanges,
+            ...(renderedUnpushed.length > 0 ? uiSeparator : []),
+            ...renderedUnpushed
+        ];
+        return result;
     }
 
     private getOpenedDiffMap(type: "Staged" | "Unstaged"): Map<string, string[]> {

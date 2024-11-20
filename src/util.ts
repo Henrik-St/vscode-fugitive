@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { Status } from './vscode-git';
+import { ResourceAtCursor } from './provider';
 
 export async function readFile(uri: vscode.Uri): Promise<string> {
     return (new TextDecoder())
@@ -38,4 +39,18 @@ export function mapStatustoString(status: number) {
         default:
             return status;
     }
+}
+export function isEqualResource(a: ResourceAtCursor, b: ResourceAtCursor): boolean {
+    return a.type === b.type && a.renderIndex === b.renderIndex; // is enough
+}
+
+export function setCursorWithView(line: number) {
+    const position = new vscode.Position(line, 0);
+    const range = new vscode.Range(position, position);
+    const windowContainsCursor = vscode.window.activeTextEditor?.visibleRanges[0].contains(position);
+    if (!windowContainsCursor) {
+        vscode.window.activeTextEditor!.revealRange(range);
+    }
+    vscode.window.activeTextEditor!.selection =
+        new vscode.Selection(position, position);
 }
