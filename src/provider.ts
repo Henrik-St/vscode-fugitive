@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { API as GitAPI, Change, Status } from './vscode-git';
 import { GitWrapper } from './git-wrapper';
-import { mapStatustoString, isEqualResource, setCursorWithView } from './util';
+import { mapStatustoString, setCursorWithView } from './util';
 
 export type ResourceType = 'MergeChange' | 'Untracked' | 'Staged' | 'Unstaged' | 'UnstagedDiff' | 'StagedDiff' | 'UI';
 export type ResourceAtCursor = { type: ResourceType, change: Change, changeIndex: number, renderIndex: number, diffIndex?: number }
