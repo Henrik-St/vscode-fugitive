@@ -127,7 +127,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         if (this.git.getCachedHasRemoteBranch()) {
             merge = `Merge: ${this.git.repo.state.remotes[0].name}/${head}`;
         }
-        let renderString = `Head: ${head}\n${merge}\nHelp: g?`;
+        let renderString = `Head: ${head}\n${merge}\nHelp: g h`;
         // render untracked
         const mergeChanges = this.git.repo.state.mergeChanges;
         if (mergeChanges.length > 0) {
