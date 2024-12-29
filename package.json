@@ -251,7 +251,7 @@
 			},
 			{
 				"command": "fugitive.help",
-				"key": "g shift+oem_4",
+				"key": "g h",
 				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
 			}
 		],
