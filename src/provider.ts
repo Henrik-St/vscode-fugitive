@@ -35,7 +35,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
     private openedIndexChanges: Set<string>;
 
     private onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri>();
-    onDidChange = this.onDidChangeEmitter.event;
+    onDidChange = this.onDidChangeEmitter.event; // triggers before provideTextDocumentContent
     private subscriptions: vscode.Disposable[];
 
     constructor(gitAPI: GitAPI) {
@@ -60,7 +60,8 @@ export class Provider implements vscode.TextDocumentContentProvider {
             }
         });
 
-        // override cursor behaviour
+        // triggers after provideTextDocumentContent
+        // overrides cursor behaviour
         const docDispose = vscode.workspace.onDidChangeTextDocument((e: vscode.TextDocumentChangeEvent) => {
             if (vscode.window.activeTextEditor?.document.uri.toString() === Provider.uri.toString() &&
                 e.document.uri.toString() === Provider.uri.toString()) {
