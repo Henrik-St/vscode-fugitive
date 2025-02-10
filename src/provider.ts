@@ -314,11 +314,26 @@ export class Provider implements vscode.TextDocumentContentProvider {
             await this.git.repo.add([change.uri.path]);
             return;
         }
+        if(resource.type === "UntrackedHeader") {
+            const changes = this.git.untracked().map(c => c.uri.path);
+            console.debug(`track ${changes.length} files`);
+            await this.git.repo.add(changes);
+            return;
+        }
         if (resource.type === "Unstaged") {
             const change = this.git.unstaged()[resource.changeIndex];
             console.debug('stage ', change.uri.path);
             await this.git.repo.add([change.uri.path]);
             this.openedChanges.delete(change.uri.path);
+            return;
+        }
+        if(resource.type === "UnstagedHeader") {
+            const changes = this.git.unstaged().map(c => c.uri.path);
+            console.debug(`track ${changes.length} files`);
+            await this.git.repo.add(changes);
+            for (const change of changes) {
+                this.openedChanges.delete(change);
+            }
             return;
         }
         if (resource.type === "UnstagedDiff") {
@@ -350,6 +365,15 @@ export class Provider implements vscode.TextDocumentContentProvider {
             return;
         }
         switch (resource.type) {
+            case "StagedHeader": {
+                const changes = this.git.staged().map((c) => c.uri.path);
+                console.debug(`unstage ${changes.length}`);
+                await this.git.repo.revert(changes);
+                for (const change of changes) {
+                    this.openedIndexChanges.delete(change);
+                }
+                break;
+            }
             case "Staged": {
                 const change = this.git.staged()[resource.changeIndex];
                 console.debug('unstage ', change.uri.path);
@@ -604,6 +628,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
     private updateCursor() {
         console.debug('updateCursor');
         if (!this.previousResource) {
+            this.line = vscode.window.activeTextEditor!.selection.active.line;
             return;
         }
         switch (this.previousResource.type) {
@@ -615,12 +640,22 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 this.line = mergeOffset + index;
                 break;
             }
+            case 'UntrackedHeader': {
+                const untrackedOffset = this.getCategoryOffset("UntrackedHeader") + 1;
+                this.line = untrackedOffset + 0;
+                break;
+            }
             case 'Untracked': {
                 const index = this.git.untracked().length == 0 ? 0 :
                     this.previousResource.changeIndex > this.git.untracked().length - 1 ?
                         this.git.untracked().length - 1 : this.previousResource.changeIndex;
                 const untrackedOffset = this.getCategoryOffset("UntrackedHeader") + 1;
                 this.line = untrackedOffset + index;
+                break;
+            }
+            case 'UnstagedHeader': {
+                const unstagedOffset = this.getCategoryOffset("UnstagedHeader") + 1;
+                this.line = unstagedOffset + 0;
                 break;
             }
             case 'UnstagedDiff':
@@ -631,6 +666,11 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 const newLine = this.uiModel.findIndex(([res]) => res.type === "Unstaged" && res.changeIndex === index);
                 const unstagedOffset = this.getCategoryOffset("UnstagedHeader") + 1;
                 this.line = newLine === -1 ? unstagedOffset : newLine;
+                break;
+            }
+            case 'StagedHeader': {
+                const stagedOffset = this.getCategoryOffset("StagedHeader") + 1;
+                this.line = stagedOffset + 0;
                 break;
             }
             case 'StagedDiff':
