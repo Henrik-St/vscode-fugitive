@@ -2,7 +2,7 @@
 	"name": "vscode-fugitive",
 	"displayName": "Fugitive for VS Code",
 	"description": "This is a simple extension that adds a subset of the fugitive plugin to VS Code",
-	"version": "0.0.26",
+	"version": "0.0.27",
 	"publisher": "hnrk-str",
 	"private": true,
 	"license": "MIT",
@@ -281,13 +281,12 @@
 		"lint": "eslint \"src/**/*.ts\"",
 		"watch": "tsc -watch -p ./"
 	},
-	"dependencies": {},
 	"devDependencies": {
 		"@types/node": "^18",
 		"@types/vscode": "^1.73.0",
 		"@typescript-eslint/eslint-plugin": "^6.7.0",
 		"@typescript-eslint/parser": "^6.7.0",
-		"eslint": "^8.26.0",
+		"eslint": "^8.57.1",
 		"typescript": "^5.4.2"
 	}
 }
