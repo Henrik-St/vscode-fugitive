@@ -86,9 +86,9 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
         const arr = (this.getOpenedDiffMap(changeType).get(c.uri.path) ?? []).flatMap( (str, i): [Resource, string][] => {
             return str.split("\n").map((str, lineI): [Resource, string] => {
-                return [{type: diffType, changeIndex: index, diffIndex: i, diffLineIndex: lineI}, str]
+                return [{type: diffType, changeIndex: index, diffIndex: i, diffLineIndex: lineI}, str];
             });
-        })
+        });
         return arr;
     }
 
@@ -99,7 +99,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     provideTextDocumentContent(_uri: vscode.Uri): string {
         console.debug('provideTextDocumentContent');
-        let newUIModel: [Resource, string][] = [];
+        const newUIModel: [Resource, string][] = [];
         let head = "Detached";
         if (this.git.repo.state.HEAD?.name) {
             head = this.git.repo.state.HEAD.name;
@@ -244,7 +244,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
         for (let i = currentLine - 1; i >= 0; i--) {
             const res = this.uiModel[i][0];
-            const type = res.type
+            const type = res.type;
             if ( type === "HeadUI" || type === "MergeUI" || type === "HelpUI" || type === "BlankUI" ||
                 type === "MergeHeader" || type === "UntrackedHeader" || type === "UnstagedHeader" ||
                 type === "StagedHeader" || type === "UnpushedHeader" || type === "Unpushed"
@@ -273,7 +273,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
         for (let i = currentLine + 1; i < this.uiModel.length; i++) {
             const res = this.uiModel[i][0];
-            const type = res.type
+            const type = res.type;
             if ( type === "HeadUI" || type === "MergeUI" || type === "HelpUI" || type === "BlankUI" ||
                 type === "MergeHeader" || type === "UntrackedHeader" || type === "UnstagedHeader" ||
                 type === "StagedHeader" || type === "UnpushedHeader" || type === "Unpushed"
@@ -300,7 +300,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
             return;
         }
         if (resource.type === "MergeChange") {
-            const change = this.git.mergeChanges()[resource.changeIndex]
+            const change = this.git.mergeChanges()[resource.changeIndex];
             console.debug('merge add ', change.uri.path);
             const uri = vscode.Uri.parse(change.uri.path);
             if (await this.checkForConflictMarker(uri)) {
@@ -309,20 +309,20 @@ export class Provider implements vscode.TextDocumentContentProvider {
             return;
         }
         if (resource.type === "Untracked") {
-            const change = this.git.untracked()[resource.changeIndex]
+            const change = this.git.untracked()[resource.changeIndex];
             console.debug('track ', change.uri.path);
             await this.git.repo.add([change.uri.path]);
             return;
         }
         if (resource.type === "Unstaged") {
-            const change = this.git.unstaged()[resource.changeIndex]
+            const change = this.git.unstaged()[resource.changeIndex];
             console.debug('stage ', change.uri.path);
             await this.git.repo.add([change.uri.path]);
             this.openedChanges.delete(change.uri.path);
             return;
         }
         if (resource.type === "UnstagedDiff") {
-            const change = this.git.unstaged()[resource.changeIndex]
+            const change = this.git.unstaged()[resource.changeIndex];
             if (resource.diffIndex === undefined) {
                 return Promise.reject("No diff index: " + resource.diffIndex);
             }
@@ -409,13 +409,14 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 this.openedChanges.delete(change.uri.path);
                 return;
             }
-            case "Staged":
+            case "Staged": {
                 const change = this.git.staged()[resource.changeIndex];
                 console.debug('clean ', resource);
                 await this.git.repo.revert([change.uri.path]);
                 await this.git.repo.clean([change.uri.path]);
                 this.openedIndexChanges.delete(change.uri.path);
                 return;
+            }
         }
     }
 
@@ -649,6 +650,8 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     private getCategoryOffset(type: Resource['type']): number {
         let index = -1;
+        /* eslint-disable no-fallthrough */ 
+        // Fallthrough is intended here to got to fallback category
         switch (type) {
             case 'UnpushedHeader': 
                 index = this.uiModel.findIndex(([res]) => res.type === 'UnpushedHeader');
@@ -676,6 +679,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
                     return index;
                 }
         }
+        /* eslint-enable no-fallthrough */
         const containsCategory = this.uiModel.some(([a,_]) => 
             a.type === "MergeHeader" || a.type === "UntrackedHeader" || 
             a.type === "UnstagedHeader" || a.type === "StagedHeader" || 
