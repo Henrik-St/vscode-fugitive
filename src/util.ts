@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
 import { Status } from './vscode-git';
-import { ResourceAtCursor } from './provider';
 
 export async function readFile(uri: vscode.Uri): Promise<string> {
     return (new TextDecoder())
@@ -39,9 +38,6 @@ export function mapStatustoString(status: number) {
         default:
             return status;
     }
-}
-export function isEqualResource(a: ResourceAtCursor, b: ResourceAtCursor): boolean {
-    return a.type === b.type && a.renderIndex === b.renderIndex; // is enough
 }
 
 export function setCursorWithView(line: number) {

@@ -62,7 +62,8 @@ export class GitWrapper {
         return this.repo.state.mergeChanges;
     }
 
-    public async updateDiffMap(index: boolean): Promise<void> {
+    public async updateDiffMap(type: "Unstaged" | "Staged"): Promise<void> {
+        const index = type === "Staged";
         let currentPath = "";
         const diffs = (await this.repo.diff(index)).split("\n");
         diffs.pop(); // last line is always empty
