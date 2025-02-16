@@ -78,6 +78,11 @@
 				"when": "resourceScheme == fugitive"
 			},
 			{
+				"command": "fugitive.refresh",
+				"title": "Fugitive: refresh",
+				"when": "resourceScheme == fugitive"
+			},
+			{
 				"command": "fugitive.goUntracked",
 				"title": "Fugitive: go to untracked/unstaged section",
 				"when": "resourceScheme == fugitive"
@@ -247,6 +252,11 @@
 			{
 				"command": "fugitive.close",
 				"key": "g q",
+				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+			},
+			{
+				"command": "fugitive.refresh",
+				"key": "g r",
 				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
 			},
 			{

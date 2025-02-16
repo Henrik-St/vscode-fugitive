@@ -228,6 +228,11 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 		console.debug('fugitive.close');
 		vscode.commands.executeCommand('workbench.action.closeActiveEditor');
 	}));
+	
+	subscriptions.push(commands.registerCommand('fugitive.refresh', async () => {
+		console.debug('fugitive.refresh');
+		vscode.commands.executeCommand('git.refresh');
+	}));
 }
 
 function _getTerminal(): vscode.Terminal {

@@ -1,10 +1,21 @@
 # Fugitive for VS Code
 
-This extension ports the [Fugitive](https://github.com/tpope/vim-fugitive.git) plugin for vim/neovim to VS Code.
+This is a simple extension that adds a subset of the [fugitive plugin](https://github.com/tpope/vim-fugitive.git) to VS Code.
 
-## Recommended extensions.
+## Recommended Setup
 
 This extension is meant to be used with the [vscodevim.vim](https://marketplace.visualstudio.com/items?itemName=vscodevim.vim) plugin.
+You can register the fugitive.open as a vim mapping like the following in your settings.json:
+```json
+  "vim.normalModeKeyBindings": [
+    {
+      // Opens the Fugitive UI
+      "before": [ "<Leader>", "g", "s" ],
+      "commands": [ "fugitive.open" ]
+    },
+    ///...
+  ]
+```
 
 ## Keymaps
 The following table shows the available keymaps.
@@ -40,6 +51,7 @@ The default mappings assume QUERTZ as the keyboard layout. See below for how to 
 | fugitive.nextHunk         | shift+9 (QUERTZ: ')') | Jump to the next hunk.                                 |
 | fugitive.help             | g h                   | Open the README of this extension                      |
 | fugitive.close            | g q                   | Close Fugitive                                         |
+| fugitive.refresh          | g r                   | Refresh the git status                                 |
 
 Additionally, j/k are mapped to up/down in non vim mode.
 
@@ -66,10 +78,9 @@ To change the keymapping to i.e. QUERTY the following entry needs to be added to
 # ...
 ```
 
-## Current scope
-The current scope of this plugin contains only the status buffer maps from the fugitive plugin.
-The Git command functionality is not currently planned.
-
 ## Out of scope
-The vscode git api does not support interactive rebasing.
-Therefore, functionality relying on rebasing is not supported.
+1. At the moment the vim extension does not support registering custom commands.
+Hence the Git statusline commands are not part of this scope.
+If you are interested in this functionality, i have opened an issue on the vim extension github [here](https://github.com/VSCodeVim/Vim/issues/9103).
+2. The vscode git api does not have first-class support for interactive rebasing.
+Therefore, functionality relying on rebasing is not provided in this extension.
