@@ -5,6 +5,7 @@
 * collapse untracked files into folders
 * show unpushed commits on branch
 * open whole diff of commit
+* provide trre view
 
 # Bug fixes:
 * gg from vscode.vim does not work anymore
