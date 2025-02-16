@@ -37,7 +37,21 @@ export class GitWrapper {
         if (this.getCachedHasRemoteBranch()) {
             this.cachedUnpushedCommits = await this.repo.log({ range: this.repo.state.remotes[0].name + "/" + this.repo.state.HEAD?.name + "..HEAD" });
         } else {
-            this.cachedUnpushedCommits = [];
+            if (!this.repo.state.HEAD?.name) {
+                this.cachedUnpushedCommits = [];
+                return;
+            }
+            const branchbase = (await this.repo.getBranchBase(this.repo.state.HEAD?.name))?.commit;
+            if (!branchbase) {
+                this.cachedUnpushedCommits = [];
+                return;
+            }
+            const commits = await this.repo.log({range: branchbase + "..HEAD"});
+
+            console.log(branchbase);
+            console.log(branchbase + "..HEAD");
+            console.log(commits);
+            this.cachedUnpushedCommits = await this.repo.log({range: branchbase + "..HEAD"});
         }
     }
 

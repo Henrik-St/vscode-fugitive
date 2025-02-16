@@ -167,7 +167,11 @@ export class Provider implements vscode.TextDocumentContentProvider {
             const len = this.git.cachedUnpushedCommits.length;
             let to = "";
             if (this.git.repo.state.remotes[0]?.name) {
-                to = `to ${this.git.repo.state.remotes[0].name}/${head} `;
+                if (this.git.getCachedHasRemoteBranch()) {
+                    to = `to ${this.git.repo.state.remotes[0].name}/${head} `;
+                } else {
+                    to = "to * ";
+                }
             }
             const commits = this.git.cachedUnpushedCommits.map((c, i): [Resource, string] => [
                 { type: "Unpushed", changeIndex: i},
