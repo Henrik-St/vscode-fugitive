@@ -89,7 +89,7 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 
 	subscriptions.push(commands.registerCommand('fugitive.openFileSplit', async () => {
 		console.debug('fugitive.openFileSplit');
-		await provider!.openFile(true);
+		await provider!.open(true);
 	}));
 
 	subscriptions.push(commands.registerCommand('fugitive.previousHunk', async () => {
@@ -103,7 +103,7 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 
 	subscriptions.push(commands.registerCommand('fugitive.openFile', async () => {
 		console.debug('fugitive.openFile');
-		await provider!.openFile(false);
+		await provider!.open(false);
 	}));
 
 	subscriptions.push(commands.registerCommand('fugitive.commit', async () => {

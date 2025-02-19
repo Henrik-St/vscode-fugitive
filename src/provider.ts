@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { API as GitAPI, Change, Status } from './vscode-git';
+import { API as GitAPI, Change, Status, Commit } from './vscode-git';
 import { GitWrapper } from './git-wrapper';
 import { mapStatustoString, setCursorWithView } from './util';
 
@@ -488,7 +488,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         this.onDidChangeEmitter.fire(Provider.uri);
     }
 
-    async updateDiffs() {
+    private async updateDiffs() {
         await this.git.updateDiffMap("Unstaged");
         await this.git.updateDiffMap("Staged");
         const deleteOpenedDiffs = Array.from(this.openedChanges.keys()).filter(k => !this.git.cachedUnstagedDiffs.has(k));
@@ -539,7 +539,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         });
     }
 
-    getChangeFromResource(res: Resource): Change | null {
+    private getChangeFromResource(res: Resource): Change | null {
         switch(res.type) {
             case "Unstaged": {
                 return this.git.unstaged()[res.changeIndex];
@@ -559,13 +559,47 @@ export class Provider implements vscode.TextDocumentContentProvider {
             case "StagedDiff": {
                 return this.git.staged()[res.changeIndex];
             }
-
+            default: {
+                return null;
+            }
         }
-        return null;
     }
 
-    async openFile(split: boolean) {
+    private getCommitFromResource(res: Resource): Commit | null {
+        switch(res.type) {
+            case "Unpushed": {
+                return this.git.cachedUnpushedCommits[res.changeIndex];
+            }
+            default: {
+                return null;
+            }
+        }
+    }
+
+    async open(split: boolean) {
         const resource = this.getResourceUnderCursor();
+
+        switch(resource.type) {
+            case "Unstaged":
+            case "Staged":
+            case "Untracked":
+            case "MergeChange":
+            case "UnstagedDiff":
+            case "StagedDiff": {
+                this.openFile(resource, split);
+                return;
+            }
+            case "Unpushed": {
+                this.openCommitDiff(resource, split);
+                return;
+            }
+            default: {
+                return;
+            }
+        }
+    }
+
+    private async openFile(resource: Resource, split: boolean) {
         const change = this.getChangeFromResource(resource);
         if (!change) {
             return;
@@ -576,6 +610,25 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
         const file = vscode.Uri.parse(change.uri.path);
         const doc = await vscode.workspace.openTextDocument(file);
+        if (split) {
+            await vscode.window.showTextDocument(doc, { preview: false, viewColumn: vscode.ViewColumn.Beside });
+        } else {
+            await vscode.window.showTextDocument(doc, { preview: false });
+        }
+    }
+
+    private async openCommitDiff(resource: Resource, split: boolean) {
+        const commit = this.getCommitFromResource(resource);
+        if (!commit) {
+            return;
+        }
+        const content = await this.git.constructCommitDiff(commit);
+
+        const doc = await vscode.workspace.openTextDocument({
+            content: content,
+            language: "diff",
+
+        });
         if (split) {
             await vscode.window.showTextDocument(doc, { preview: false, viewColumn: vscode.ViewColumn.Beside });
         } else {

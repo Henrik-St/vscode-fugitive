@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
 import { API as GitAPI, Repository, Commit, Status, Ref, DiffEditorSelectionHunkToolbarContext } from './vscode-git';
 import { readFile } from './util';
 
@@ -167,6 +168,25 @@ export class GitWrapper {
         }, (rejected) => {
             console.debug('git.diff.stageHunk: rejected: ', rejected);
         });
+    }
+
+    async constructCommitDiff(commit: Commit): Promise<string> {
+        const commitChanges = (await this.repo.diffBetween(commit.parents[0], commit.hash)).map(diff => diff.uri.path);
+        console.log(commitChanges);
+        const commitDiff = (await Promise.all(commitChanges.map(uri => {
+            console.log(commit.parents[0], commit.hash, uri);
+            return this.repo.diffBetween(commit.parents[0], commit.hash, uri);
+        }))).join("\n");
+
+        return `tree  ${commit.hash} \n` 
+            + `parent  ${commit.parents[0]} \n` 
+            + `author ${commit.authorName} <${commit.authorEmail}> ${commit.authorDate} \n` 
+            + `\n` 
+            + `${commit.message}` 
+            + `\n` 
+            + commitDiff
+        ;
+
     }
 }
 
