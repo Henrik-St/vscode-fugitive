@@ -99,7 +99,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     provideTextDocumentContent(_uri: vscode.Uri): string {
-        console.debug('provideTextDocumentContent');
+        console.debug('Provider.provideTextDocumentContent');
         const newUIModel: [Resource, string][] = [];
         let head = "Detached";
         if (this.git.repo.state.HEAD?.name) {
@@ -243,7 +243,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         const currentLine = vscode.window.activeTextEditor?.selection.active.line;
 
         if (!currentLine) {
-            console.log('no current line');
+            console.debug('no current line');
             return;
         }
 
@@ -272,7 +272,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
     goNextHunk() {
         const currentLine = vscode.window.activeTextEditor?.selection.active.line;
         if (!currentLine && currentLine !== 0) {
-            console.log('no current line');
+            console.debug('no current line');
             return;
         }
 
