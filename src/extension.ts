@@ -2,14 +2,18 @@ import * as vscode from 'vscode';
 import { window, workspace, commands, Uri } from 'vscode';
 import { Provider } from './provider';
 import { GitExtension } from './vscode-git';
+import { DiffProvider } from './diff-provider';
 
 export function activate({ subscriptions }: vscode.ExtensionContext) {
 
 	console.debug('fugitive.activate');
 	let provider: Provider | null = null;
+	let diffProvider: DiffProvider | null = null;
 	const dependencies = getDependencies();
 	if (dependencies) {
+		diffProvider = new DiffProvider(dependencies.gitAPI);
 		provider = new Provider(dependencies.gitAPI);
+		subscriptions.push(workspace.registerTextDocumentContentProvider(DiffProvider.scheme, diffProvider));
 		subscriptions.push(workspace.registerTextDocumentContentProvider(Provider.myScheme, provider));
 	}
 

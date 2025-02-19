@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { API as GitAPI, Change, Status, Commit } from './vscode-git';
 import { GitWrapper } from './git-wrapper';
 import { mapStatustoString, setCursorWithView } from './util';
+import { encodeCommit } from './diff-provider';
 
 type ChangeType = { changeIndex: number };
 type DiffType = { changeIndex: number, diffIndex: number, diffLineIndex: number };
@@ -622,13 +623,9 @@ export class Provider implements vscode.TextDocumentContentProvider {
         if (!commit) {
             return;
         }
-        const content = await this.git.constructCommitDiff(commit);
+        const file = encodeCommit(commit);
 
-        const doc = await vscode.workspace.openTextDocument({
-            content: content,
-            language: "diff",
-
-        });
+        const doc = await vscode.workspace.openTextDocument(file);
         if (split) {
             await vscode.window.showTextDocument(doc, { preview: false, viewColumn: vscode.ViewColumn.Beside });
         } else {
