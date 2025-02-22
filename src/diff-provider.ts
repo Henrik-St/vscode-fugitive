@@ -19,6 +19,7 @@ export class DiffProvider implements vscode.TextDocumentContentProvider {
     }
 
     provideTextDocumentContent(uri: vscode.Uri): Promise<string> {
+        console.debug('DiffProvider.provideTextDocumentContent');
         return this.git.constructCommitDiff(decodeCommit(uri));
     }
 

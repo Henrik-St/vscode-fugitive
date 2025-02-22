@@ -26,7 +26,9 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 			if (!dependencies) {
 				return;
 			}
+			diffProvider = new DiffProvider(dependencies.gitAPI);
 			provider = new Provider(dependencies.gitAPI);
+			subscriptions.push(workspace.registerTextDocumentContentProvider(DiffProvider.scheme, diffProvider));
 			subscriptions.push(workspace.registerTextDocumentContentProvider(Provider.myScheme, provider));
 		}
 		const doc = await provider.getDocOrRefreshIfExists();

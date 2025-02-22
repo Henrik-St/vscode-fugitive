@@ -49,9 +49,6 @@ export class GitWrapper {
             }
             const commits = await this.repo.log({range: branchbase + "..HEAD"});
 
-            console.log(branchbase);
-            console.log(branchbase + "..HEAD");
-            console.log(commits);
             this.cachedUnpushedCommits = await this.repo.log({range: branchbase + "..HEAD"});
         }
     }
@@ -172,9 +169,7 @@ export class GitWrapper {
 
     async constructCommitDiff(commit: Commit): Promise<string> {
         const commitChanges = (await this.repo.diffBetween(commit.parents[0], commit.hash)).map(diff => diff.uri.path);
-        console.log(commitChanges);
         const commitDiff = (await Promise.all(commitChanges.map(uri => {
-            console.log(commit.parents[0], commit.hash, uri);
             return this.repo.diffBetween(commit.parents[0], commit.hash, uri);
         }))).join("\n");
 
