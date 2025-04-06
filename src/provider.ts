@@ -6,10 +6,13 @@ import { encodeCommit } from './diff-provider';
 
 type ChangeType = { changeIndex: number };
 type DiffType = { changeIndex: number, diffIndex: number, diffLineIndex: number };
+type ViewType = "List" | "Tree";
+type Arrow = "⯈" | "⯆";
 
 export type Resource = 
     {type: 'HeadUI'} | {type: 'MergeUI' }| {type: 'HelpUI' }| {type: 'MergeHeader' }| 
     {type: 'MergeChange'}  & ChangeType | 
+    {type: 'TreeHeader'} | 
     {type: 'UntrackedHeader' } | {type: 'Untracked'} & ChangeType| 
     {type: 'UnstagedHeader' }| {type: 'Unstaged'} & ChangeType| 
     {type: 'UnstagedDiff'} & DiffType  |
@@ -125,6 +128,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         if (mergeChanges.length > 0) {
             newUIModel.push([{ type: "BlankUI"}, ""]);
             newUIModel.push([{ type: 'MergeHeader'}, `Merge Changes (${mergeChanges.length}):`]);
+            newUIModel.push([{ type: 'TreeHeader'}, `⯈ ./src/dir`]);
             const m = mergeChanges.map((c, i): [Resource, string] => ([{ type: "MergeChange", changeIndex: i},this.renderChange(c)]));
             newUIModel.push(...m);
         }
@@ -132,6 +136,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         if (untracked.length > 0) {
             newUIModel.push([{ type: "BlankUI"}, ""]);
             newUIModel.push([{type: "UntrackedHeader"}, `Untracked (${untracked.length}):`]);
+            newUIModel.push([{ type: 'TreeHeader'}, `⯈ ./src/dir`]);
             const m = untracked.map((c, i): [Resource, string] => [{type: "Untracked", changeIndex: i},this.renderChange(c)]);
             newUIModel.push(...m);
         }
@@ -140,6 +145,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         if (unstaged.length > 0) {
             newUIModel.push([{ type: "BlankUI"}, ""]);
             newUIModel.push([{ type: "UnstagedHeader"}, `Unstaged (${unstaged.length}):`]);
+            newUIModel.push([{ type: 'TreeHeader'}, `⯈ ./src/dir`]);
             const m = unstaged.flatMap((c, i): [Resource, string][] => (
                 [
                     this.getChangeModel(c, i, "Unstaged"),

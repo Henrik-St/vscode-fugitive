@@ -45,8 +45,8 @@ The default mappings assume QUERTZ as the keyboard layout. See below for how to 
 | fugitive.goUnpushed       | g p                   | Jump to the Unpushed section.                          |
 | fugitive.gitExclude*      | g i                   | Open .git/info/exclude. Add the file under the cursor. |
 | fugitive.gitIgnore*       | g I                   | Open .gitignore. Add the file under the cursor         |
-| fugitive.openFile         | O                     | Open the file under the cursor in a new tab.           |
-| fugitive.openFileSplit    | o                     | Open the file under the cursor in a new split.         |
+| fugitive.openFile         | O                     | Open the file/commit under the cursor in a new tab.    |
+| fugitive.openFileSplit    | o                     | Open the file/commit under the cursor in a new split.  |
 | fugitive.previousHunk     | shift+8 (QUERTZ: '(') | Jump to the previous hunk.                             |
 | fugitive.nextHunk         | shift+9 (QUERTZ: ')') | Jump to the next hunk.                                 |
 | fugitive.help             | g h                   | Open the README of this extension                      |
