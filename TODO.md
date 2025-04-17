@@ -5,5 +5,8 @@
 * provide tree view
 
 # Bug fixes:
+* 1 toggle inline diff does not work anymore
+* 2. fast staging does wrong actions
+* 3. handle select git repository
 * gg from vscode.vim does not work anymore
 * cursor moves after opening commit message buffer
