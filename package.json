@@ -287,6 +287,7 @@
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run compile",
+		"vscode:package": "vsce package",
 		"compile": "tsc -p ./",
 		"lint": "eslint \"src/**/*.ts\"",
 		"watch": "tsc -watch -p ./"
@@ -296,6 +297,7 @@
 		"@types/vscode": "^1.73.0",
 		"@typescript-eslint/eslint-plugin": "^6.7.0",
 		"@typescript-eslint/parser": "^6.7.0",
+		"@vscode/vsce": "^2.32.0",
 		"eslint": "^8.57.1",
 		"typescript": "^5.4.2"
 	}
