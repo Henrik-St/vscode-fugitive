@@ -34,6 +34,7 @@ export class GitWrapper {
     }
 
     async updateBranchInfo(): Promise<void> {
+        console.debug("updateBranchInfo");
         this.cachedRefs = await this.repo.getRefs({});
         if (this.getCachedHasRemoteBranch()) {
             this.cachedUnpushedCommits = await this.repo.log({ range: this.repo.state.remotes[0].name + "/" + this.repo.state.HEAD?.name + "..HEAD" });
@@ -42,12 +43,15 @@ export class GitWrapper {
                 this.cachedUnpushedCommits = [];
                 return;
             }
-            const branchbase = (await this.repo.getBranchBase(this.repo.state.HEAD?.name))?.commit;
+            const branchbase = await
+                this.repo.getBranchBase(this.repo.state.HEAD?.name)
+                .then((branch) => branch?.commit)
+                .catch(() => undefined)
+            ;
             if (!branchbase) {
                 this.cachedUnpushedCommits = [];
                 return;
             }
-            const commits = await this.repo.log({range: branchbase + "..HEAD"});
 
             this.cachedUnpushedCommits = await this.repo.log({range: branchbase + "..HEAD"});
         }
@@ -83,7 +87,7 @@ export class GitWrapper {
         let diffCount = -1;
         for (const line of diffs) {
             if (line.startsWith("diff --git")) {
-                const match = line.match(/diff --git a\/(.*) b\/(.*)/);
+                const match = line.match(/diff --git \w\/(.*) \w\/(.*)/);
                 currentPath = match ? (this.rootUri + "/" + match[1]) : "";
                 diffCount = -1;
                 continue;
