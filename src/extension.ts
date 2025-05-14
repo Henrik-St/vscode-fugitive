@@ -239,6 +239,11 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 		console.debug('fugitive.refresh');
 		vscode.commands.executeCommand('git.refresh');
 	}));
+
+	subscriptions.push(commands.registerCommand('fugitive.openDiffView', async () => {
+		console.debug('fugitive.openDiffView');
+		provider!.openDiffView();
+	}));
 }
 
 function _getTerminal(): vscode.Terminal {

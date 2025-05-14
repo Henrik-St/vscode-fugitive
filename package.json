@@ -111,6 +111,10 @@
 				"command": "fugitive.goStaged",
 				"title": "Fugitive: go to staged section",
 				"when": "resourceScheme == fugitive"
+			},
+			{
+				"command": "fugitive.openDiffView",
+				"title": "Fugitive: Open DiffView"
 			}
 		],
 		"keybindings": [
@@ -262,6 +266,11 @@
 			{
 				"command": "fugitive.help",
 				"key": "g h",
+				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+			},
+			{
+				"command": "fugitive.openDiffView",
+				"key": "g D",
 				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
 			}
 		],

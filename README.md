@@ -84,3 +84,7 @@ Hence the Git statusline commands are not part of this scope.
 If you are interested in this functionality, i have opened an issue on the vim extension github [here](https://github.com/VSCodeVim/Vim/issues/9103).
 2. The vscode git api does not have first-class support for interactive rebasing.
 Therefore, functionality relying on rebasing is not provided in this extension.
+
+## Additional Features
+This extension additionally contains the diffview functionality.
+WIP

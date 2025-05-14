@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { API as GitAPI, Change, Status, Commit } from './vscode-git';
+import { API as GitAPI, Change, Status, Commit, Git } from './vscode-git';
 import { GitWrapper } from './git-wrapper';
 import { mapStatustoString, setCursorWithView } from './util';
 import { encodeCommit } from './diff-provider';
@@ -783,5 +783,10 @@ export class Provider implements vscode.TextDocumentContentProvider {
         index = containsCategory ? 4 : 0;
         return index;
     }
+
+
+	openDiffView(range: Git) {
+		throw new Error('Method not implemented.');
+	}
 
 }
