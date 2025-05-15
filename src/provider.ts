@@ -324,7 +324,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         };
 
         const value = await vscode.window.showQuickPick(repo_names, options);
-        const repo = repos.filter(i => i[0] === value)[0][1]
+        const repo = repos.filter(i => i[0] === value)[0][1];
 		this.git.setRepository(repo);
 
         this.onDidChangeEmitter.fire(Provider.uri);
