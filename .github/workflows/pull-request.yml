@@ -13,9 +13,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
         with:
           ref: main
+      - uses: actions/checkout@v4
       - run: |
           current="$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' package.json)"
           main="$(git show origin/main:package.json | sed -n 's/.*"version": *"\([^"]*\)".*/\1/p')"
