@@ -15,7 +15,7 @@ jobs:
       - uses: actions/checkout@v3
       - run: |
           current="$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' package.json)"
-          main="$(git show main:package.json | sed -n 's/.*"version": *"\([^"]*\)".*/\1/p')"
+          main="$(git show origin/main:package.json | sed -n 's/.*"version": *"\([^"]*\)".*/\1/p')"
           echo "current: ${current} main: ${main}"
           if [ "${current}" !=  "${main}" ]; then
             echo "Version bumped"
