@@ -7,3 +7,20 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - run: npm install && npm run compile && npm run lint
+
+  check_version:
+    if: "${{ github.event.pull_request.head.repo.full_name == github.repository }}"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: |
+          current="$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' package.json)"
+          main="$(git show main:package.json | sed -n 's/.*"version": *"\([^"]*\)".*/\1/p')"
+          echo "current: ${current} main: ${main}"
+          if [ "${current}" !=  "${main}" ]; then
+            echo "Version bumped"
+          else 
+            echo "Version not bumped"
+            exit 1
+          fi
+
