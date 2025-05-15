@@ -111,6 +111,11 @@
 				"command": "fugitive.goStaged",
 				"title": "Fugitive: go to staged section",
 				"when": "resourceScheme == fugitive"
+			},
+			{
+				"command": "fugitive.setRepo",
+				"title": "Fugitive: Set Repository",
+				"when": "resourceScheme == fugitive"
 			}
 		],
 		"keybindings": [

@@ -192,8 +192,23 @@ export class Provider implements vscode.TextDocumentContentProvider {
         return [{ type: changeType, changeIndex: i }, this.renderChange(c)];
     }
 
-    async getDocOrRefreshIfExists() {
+    /**
+     * opens the fugitive document
+     * @param filepath determines the repository to open if there a multiple
+     */
+    async getDocOrRefreshIfExists(filepath?: string) {
         console.debug("getDocOrRefreshIfExists");
+
+        // get the closest repo to the openend document
+        // or the closest repo to the / if no document is open
+        let repo_list = this.git.getRepositories().sort((a,b) => b[0].length - a[0].length);
+        if (filepath) {
+            repo_list =  this.git.getRepositories() 
+                .filter(r => filepath.includes(r[0]))
+                .sort((r1, r2) => (r1[0].length - r2[0].length))
+            ;
+        }
+        await this.git.setRepository(repo_list[0][1]);
         await this.git.updateBranchInfo();
         await this.updateDiffs();
 
@@ -204,6 +219,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
             this.openedChanges.clear();
             this.openedIndexChanges.clear();
             doc = await vscode.workspace.openTextDocument(Provider.uri);
+            this.onDidChangeEmitter.fire(Provider.uri);
         }
         return doc;
     }
@@ -298,6 +314,21 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
     }
 
+
+	async setRepository() {
+        const repos = this.git.getRepositories();
+        const repo_names = repos.map(i => i[0]);
+
+        const options: vscode.QuickPickOptions = {
+            title: "Select the repository",
+        };
+
+        const value = await vscode.window.showQuickPick(repo_names, options);
+        const repo = repos.filter(i => i[0] === value)[0][1]
+		this.git.setRepository(repo);
+
+        this.onDidChangeEmitter.fire(Provider.uri);
+	}
 
     async stageFile() {
         const resource = this.getResourceUnderCursor();
@@ -683,7 +714,9 @@ export class Provider implements vscode.TextDocumentContentProvider {
     private updateCursor() {
         console.debug('updateCursor');
         if (!this.previousResource) {
-            this.line = vscode.window.activeTextEditor!.selection.active.line;
+            this.line = 
+                vscode.window.activeTextEditor?.selection.active.line 
+                || this.uiModel.length >= 5 ? 5: 0; //go to first item if present
             return;
         }
         switch (this.previousResource.type) {
