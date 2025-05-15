@@ -1,5 +1,4 @@
 import * as vscode from 'vscode';
-import * as path from 'path';
 import { API as GitAPI, Repository, Commit, Status, Ref, DiffEditorSelectionHunkToolbarContext } from './vscode-git';
 import { readFile } from './util';
 
@@ -27,6 +26,16 @@ export class GitWrapper {
     async getRefs(): Promise<Ref[]> {
         this.cachedRefs = await this.repo.getRefs({});
         return this.cachedRefs;
+    }
+
+
+    getRepositories(): [string, Repository][]{
+        return this.api.repositories.map((i): [string, Repository] => [i.rootUri.path.split('/').pop() || '', i]); // name, repository pairs
+    }
+
+    async setRepository(new_repo: Repository) {
+        this.repo = new_repo;
+        this.rootUri = this.repo.rootUri.path;
     }
 
     getCachedRefs(): Ref[] {

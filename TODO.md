@@ -3,12 +3,11 @@
 * Provide help (g?) as text document
 * collapse untracked files into folders
 * provide tree view
-* provide vsix releases in github + release to openvsx
-    https://github.com/actions/upload-release-asset
+* release to openvsx
 * provide older commit msgs in editor
+* allow actions with selected ranges
 
 # Bug fixes:
-* 1. fast staging does wrong actions
-* 2. handle select git repository
+* fast staging does wrong actions
 * gg from vscode.vim does not work anymore
 * cursor moves after opening commit message buffer

@@ -31,8 +31,9 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 			subscriptions.push(workspace.registerTextDocumentContentProvider(DiffProvider.scheme, diffProvider));
 			subscriptions.push(workspace.registerTextDocumentContentProvider(Provider.myScheme, provider));
 		}
-		const doc = await provider.getDocOrRefreshIfExists();
-		await window.showTextDocument(doc, { preview: false });
+		const current_doc_path = window.activeTextEditor?.document.uri.path || "";
+		const fugitive_doc = await provider.getDocOrRefreshIfExists(current_doc_path);
+		await window.showTextDocument(fugitive_doc, { preview: false });
 	}));
 
 	subscriptions.push(commands.registerCommand('fugitive.stage', async () => {
@@ -238,6 +239,11 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 	subscriptions.push(commands.registerCommand('fugitive.refresh', async () => {
 		console.debug('fugitive.refresh');
 		vscode.commands.executeCommand('git.refresh');
+	}));
+
+	subscriptions.push(commands.registerCommand('fugitive.setRepo', async () => {
+		console.debug('fugitive.setRepo');
+		provider!.setRepository();
 	}));
 }
 
