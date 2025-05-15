@@ -30,7 +30,7 @@ export class GitWrapper {
 
 
     getRepositories(): [string, Repository][]{
-        return this.api.repositories.map((i): [string, Repository] => [i.rootUri.path.split('/').pop() || '', i]); // name, repository pairs
+        return this.api.repositories.map((i): [string, Repository] => [i.rootUri.path, i]); // name, repository pairs
     }
 
     async setRepository(new_repo: Repository) {
