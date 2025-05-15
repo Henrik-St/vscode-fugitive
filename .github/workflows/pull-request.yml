@@ -17,7 +17,6 @@ jobs:
         with:
           ref: main
       - run: |
-          git fetch . origin/main
           current="$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' package.json)"
           main="$(git show origin/main:package.json | sed -n 's/.*"version": *"\([^"]*\)".*/\1/p')"
           echo "current: ${current} main: ${main}"
