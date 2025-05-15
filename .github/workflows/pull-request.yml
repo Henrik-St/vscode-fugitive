@@ -20,7 +20,7 @@ jobs:
           current="$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' package.json)"
           main="$(git show origin/main:package.json | sed -n 's/.*"version": *"\([^"]*\)".*/\1/p')"
           echo "current: ${current} main: ${main}"
-          if [ "${current}" !=  "${main}" ]; then
+          if [ "${current}" != "${main}" ]; then
             echo "Version bumped"
           else 
             echo "Version not bumped"
