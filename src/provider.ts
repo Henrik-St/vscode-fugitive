@@ -49,16 +49,18 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
         this.uiModel = [];
 
-        // on Git Changed
-        const gitDisposable = this.git.repo.state.onDidChange(async () => {
-            console.debug('onGitChanged');
-            await this.git.updateBranchInfo();
-            await this.updateDiffs();
+        // on Git Changed on all repositories
+        const gitDisposables = this.git.api.repositories.map( repo => {
+            return repo.state.onDidChange(async () => {
+                console.debug('onGitChanged');
+                await this.git.updateBranchInfo();
+                await this.updateDiffs();
 
-            const doc = vscode.workspace.textDocuments.find(doc => doc.uri.scheme === Provider.myScheme);
-            if (doc) {
-                this.onDidChangeEmitter.fire(doc.uri);
-            }
+                const doc = vscode.workspace.textDocuments.find(doc => doc.uri.scheme === Provider.myScheme);
+                if (doc) {
+                    this.onDidChangeEmitter.fire(doc.uri);
+                }
+            });
         });
 
         // triggers after provideTextDocumentContent
@@ -71,7 +73,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
                     new vscode.Selection(new vscode.Position(this.line, 0), new vscode.Position(this.line, 0));
             }
         });
-        this.subscriptions = [gitDisposable, docDispose];
+        this.subscriptions = [...gitDisposables, docDispose];
 
     }
 
