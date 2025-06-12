@@ -25,6 +25,8 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     public git: GitWrapper;
 
+    private actionLock: boolean;
+
     //render data
     private uiModel: [Resource, string][];
 
@@ -41,6 +43,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     constructor(gitAPI: GitAPI) {
         this.git = new GitWrapper(gitAPI);
+        this.actionLock = false;
 
         this.line = 0;
         this.previousResource = null;
@@ -64,17 +67,29 @@ export class Provider implements vscode.TextDocumentContentProvider {
         });
 
         // triggers after provideTextDocumentContent
-        // overrides cursor behaviour
         const docDispose = vscode.workspace.onDidChangeTextDocument((e: vscode.TextDocumentChangeEvent) => {
             if (vscode.window.activeTextEditor?.document.uri.toString() === Provider.uri.toString() &&
                 e.document.uri.toString() === Provider.uri.toString()) {
                 console.debug('onDidChangeTextDocument');
+                // overrides cursor behaviour
                 vscode.window.activeTextEditor!.selection =
                     new vscode.Selection(new vscode.Position(this.line, 0), new vscode.Position(this.line, 0));
+                this.actionLock = false; // reset action lock
+                console.debug('release lock');
             }
         });
         this.subscriptions = [...gitDisposables, docDispose];
 
+    }
+
+    private getLock(): boolean{
+        console.debug('Aquire lock');
+        if (this.actionLock) {
+            console.debug("actionLock is set");
+            return false;
+        }
+        this.actionLock = true;
+        return true;
     }
 
     private renderChange(c: Change): string {
@@ -318,6 +333,11 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
 
 	async setRepository() {
+        console.debug('Acquire Lock');
+        if (!this.getLock()){
+            return Promise.reject("Provider is locked. Skipping setRepository");
+        } 
+
         const repos = this.git.getRepositories();
         const repo_names = repos.map(i => i[0]);
 
@@ -333,6 +353,9 @@ export class Provider implements vscode.TextDocumentContentProvider {
 	}
 
     async stageFile() {
+        if (!this.getLock()){
+            return Promise.reject("Provider is locked. Skipping setRepository");
+        } 
         const resource = this.getResourceUnderCursor();
         if (!resource) {
             return;
@@ -398,6 +421,9 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     async unstageFile() {
+        if (!this.getLock()){
+            return Promise.reject("Provider is locked. Skipping setRepository");
+        } 
         const resource = this.getResourceUnderCursor();
         if (!resource) {
             return;
@@ -447,11 +473,17 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     async unstageAll() {
+        if (!this.getLock()){
+            return Promise.reject("Provider is locked. Skipping setRepository");
+        } 
         const files = this.git.staged().map((c) => c.uri.path);
         await this.git.repo.revert(files);
     }
 
     async cleanFile() {
+        if (!this.getLock()){
+            return Promise.reject("Provider is locked. Skipping setRepository");
+        } 
         const resource = this.getResourceUnderCursor();
         if (!resource) {
             return;
@@ -483,6 +515,9 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     async toggleInlineDiff() {
+        if (!this.getLock()){
+            return Promise.reject("Provider is locked. Skipping setRepository");
+        } 
         const resource = this.getResourceUnderCursor();
         const change = this.getChangeFromResource(resource);
         if (!change) {
@@ -537,6 +572,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     async openDiff() {
+        // check for lock but dont aquire it
         const ressource = this.getResourceUnderCursor();
         if (!ressource) {
             return;
