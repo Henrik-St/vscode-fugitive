@@ -241,6 +241,27 @@ export class Provider implements vscode.TextDocumentContentProvider {
         return doc;
     }
 
+    goUp() {
+		if (!vscode.window.activeTextEditor) {
+			return;
+		}
+		const line = vscode.window.activeTextEditor!.selection.active.line;
+		const newLine = Math.max(line - 1, 0);
+		vscode.window.activeTextEditor!.selection =
+			new vscode.Selection(new vscode.Position(newLine, 0), new vscode.Position(newLine, 0));
+    }
+
+    goDown() {
+		if (!vscode.window.activeTextEditor) {
+			return;
+		}
+		const lineCount = vscode.window.activeTextEditor.document.lineCount;
+		const line = vscode.window.activeTextEditor!.selection.active.line;
+		const newLine = Math.min(line + 1, lineCount - 1);
+		vscode.window.activeTextEditor!.selection =
+			new vscode.Selection(new vscode.Position(newLine, 0), new vscode.Position(newLine, 0));
+    }
+
     goStaged() {
         console.debug("goStaged");
         const index = this.uiModel.findIndex(([res]) => res.type === "StagedHeader");
@@ -404,6 +425,14 @@ export class Provider implements vscode.TextDocumentContentProvider {
             }
             await this.git.applyPatchToFile(change.uri, resource.diffIndex, "stage");
         }
+    }
+
+    async commit() {
+		if (this.git.repo.state.indexChanges.length > 0) {
+			await this.git.repo.commit('', { useEditor: true });
+		} else {
+			vscode.window.showWarningMessage("Fugitive: Nothing to commit");
+		}
     }
 
     async checkForConflictMarker(uri: vscode.Uri): Promise<boolean> {
