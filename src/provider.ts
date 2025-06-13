@@ -85,10 +85,17 @@ export class Provider implements vscode.TextDocumentContentProvider {
     private getLock(): boolean{
         console.debug('Aquire lock');
         if (this.actionLock) {
-            console.debug("actionLock is set");
             return false;
         }
         this.actionLock = true;
+        return true;
+    }
+
+    private readLock(): boolean{
+        console.debug('Read lock');
+        if (this.actionLock) {
+            return false;
+        }
         return true;
     }
 
@@ -354,7 +361,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
 
 	async setRepository() {
-        console.debug('Acquire Lock');
         if (!this.getLock()){
             return Promise.reject("Provider is locked. Skipping setRepository");
         } 
@@ -428,6 +434,9 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     async commit() {
+        if (!this.getLock()){
+            return Promise.reject("Provider is locked. Skipping action");
+        } 
 		if (this.git.repo.state.indexChanges.length > 0) {
 			await this.git.repo.commit('', { useEditor: true });
 		} else {
@@ -451,7 +460,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     async unstageFile() {
         if (!this.getLock()){
-            return Promise.reject("Provider is locked. Skipping setRepository");
+            return Promise.reject("Provider is locked. Skipping action");
         } 
         const resource = this.getResourceUnderCursor();
         if (!resource) {
@@ -503,7 +512,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     async unstageAll() {
         if (!this.getLock()){
-            return Promise.reject("Provider is locked. Skipping setRepository");
+            return Promise.reject("Provider is locked. Skipping action");
         } 
         const files = this.git.staged().map((c) => c.uri.path);
         await this.git.repo.revert(files);
@@ -511,7 +520,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     async cleanFile() {
         if (!this.getLock()){
-            return Promise.reject("Provider is locked. Skipping setRepository");
+            return Promise.reject("Provider is locked. Skipping action");
         } 
         const resource = this.getResourceUnderCursor();
         if (!resource) {
@@ -545,7 +554,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     async toggleInlineDiff() {
         if (!this.getLock()){
-            return Promise.reject("Provider is locked. Skipping setRepository");
+            return Promise.reject("Provider is locked. Skipping action");
         } 
         const resource = this.getResourceUnderCursor();
         const change = this.getChangeFromResource(resource);
@@ -602,6 +611,10 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     async openDiff() {
         // check for lock but dont aquire it
+        if (!this.readLock()){
+            return Promise.reject("Provider is locked. Skipping action");
+        } 
+    
         const ressource = this.getResourceUnderCursor();
         if (!ressource) {
             return;
@@ -677,6 +690,9 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     async open(split: boolean) {
+        if (!this.readLock()){
+            return Promise.reject("Provider is locked. Skipping action");
+        }
         const resource = this.getResourceUnderCursor();
 
         switch(resource.type) {
@@ -700,6 +716,9 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     private async openFile(resource: Resource, split: boolean) {
+        if (!this.readLock()){
+            return Promise.reject("Provider is locked. Skipping action");
+        }
         const change = this.getChangeFromResource(resource);
         if (!change) {
             return;
@@ -718,6 +737,9 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     private async openCommitDiff(resource: Resource, split: boolean) {
+        if (!this.readLock()){
+            return Promise.reject("Provider is locked. Skipping action");
+        }
         const commit = this.getCommitFromResource(resource);
         if (!commit) {
             return;
@@ -733,6 +755,9 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     async gitExclude(gitIgnore: boolean) {
+        if (!this.readLock()){
+            return Promise.reject("Provider is locked. Skipping action");
+        }
         const fileUnderCursor = this.getResourceUnderCursor();
         const change = this.getChangeFromResource(fileUnderCursor);
         if (!change) {
