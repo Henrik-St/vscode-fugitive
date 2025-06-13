@@ -2,7 +2,7 @@
 	"name": "vscode-fugitive",
 	"displayName": "Fugitive for VS Code",
 	"description": "This is a simple extension that adds a subset of the fugitive plugin to VS Code",
-	"version": "0.2.3",
+	"version": "0.2.4",
 	"publisher": "hnrk-str",
 	"private": true,
 	"license": "MIT",
@@ -297,7 +297,10 @@
 		"compile": "tsc -p ./",
 		"lint": "eslint \"src/**/*.ts\"",
 		"watch": "tsc -watch -p ./",
-		"tag": "git tag $npm_package_version"
+		"tag": "git tag $npm_package_version",
+		"patch": "npm version patch --no-git-tag-version",
+		"minor": "npm version minor --no-git-tag-version",
+		"major": "npm version major --no-git-tag-version"
 	},
 	"devDependencies": {
 		"@types/node": "^18",
