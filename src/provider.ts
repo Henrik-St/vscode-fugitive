@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { API as GitAPI, Change, Status, Commit } from './vscode-git';
+import { API as GitAPI, Change, Status, Commit, Repository } from './vscode-git';
 import { GitWrapper } from './git-wrapper';
 import { mapStatustoString, setCursorWithView } from './util';
 import { encodeCommit } from './diff-provider';
@@ -100,7 +100,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     private renderChange(c: Change): string {
-        return mapStatustoString(c.status) + " " + c.originalUri.path.replace(this.git.rootUri, '');
+        return mapStatustoString(c.status) + " " + c.originalUri.path.replace(this.git.rootUri + '/', '');
     }
 
     private getDiffModel(c: Change, index: number, changeType: "Staged" | "Unstaged", diffType: "StagedDiff" | "UnstagedDiff"): [Resource, string][] {
@@ -225,7 +225,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
         // get the closest repo to the openend document
         // or the closest repo to the / if no document is open
-        let repo_list = this.git.getRepositories().sort((a,b) => b[0].length - a[0].length);
+        let repo_list = this.git.getRepositories().sort((a,b) => a[0].length - b[0].length);
         if (filepath) {
             repo_list =  this.git.getRepositories() 
                 .filter(r => filepath.includes(r[0]))
@@ -365,7 +365,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
             return Promise.reject("Provider is locked. Skipping setRepository");
         } 
 
-        const repos = this.git.getRepositories();
+        const repos = this.git.getRepositories().map((i): [string, Repository] => ([i[0].split('/').pop() || '', i[1]]));
         const repo_names = repos.map(i => i[0]);
 
         const options: vscode.QuickPickOptions = {
