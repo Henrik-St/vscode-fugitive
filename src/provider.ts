@@ -25,6 +25,8 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     public git: GitWrapper;
 
+    private actionLock: boolean;
+
     //render data
     private uiModel: [Resource, string][];
 
@@ -41,6 +43,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     constructor(gitAPI: GitAPI) {
         this.git = new GitWrapper(gitAPI);
+        this.actionLock = false;
 
         this.line = 0;
         this.previousResource = null;
@@ -49,30 +52,52 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
         this.uiModel = [];
 
-        // on Git Changed
-        const gitDisposable = this.git.repo.state.onDidChange(async () => {
-            console.debug('onGitChanged');
-            await this.git.updateBranchInfo();
-            await this.updateDiffs();
+        // on Git Changed on all repositories
+        const gitDisposables = this.git.api.repositories.map( repo => {
+            return repo.state.onDidChange(async () => {
+                console.debug('onGitChanged');
+                await this.git.updateBranchInfo();
+                await this.updateDiffs();
 
-            const doc = vscode.workspace.textDocuments.find(doc => doc.uri.scheme === Provider.myScheme);
-            if (doc) {
-                this.onDidChangeEmitter.fire(doc.uri);
-            }
+                const doc = vscode.workspace.textDocuments.find(doc => doc.uri.scheme === Provider.myScheme);
+                if (doc) {
+                    this.onDidChangeEmitter.fire(doc.uri);
+                }
+            });
         });
 
         // triggers after provideTextDocumentContent
-        // overrides cursor behaviour
         const docDispose = vscode.workspace.onDidChangeTextDocument((e: vscode.TextDocumentChangeEvent) => {
             if (vscode.window.activeTextEditor?.document.uri.toString() === Provider.uri.toString() &&
                 e.document.uri.toString() === Provider.uri.toString()) {
                 console.debug('onDidChangeTextDocument');
+                // overrides cursor behaviour
                 vscode.window.activeTextEditor!.selection =
                     new vscode.Selection(new vscode.Position(this.line, 0), new vscode.Position(this.line, 0));
+                this.actionLock = false; // reset action lock
+                console.debug('release lock');
             }
         });
-        this.subscriptions = [gitDisposable, docDispose];
+        this.subscriptions = [...gitDisposables, docDispose];
 
+    }
+
+    private getLock(): boolean{
+        console.debug('Aquire lock');
+        if (this.actionLock) {
+            return false;
+        }
+        this.actionLock = true;
+        setTimeout(() => {
+            console.debug('Reset lock after timeout');
+            this.actionLock = false;
+        }, 3000);
+        return true;
+    }
+
+    private readLock(): boolean{
+        console.debug('Read lock');
+        return this.actionLock;
     }
 
     private renderChange(c: Change): string {
@@ -224,6 +249,27 @@ export class Provider implements vscode.TextDocumentContentProvider {
         return doc;
     }
 
+    goUp() {
+		if (!vscode.window.activeTextEditor) {
+			return;
+		}
+		const line = vscode.window.activeTextEditor!.selection.active.line;
+		const newLine = Math.max(line - 1, 0);
+		vscode.window.activeTextEditor!.selection =
+			new vscode.Selection(new vscode.Position(newLine, 0), new vscode.Position(newLine, 0));
+    }
+
+    goDown() {
+		if (!vscode.window.activeTextEditor) {
+			return;
+		}
+		const lineCount = vscode.window.activeTextEditor.document.lineCount;
+		const line = vscode.window.activeTextEditor!.selection.active.line;
+		const newLine = Math.min(line + 1, lineCount - 1);
+		vscode.window.activeTextEditor!.selection =
+			new vscode.Selection(new vscode.Position(newLine, 0), new vscode.Position(newLine, 0));
+    }
+
     goStaged() {
         console.debug("goStaged");
         const index = this.uiModel.findIndex(([res]) => res.type === "StagedHeader");
@@ -316,6 +362,11 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
 
 	async setRepository() {
+        if (!this.getLock()){
+            vscode.window.showWarningMessage("Action in progress. Try again after completion");
+            return;
+        } 
+
         const repos = this.git.getRepositories().map((i): [string, Repository] => ([i[0].split('/').pop() || '', i[1]]));
         const repo_names = repos.map(i => i[0]);
 
@@ -324,15 +375,32 @@ export class Provider implements vscode.TextDocumentContentProvider {
         };
 
         const value = await vscode.window.showQuickPick(repo_names, options);
+        if (!value) {
+            this.actionLock = false;
+            return;
+        }
         const repo = repos.filter(i => i[0] === value)[0][1];
 		this.git.setRepository(repo);
 
         this.onDidChangeEmitter.fire(Provider.uri);
 	}
 
+    refresh() {
+        vscode.commands.executeCommand('git.refresh', this.git.rootUri).then((succ) => {
+            console.debug('git.refresh success', succ);
+        }, (err) => {
+            console.debug('git.refresh error', err);
+        });
+    }
+
     async stageFile() {
+        if (!this.getLock()){
+            vscode.window.showWarningMessage("Action in progress. Try again after completion");
+            return;
+        } 
         const resource = this.getResourceUnderCursor();
         if (!resource) {
+            this.actionLock = false;
             return;
         }
         if (resource.type === "MergeChange") {
@@ -341,8 +409,9 @@ export class Provider implements vscode.TextDocumentContentProvider {
             const uri = vscode.Uri.parse(change.uri.path);
             if (await this.checkForConflictMarker(uri)) {
                 await this.git.repo.add([change.uri.path]);
+                return;
             }
-            return;
+            this.actionLock = false;
         }
         if (resource.type === "Untracked") {
             const change = this.git.untracked()[resource.changeIndex];
@@ -375,29 +444,55 @@ export class Provider implements vscode.TextDocumentContentProvider {
         if (resource.type === "UnstagedDiff") {
             const change = this.git.unstaged()[resource.changeIndex];
             if (resource.diffIndex === undefined) {
+                this.actionLock = false;
                 return Promise.reject("No diff index: " + resource.diffIndex);
             }
             await this.git.applyPatchToFile(change.uri, resource.diffIndex, "stage");
+            return;
         }
+        this.actionLock = false;
+    }
+
+    async commit() {
+        if (!this.getLock()){
+            vscode.window.showWarningMessage("Action in progress. Try again after completion");
+            return;
+        } 
+		if (this.git.repo.state.indexChanges.length > 0) {
+			await this.git.repo.commit('', { useEditor: true });
+		} else {
+            this.actionLock = false;
+			vscode.window.showWarningMessage("Fugitive: Nothing to commit");
+		}
     }
 
     async checkForConflictMarker(uri: vscode.Uri): Promise<boolean> {
         const buffer = await vscode.workspace.fs.readFile(uri);
-        if (buffer.toString().includes("<<<<<<<")) {
-            const options: vscode.QuickPickOptions = {
-                title: "Merge with conflicts?",
-            };
-
-            const success_text = "Merge conflicts";
-            const value = await vscode.window.showQuickPick(["cancel", success_text], options);
-            return value === success_text;
+        if (!buffer.toString().match(/^<<<<<<</)?.length) {
+            return true;
         }
-        return true;
+        const options: vscode.QuickPickOptions = {
+            title: "Conflict Marker detected. Merge with conflicts?",
+        };
+
+        const success_text = "Merge conflicts";
+        const value = await vscode.window.showQuickPick(["cancel", success_text], options);
+        if (value === success_text) {
+            return true;
+        } else {
+            this.actionLock = false;
+            return false;
+        }
     }
 
     async unstageFile() {
+        if (!this.getLock()){
+            vscode.window.showWarningMessage("Action in progress. Try again after completion");
+            return;
+        } 
         const resource = this.getResourceUnderCursor();
         if (!resource) {
+            this.actionLock = false;
             return;
         }
         switch (resource.type) {
@@ -408,22 +503,27 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 for (const change of changes) {
                     this.openedIndexChanges.delete(change);
                 }
-                break;
+                return;
             }
             case "Staged": {
                 const change = this.git.staged()[resource.changeIndex];
                 console.debug('unstage ', change.uri.path);
                 await this.git.repo.revert([change.uri.path]);
                 this.openedIndexChanges.delete(change.uri.path);
-                break;
+                return;
             }
             case "StagedDiff": {
                 const change = this.git.staged()[resource.changeIndex];
                 if (resource.diffIndex === undefined) {
+                    this.actionLock = false;
                     return Promise.reject("No diff index: " + resource.diffIndex);
                 }
                 await this.git.applyPatchToFile(change.uri, resource.diffIndex, "unstage");
-                break;
+                return;
+            }
+            default: {
+                this.actionLock = false;
+                return;
             }
         }
     }
@@ -445,13 +545,22 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     async unstageAll() {
+        if (!this.getLock()){
+            vscode.window.showWarningMessage("Action in progress. Try again after completion");
+            return;
+        } 
         const files = this.git.staged().map((c) => c.uri.path);
         await this.git.repo.revert(files);
     }
 
     async cleanFile() {
+        if (!this.getLock()){
+            vscode.window.showWarningMessage("Action in progress. Try again after completion");
+            return;
+        } 
         const resource = this.getResourceUnderCursor();
         if (!resource) {
+            this.actionLock = false;
             return;
         }
         switch (resource.type) {
@@ -481,6 +590,10 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     async toggleInlineDiff() {
+        if (!this.getLock()){
+            vscode.window.showWarningMessage("Action in progress. Try again after completion");
+            return;
+        } 
         const resource = this.getResourceUnderCursor();
         const change = this.getChangeFromResource(resource);
         if (!change) {
@@ -535,6 +648,12 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     async openDiff() {
+        // check for lock but dont aquire it
+        if (!this.readLock()){
+            vscode.window.showWarningMessage("Action in progress. Try again after completion");
+            return;
+        } 
+    
         const ressource = this.getResourceUnderCursor();
         if (!ressource) {
             return;
@@ -610,6 +729,10 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     async open(split: boolean) {
+        if (!this.readLock()){
+            vscode.window.showWarningMessage("Action in progress. Try again after completion");
+            return;
+        }
         const resource = this.getResourceUnderCursor();
 
         switch(resource.type) {
@@ -633,6 +756,10 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     private async openFile(resource: Resource, split: boolean) {
+        if (!this.readLock()){
+            vscode.window.showWarningMessage("Action in progress. Try again after completion");
+            return;
+        }
         const change = this.getChangeFromResource(resource);
         if (!change) {
             return;
@@ -651,6 +778,10 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     private async openCommitDiff(resource: Resource, split: boolean) {
+        if (!this.readLock()){
+            vscode.window.showWarningMessage("Action in progress. Try again after completion");
+            return;
+        }
         const commit = this.getCommitFromResource(resource);
         if (!commit) {
             return;
@@ -666,6 +797,10 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     async gitExclude(gitIgnore: boolean) {
+        if (!this.readLock()){
+            vscode.window.showWarningMessage("Action in progress. Try again after completion");
+            return;
+        }
         const fileUnderCursor = this.getResourceUnderCursor();
         const change = this.getChangeFromResource(fileUnderCursor);
         if (!change) {
