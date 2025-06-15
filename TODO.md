@@ -8,6 +8,5 @@
 * allow actions with selected ranges
 
 # Bug fixes:
-* fast staging does wrong actions
 * gg from vscode.vim does not work anymore
 * cursor moves after opening commit message buffer
