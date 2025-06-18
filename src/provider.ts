@@ -153,7 +153,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     goStaged() {
         console.debug("goStaged");
-        // const index = this.uiModel.findIndex(([res]) => res.type === "StagedHeader");
         const index = this.uiModel.findHeader("StagedHeader");
         if (index >= 0) {
             vscode.window.activeTextEditor!.selection =
@@ -162,14 +161,12 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     goUnstaged(goUnstaged: boolean) {
-        // const untrackedIndex = this.uiModel.findIndex(([res]) => res.type === "UntrackedHeader");
         const untrackedIndex = this.uiModel.findHeader("UntrackedHeader");
         if (!goUnstaged && untrackedIndex >= 0) {
             vscode.window.activeTextEditor!.selection =
                 new vscode.Selection(new vscode.Position(untrackedIndex, 0), new vscode.Position(untrackedIndex, 0));
             return;
         }
-        // const unstagedIndex = this.uiModel.findIndex(([res]) => res.type === "UnstagedHeader");
         const unstagedIndex = this.uiModel.findHeader("UnstagedHeader");
         if (unstagedIndex >= 0) {
             vscode.window.activeTextEditor!.selection =
@@ -179,7 +176,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     goUnpushed() {
-        // const index = this.uiModel.findIndex(([res]) => res.type === "UnpushedHeader");
         const index =  this.uiModel.findHeader("UnpushedHeader");
         if (index >= 0) {
             vscode.window.activeTextEditor!.selection =
