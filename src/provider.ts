@@ -1,23 +1,12 @@
 import * as vscode from 'vscode';
-import { API as GitAPI, Change, Status, Commit, Repository } from './vscode-git';
+import {Status, Repository } from './vscode-git';
 import { GitWrapper } from './git-wrapper';
-import { mapStatustoString, setCursorWithView } from './util';
+import { setCursorWithView } from './util';
 import { encodeCommit } from './diff-provider';
+import { Resource } from './resource';
+import { UIModel } from './ui-model';
+import { GIT } from './extension';
 
-type ChangeType = { changeIndex: number };
-type DiffType = { changeIndex: number, diffIndex: number, diffLineIndex: number };
-
-export type Resource = 
-    {type: 'HeadUI'} | {type: 'MergeUI' }| {type: 'HelpUI' }| {type: 'MergeHeader' }| 
-    {type: 'MergeChange'}  & ChangeType | 
-    {type: 'UntrackedHeader' } | {type: 'Untracked'} & ChangeType| 
-    {type: 'UnstagedHeader' }| {type: 'Unstaged'} & ChangeType| 
-    {type: 'UnstagedDiff'} & DiffType  |
-    {type: 'StagedHeader' }| {type: 'Staged'} & ChangeType|
-    {type: 'StagedDiff'} & DiffType  |
-    {type: 'UnpushedHeader' } | {type: 'Unpushed' } & ChangeType |
-    {type: 'BlankUI'}
-;
 
 export class Provider implements vscode.TextDocumentContentProvider {
     static myScheme = 'fugitive';
@@ -27,30 +16,27 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     private actionLock: boolean;
 
-    //render data
-    private uiModel: [Resource, string][];
+    private uiModel: UIModel;
 
     //status data
     private line: number;
     private previousResource: Resource | null;
 
-    private openedChanges: Set<string>;
-    private openedIndexChanges: Set<string>;
-
     private onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri>();
     onDidChange = this.onDidChangeEmitter.event; // triggers before provideTextDocumentContent
     private subscriptions: vscode.Disposable[];
 
-    constructor(gitAPI: GitAPI) {
-        this.git = new GitWrapper(gitAPI);
+    constructor() {
+        if (!GIT) {
+            throw Error("Git API not found!");
+        }
+        this.git = GIT;
         this.actionLock = false;
 
         this.line = 0;
         this.previousResource = null;
-        this.openedChanges = new Set();
-        this.openedIndexChanges = new Set();
 
-        this.uiModel = [];
+        this.uiModel = new UIModel();
 
         // on Git Changed on all repositories
         const gitDisposables = this.git.api.repositories.map( repo => {
@@ -100,121 +86,16 @@ export class Provider implements vscode.TextDocumentContentProvider {
         return this.actionLock;
     }
 
-    private renderChange(c: Change): string {
-        return mapStatustoString(c.status) + " " + c.originalUri.path.replace(this.git.rootUri + '/', '');
-    }
-
-    private getDiffModel(c: Change, index: number, changeType: "Staged" | "Unstaged", diffType: "StagedDiff" | "UnstagedDiff"): [Resource, string][] {
-        const hasDiff = this.getOpenedDiffMap(changeType).has(c.uri.path);
-        if (!hasDiff) {
-            return [];
-        }
-
-        const arr = (this.getOpenedDiffMap(changeType).get(c.uri.path) ?? []).flatMap( (str, i): [Resource, string][] => {
-            return str.split("\n").map((str, lineI): [Resource, string] => {
-                return [{type: diffType, changeIndex: index, diffIndex: i, diffLineIndex: lineI}, str];
-            });
-        });
-        return arr;
-    }
-
-
     dispose() {
         this.subscriptions.forEach(e => e.dispose());
     }
 
     provideTextDocumentContent(_uri: vscode.Uri): string {
         console.debug('Provider.provideTextDocumentContent');
-        const newUIModel: [Resource, string][] = [];
-        let head = "Detached";
-        if (this.git.repo.state.HEAD?.name) {
-            head = this.git.repo.state.HEAD.name;
-        } else if (this.git.repo.state.HEAD?.commit) {
-            head += " at " + this.git.repo.state.HEAD.commit.slice(0, 8);
-        }
-        newUIModel.push([{type: 'HeadUI'}, `Head: ${head}`]);
-
-        if (this.git.repo.state.rebaseCommit) {
-            head = "Rebasing at " + this.git.repo.state.rebaseCommit.hash.slice(0, 8);
-        }
-        let merge = "Unpublished";
-
-        if (this.git.getCachedHasRemoteBranch()) {
-            merge = `Merge: ${this.git.repo.state.remotes[0].name}/${head}`;
-        }
-        newUIModel.push([{ type: 'MergeUI'}, merge]);
-        newUIModel.push([{ type: 'HelpUI'}, "Help: g h"]);
-
-        // render untracked
-        const mergeChanges = this.git.repo.state.mergeChanges;
-        if (mergeChanges.length > 0) {
-            newUIModel.push([{ type: "BlankUI"}, ""]);
-            newUIModel.push([{ type: 'MergeHeader'}, `Merge Changes (${mergeChanges.length}):`]);
-            const m = mergeChanges.map((c, i): [Resource, string] => ([{ type: "MergeChange", changeIndex: i},this.renderChange(c)]));
-            newUIModel.push(...m);
-        }
-        const untracked = this.git.untracked();
-        if (untracked.length > 0) {
-            newUIModel.push([{ type: "BlankUI"}, ""]);
-            newUIModel.push([{type: "UntrackedHeader"}, `Untracked (${untracked.length}):`]);
-            const m = untracked.map((c, i): [Resource, string] => [{type: "Untracked", changeIndex: i},this.renderChange(c)]);
-            newUIModel.push(...m);
-        }
-        // render unstaged
-        const unstaged = this.git.unstaged();
-        if (unstaged.length > 0) {
-            newUIModel.push([{ type: "BlankUI"}, ""]);
-            newUIModel.push([{ type: "UnstagedHeader"}, `Unstaged (${unstaged.length}):`]);
-            const m = unstaged.flatMap((c, i): [Resource, string][] => (
-                [
-                    this.getChangeModel(c, i, "Unstaged"),
-                    ...this.getDiffModel(c, i, "Unstaged", "UnstagedDiff")
-                ]
-            ));
-            newUIModel.push(...m);
-        }
-        // render staged
-        const staged = this.git.staged();
-        if (staged.length > 0) {
-            newUIModel.push([{ type: "BlankUI"}, ""]);
-            newUIModel.push([{ type: "StagedHeader"}, `Staged (${staged.length}):`]);
-            const m = staged.flatMap((c, i): [Resource, string][] => (
-                [
-                    this.getChangeModel(c, i, "Staged"),
-                    ...this.getDiffModel(c, i, "Staged", "StagedDiff")
-                ]
-            ));
-            newUIModel.push(...m);
-        }
-
-        const unpushedLen = this.git.cachedUnpushedCommits.length;
-        if (unpushedLen > 0) {
-            newUIModel.push([{ type: "BlankUI"}, ""]);
-            const len = this.git.cachedUnpushedCommits.length;
-            let to = "";
-            if (this.git.repo.state.remotes[0]?.name) {
-                if (this.git.getCachedHasRemoteBranch()) {
-                    to = `to ${this.git.repo.state.remotes[0].name}/${head} `;
-                } else {
-                    to = "to * ";
-                }
-            }
-            const commits = this.git.cachedUnpushedCommits.map((c, i): [Resource, string] => [
-                { type: "Unpushed", changeIndex: i},
-                c.hash.slice(0, 8) + " " + c.message.split("\n")[0].slice(0, 80)
-            ]);
-            newUIModel.push([{ type: "UnpushedHeader"}, `Unpushed ${to}(${len}):`]);
-            newUIModel.push(...commits);
-        }
-        this.uiModel = newUIModel;
+        this.uiModel.updateUIModel();
         this.updateCursor();
 
-        const renderString = newUIModel.map(([_, str]) => str).join("\n");
-        return renderString;
-    }
-
-    private getChangeModel(c: Change, i: number, changeType: "Unstaged" | "Staged"): [Resource, string] {
-        return [{ type: changeType, changeIndex: i }, this.renderChange(c)];
+        return this.uiModel.toString();
     }
 
     /**
@@ -241,8 +122,8 @@ export class Provider implements vscode.TextDocumentContentProvider {
         if (doc) {
             this.onDidChangeEmitter.fire(Provider.uri);
         } else {
-            this.openedChanges.clear();
-            this.openedIndexChanges.clear();
+            this.uiModel.clearOpenedChanges();
+            this.uiModel.clearOpenedIndexChanges();
             doc = await vscode.workspace.openTextDocument(Provider.uri);
             this.onDidChangeEmitter.fire(Provider.uri);
         }
@@ -272,7 +153,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     goStaged() {
         console.debug("goStaged");
-        const index = this.uiModel.findIndex(([res]) => res.type === "StagedHeader");
+        const index = this.uiModel.findHeader("StagedHeader");
         if (index >= 0) {
             vscode.window.activeTextEditor!.selection =
                 new vscode.Selection(new vscode.Position(index, 0), new vscode.Position(index, 0));
@@ -280,13 +161,13 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     goUnstaged(goUnstaged: boolean) {
-        const untrackedIndex = this.uiModel.findIndex(([res]) => res.type === "UntrackedHeader");
+        const untrackedIndex = this.uiModel.findHeader("UntrackedHeader");
         if (!goUnstaged && untrackedIndex >= 0) {
             vscode.window.activeTextEditor!.selection =
                 new vscode.Selection(new vscode.Position(untrackedIndex, 0), new vscode.Position(untrackedIndex, 0));
             return;
         }
-        const unstagedIndex = this.uiModel.findIndex(([res]) => res.type === "UnstagedHeader");
+        const unstagedIndex = this.uiModel.findHeader("UnstagedHeader");
         if (unstagedIndex >= 0) {
             vscode.window.activeTextEditor!.selection =
                 new vscode.Selection(new vscode.Position(unstagedIndex, 0), new vscode.Position(unstagedIndex, 0));
@@ -295,12 +176,13 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     goUnpushed() {
-        const index = this.uiModel.findIndex(([res]) => res.type === "UnpushedHeader");
+        const index =  this.uiModel.findHeader("UnpushedHeader");
         if (index >= 0) {
             vscode.window.activeTextEditor!.selection =
                 new vscode.Selection(new vscode.Position(index, 0), new vscode.Position(index, 0));
         }
     }
+
     goPreviousHunk() {
         const currentLine = vscode.window.activeTextEditor?.selection.active.line;
 
@@ -310,7 +192,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
 
         for (let i = currentLine - 1; i >= 0; i--) {
-            const res = this.uiModel[i][0];
+            const res = this.uiModel.index(i)[0].item;
             const type = res.type;
             if ( type === "HeadUI" || type === "MergeUI" || type === "HelpUI" || type === "BlankUI" ||
                 type === "MergeHeader" || type === "UntrackedHeader" || type === "UnstagedHeader" ||
@@ -338,8 +220,8 @@ export class Provider implements vscode.TextDocumentContentProvider {
             return;
         }
 
-        for (let i = currentLine + 1; i < this.uiModel.length; i++) {
-            const res = this.uiModel[i][0];
+        for (let i = currentLine + 1; i < this.uiModel.length(); i++) {
+            const res = this.uiModel.index(i)[0].item;
             const type = res.type;
             if ( type === "HeadUI" || type === "MergeUI" || type === "HelpUI" || type === "BlankUI" ||
                 type === "MergeHeader" || type === "UntrackedHeader" || type === "UnstagedHeader" ||
@@ -398,7 +280,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
             vscode.window.showWarningMessage("Action in progress. Try again after completion");
             return;
         } 
-        const resource = this.getResourceUnderCursor();
+        const resource = this.getResourceUnderCursor().item;
         if (!resource) {
             this.actionLock = false;
             return;
@@ -429,7 +311,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
             const change = this.git.unstaged()[resource.changeIndex];
             console.debug('stage ', change.uri.path);
             await this.git.repo.add([change.uri.path]);
-            this.openedChanges.delete(change.uri.path);
+            this.uiModel.getOpenedChanges().delete(change.uri.path);
             return;
         }
         if(resource.type === "UnstagedHeader") {
@@ -437,7 +319,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
             console.debug(`track ${changes.length} files`);
             await this.git.repo.add(changes);
             for (const change of changes) {
-                this.openedChanges.delete(change);
+                this.uiModel.getOpenedChanges().delete(change);
             }
             return;
         }
@@ -459,11 +341,13 @@ export class Provider implements vscode.TextDocumentContentProvider {
             return;
         } 
 		if (this.git.repo.state.indexChanges.length > 0) {
-			await this.git.repo.commit('', { useEditor: true });
+			await this.git.repo.commit('', { useEditor: true }).catch(
+                (err) => vscode.window.showWarningMessage(err.stderr)
+        );
 		} else {
-            this.actionLock = false;
 			vscode.window.showWarningMessage("Fugitive: Nothing to commit");
 		}
+        this.actionLock = false;
     }
 
     async checkForConflictMarker(uri: vscode.Uri): Promise<boolean> {
@@ -490,7 +374,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
             vscode.window.showWarningMessage("Action in progress. Try again after completion");
             return;
         } 
-        const resource = this.getResourceUnderCursor();
+        const resource = this.getResourceUnderCursor().item;
         if (!resource) {
             this.actionLock = false;
             return;
@@ -501,7 +385,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 console.debug(`unstage ${changes.length}`);
                 await this.git.repo.revert(changes);
                 for (const change of changes) {
-                    this.openedIndexChanges.delete(change);
+                    this.uiModel.getOpenedIndexChanges().delete(change);
                 }
                 return;
             }
@@ -509,7 +393,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 const change = this.git.staged()[resource.changeIndex];
                 console.debug('unstage ', change.uri.path);
                 await this.git.repo.revert([change.uri.path]);
-                this.openedIndexChanges.delete(change.uri.path);
+                this.uiModel.getOpenedIndexChanges().delete(change.uri.path);
                 return;
             }
             case "StagedDiff": {
@@ -529,7 +413,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     async toggle() {
-        const resource = this.getResourceUnderCursor();
+        const resource = this.getResourceUnderCursor().item;
         if (!resource) {
             return;
         }
@@ -558,7 +442,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
             vscode.window.showWarningMessage("Action in progress. Try again after completion");
             return;
         } 
-        const resource = this.getResourceUnderCursor();
+        const resource = this.getResourceUnderCursor().item;
         if (!resource) {
             this.actionLock = false;
             return;
@@ -568,14 +452,14 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 const change = this.git.untracked()[resource.changeIndex];
                 console.debug('clean ', resource);
                 await this.git.repo.clean([change.uri.path]);
-                this.openedChanges.delete(change.uri.path);
+                this.uiModel.getOpenedChanges().delete(change.uri.path);
                 return;
             }
             case "Unstaged": {
                 const change = this.git.unstaged()[resource.changeIndex];
                 console.debug('clean ', resource);
                 await this.git.repo.clean([change.uri.path]);
-                this.openedChanges.delete(change.uri.path);
+                this.uiModel.getOpenedChanges().delete(change.uri.path);
                 return;
             }
             case "Staged": {
@@ -583,7 +467,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 console.debug('clean ', resource);
                 await this.git.repo.revert([change.uri.path]);
                 await this.git.repo.clean([change.uri.path]);
-                this.openedIndexChanges.delete(change.uri.path);
+                this.uiModel.getOpenedIndexChanges().delete(change.uri.path);
                 return;
             }
         }
@@ -595,38 +479,39 @@ export class Provider implements vscode.TextDocumentContentProvider {
             return;
         } 
         const resource = this.getResourceUnderCursor();
-        const change = this.getChangeFromResource(resource);
+        const change = resource.getChange();
         if (!change) {
             return;
         }
+        const res = resource.item;
 
-        switch (resource.type) {
+        switch (res.type) {
             case "Unstaged": {
-                const change = this.git.unstaged()[resource.changeIndex];
-                if (this.openedChanges.has(change.uri.path)) {
-                    this.openedChanges.delete(change.uri.path);
+                const change = this.git.unstaged()[res.changeIndex];
+                if (this.uiModel.getOpenedChanges().has(change.uri.path)) {
+                    this.uiModel.getOpenedChanges().delete(change.uri.path);
                 } else {
-                    this.openedChanges.add(change.uri.path);
+                    this.uiModel.getOpenedChanges().add(change.uri.path);
                 }
                 break;
             }
             case "Staged": {
-                const change = this.git.staged()[resource.changeIndex];
-                if (this.openedIndexChanges.has(change.uri.path)) {
-                    this.openedIndexChanges.delete(change.uri.path);
+                const change = this.git.staged()[res.changeIndex];
+                if (this.uiModel.getOpenedIndexChanges().has(change.uri.path)) {
+                    this.uiModel.getOpenedIndexChanges().delete(change.uri.path);
                 } else {
-                    this.openedIndexChanges.add(change.uri.path);
+                    this.uiModel.getOpenedIndexChanges().add(change.uri.path);
                 }
                 break;
             }
             case "StagedDiff": {
-                const change = this.git.staged()[resource.changeIndex];
-                this.openedIndexChanges.delete(change.uri.path);
+                const change = this.git.staged()[res.changeIndex];
+                this.uiModel.getOpenedIndexChanges().delete(change.uri.path);
                 break;
             }
             case "UnstagedDiff": {
-                const change = this.git.unstaged()[resource.changeIndex];
-                this.openedChanges.delete(change.uri.path);
+                const change = this.git.unstaged()[res.changeIndex];
+                this.uiModel.getOpenedChanges().delete(change.uri.path);
                 break;
             }
         }
@@ -637,24 +522,23 @@ export class Provider implements vscode.TextDocumentContentProvider {
         console.debug("updateDiffs");
         await this.git.updateDiffMap("Unstaged");
         await this.git.updateDiffMap("Staged");
-        const deleteOpenedDiffs = Array.from(this.openedChanges.keys()).filter(k => !this.git.cachedUnstagedDiffs.has(k));
-        const deleteOpenedIndexDiffs = Array.from(this.openedIndexChanges.keys()).filter(k => !this.git.cachedStagedDiffs.has(k));
+        const deleteOpenedDiffs = Array.from(this.uiModel.getOpenedChanges().keys()).filter(k => !this.git.cachedUnstagedDiffs.has(k));
+        const deleteOpenedIndexDiffs = Array.from(this.uiModel.getOpenedIndexChanges().keys()).filter(k => !this.git.cachedStagedDiffs.has(k));
         for (const key of deleteOpenedDiffs) {
-            this.openedChanges.delete(key);
+            this.uiModel.getOpenedChanges().delete(key);
         }
         for (const key of deleteOpenedIndexDiffs) {
-            this.openedIndexChanges.delete(key);
+            this.uiModel.getOpenedIndexChanges().delete(key);
         }
     }
 
     async openDiff() {
-        // check for lock but dont aquire it
         if (!this.readLock()){
             vscode.window.showWarningMessage("Action in progress. Try again after completion");
             return;
         } 
     
-        const ressource = this.getResourceUnderCursor();
+        const ressource = this.getResourceUnderCursor().item;
         if (!ressource) {
             return;
         }
@@ -691,43 +575,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
         });
     }
 
-    private getChangeFromResource(res: Resource): Change | null {
-        switch(res.type) {
-            case "Unstaged": {
-                return this.git.unstaged()[res.changeIndex];
-            }
-            case "Staged": {
-                return this.git.staged()[res.changeIndex]; 
-            }
-            case "Untracked": {
-                return this.git.untracked()[res.changeIndex];
-            }
-            case "MergeChange": {
-                return this.git.mergeChanges()[res.changeIndex];
-            }
-            case "UnstagedDiff": {
-                return this.git.unstaged()[res.changeIndex];
-            }
-            case "StagedDiff": {
-                return this.git.staged()[res.changeIndex];
-            }
-            default: {
-                return null;
-            }
-        }
-    }
-
-    private getCommitFromResource(res: Resource): Commit | null {
-        switch(res.type) {
-            case "Unpushed": {
-                return this.git.cachedUnpushedCommits[res.changeIndex];
-            }
-            default: {
-                return null;
-            }
-        }
-    }
-
     async open(split: boolean) {
         if (!this.readLock()){
             vscode.window.showWarningMessage("Action in progress. Try again after completion");
@@ -735,7 +582,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
         const resource = this.getResourceUnderCursor();
 
-        switch(resource.type) {
+        switch(resource.item.type) {
             case "Unstaged":
             case "Staged":
             case "Untracked":
@@ -760,7 +607,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
             vscode.window.showWarningMessage("Action in progress. Try again after completion");
             return;
         }
-        const change = this.getChangeFromResource(resource);
+        const change = resource.getChange();
         if (!change) {
             return;
         }
@@ -782,7 +629,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
             vscode.window.showWarningMessage("Action in progress. Try again after completion");
             return;
         }
-        const commit = this.getCommitFromResource(resource);
+        const commit = resource.getCommit();
         if (!commit) {
             return;
         }
@@ -801,8 +648,8 @@ export class Provider implements vscode.TextDocumentContentProvider {
             vscode.window.showWarningMessage("Action in progress. Try again after completion");
             return;
         }
-        const fileUnderCursor = this.getResourceUnderCursor();
-        const change = this.getChangeFromResource(fileUnderCursor);
+        const resource = this.getResourceUnderCursor();
+        const change = resource.getChange();
         if (!change) {
             return;
         }
@@ -832,18 +679,8 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     private getResourceUnderCursor(): Resource {
         const line = vscode.window.activeTextEditor!.selection.active.line;
-        this.previousResource = this.uiModel[line][0];
-        return this.uiModel[line][0];
-    }
-
-    private getOpenedDiffMap(type: "Staged" | "Unstaged"): Map<string, string[]> {
-        const openedMap = type === "Staged" ? this.openedIndexChanges : this.openedChanges;
-        const diffMap = type === "Staged" ? this.git.cachedStagedDiffs : this.git.cachedUnstagedDiffs;
-        const map = new Map<string, string[]>();
-        for (const m of diffMap) {
-            openedMap.has(m[0]) && map.set(m[0], m[1]);
-        }
-        return map;
+        this.previousResource = this.uiModel.index(line)[0];
+        return this.uiModel.index(line)[0];
     }
 
     private updateCursor() {
@@ -851,105 +688,64 @@ export class Provider implements vscode.TextDocumentContentProvider {
         if (!this.previousResource) {
             this.line = 
                 vscode.window.activeTextEditor?.selection.active.line 
-                || this.uiModel.length >= 5 ? 5: 0; //go to first item if present
+                || this.uiModel.length() >= 5 ? 5: 0; //go to first item if present
             return;
         }
-        switch (this.previousResource.type) {
+        switch (this.previousResource.item.type) {
             case 'MergeChange': {
                 const index = this.git.mergeChanges().length == 0 ? 0 :
-                    this.previousResource.changeIndex > this.git.mergeChanges().length - 1 ?
-                        this.git.mergeChanges().length - 1 : this.previousResource.changeIndex;
-                const mergeOffset = this.getCategoryOffset("MergeHeader") + 1;
+                    this.previousResource.item.changeIndex > this.git.mergeChanges().length - 1 ?
+                        this.git.mergeChanges().length - 1 : this.previousResource.item.changeIndex;
+                const mergeOffset = this.uiModel.getCategoryOffset("MergeHeader") + 1;
                 this.line = mergeOffset + index;
                 break;
             }
             case 'UntrackedHeader': {
-                const untrackedOffset = this.getCategoryOffset("UntrackedHeader") + 1;
+                const untrackedOffset = this.uiModel.getCategoryOffset("UntrackedHeader") + 1;
                 this.line = untrackedOffset + 0;
                 break;
             }
             case 'Untracked': {
                 const index = this.git.untracked().length == 0 ? 0 :
-                    this.previousResource.changeIndex > this.git.untracked().length - 1 ?
-                        this.git.untracked().length - 1 : this.previousResource.changeIndex;
-                const untrackedOffset = this.getCategoryOffset("UntrackedHeader") + 1;
+                    this.previousResource.item.changeIndex > this.git.untracked().length - 1 ?
+                        this.git.untracked().length - 1 : this.previousResource.item.changeIndex;
+                const untrackedOffset = this.uiModel.getCategoryOffset("UntrackedHeader") + 1;
                 this.line = untrackedOffset + index;
                 break;
             }
             case 'UnstagedHeader': {
-                const unstagedOffset = this.getCategoryOffset("UnstagedHeader") + 1;
+                const unstagedOffset = this.uiModel.getCategoryOffset("UnstagedHeader") + 1;
                 this.line = unstagedOffset + 0;
                 break;
             }
             case 'UnstagedDiff':
             case 'Unstaged': {
                 const index = this.git.unstaged().length == 0 ? 0 :
-                    this.previousResource.changeIndex > this.git.unstaged().length - 1 ?
-                        this.git.unstaged().length - 1 : this.previousResource.changeIndex;
-                const newLine = this.uiModel.findIndex(([res]) => res.type === "Unstaged" && res.changeIndex === index);
-                const unstagedOffset = this.getCategoryOffset("UnstagedHeader") + 1;
+                    this.previousResource.item.changeIndex > this.git.unstaged().length - 1 ?
+                        this.git.unstaged().length - 1 : this.previousResource.item.changeIndex;
+                const newLine = this.uiModel.findIndex(([res]) => res.item.type === "Unstaged" && res.item.changeIndex === index);
+                const unstagedOffset = this.uiModel.getCategoryOffset("UnstagedHeader") + 1;
                 this.line = newLine === -1 ? unstagedOffset : newLine;
                 break;
             }
             case 'StagedHeader': {
-                const stagedOffset = this.getCategoryOffset("StagedHeader") + 1;
+                const stagedOffset = this.uiModel.getCategoryOffset("StagedHeader") + 1;
                 this.line = stagedOffset + 0;
                 break;
             }
             case 'StagedDiff':
             case 'Staged': {
                 const index = this.git.staged().length == 0 ? 0 :
-                    this.previousResource.changeIndex > this.git.staged().length - 1 ?
-                        this.git.staged().length - 1 : this.previousResource.changeIndex;
-                const newLine = this.uiModel.findIndex(([res]) => res.type === "Staged" && res.changeIndex === index);
-                const stagedOffset = this.getCategoryOffset("StagedHeader") + 1;
+                    this.previousResource.item.changeIndex > this.git.staged().length - 1 ?
+                        this.git.staged().length - 1 : this.previousResource.item.changeIndex;
+                const newLine = this.uiModel.findIndex(([res]) => res.item.type === "Staged" && res.item.changeIndex === index);
+                const stagedOffset = this.uiModel.getCategoryOffset("StagedHeader") + 1;
                 this.line = newLine === -1 ? stagedOffset : newLine;
                 break;
             }
             default:
-                console.error("updateCursor: " + this.previousResource.type + " not implemented");
+                console.error("updateCursor: " + this.previousResource.item.type + " not implemented");
         }
-    }
-
-    private getCategoryOffset(type: Resource['type']): number {
-        let index = -1;
-        /* eslint-disable no-fallthrough */ 
-        // Fallthrough is intended here to got to fallback category
-        switch (type) {
-            case 'UnpushedHeader': 
-                index = this.uiModel.findIndex(([res]) => res.type === 'UnpushedHeader');
-                if (index !== -1) {
-                    return index;
-                }
-            case 'StagedHeader':
-                index = this.uiModel.findIndex(([res]) => res.type === 'StagedHeader');
-                if (index !== -1) {
-                    return index;
-                }
-            case 'UnstagedHeader':
-                index = this.uiModel.findIndex(([res]) => res.type === 'UnstagedHeader');
-                if (index !== -1) {
-                    return index;
-                }
-            case 'UntrackedHeader':
-                index = this.uiModel.findIndex(([res]) => res.type === 'UntrackedHeader');
-                if (index !== -1) {
-                    return index;
-                }
-            case 'MergeHeader':
-                index = this.uiModel.findIndex(([res]) => res.type === 'MergeHeader');
-                if (index !== -1) {
-                    return index;
-                }
-        }
-        /* eslint-enable no-fallthrough */
-        const containsCategory = this.uiModel.some(([a,_]) => 
-            a.type === "MergeHeader" || a.type === "UntrackedHeader" || 
-            a.type === "UnstagedHeader" || a.type === "StagedHeader" || 
-            a.type === "UnpushedHeader"
-        );
-        index = containsCategory ? 4 : 0;
-        return index;
     }
 
 }

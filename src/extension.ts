@@ -3,6 +3,10 @@ import { window, workspace, commands } from 'vscode';
 import { Provider } from './provider';
 import { GitExtension } from './vscode-git';
 import { DiffProvider } from './diff-provider';
+import { GitWrapper } from './git-wrapper';
+
+//GLOBAL DEPENDENCIES
+export let GIT: GitWrapper | null = null;
 
 export function activate({ subscriptions }: vscode.ExtensionContext) {
 
@@ -32,8 +36,8 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 	let diffProvider: DiffProvider | null = null;
 	const dependencies = getDependencies();
 	if (dependencies) {
-		diffProvider = new DiffProvider(dependencies.gitAPI);
-		provider = new Provider(dependencies.gitAPI);
+		diffProvider = new DiffProvider();
+		provider = new Provider();
 		subscriptions.push(workspace.registerTextDocumentContentProvider(DiffProvider.scheme, diffProvider));
 		subscriptions.push(workspace.registerTextDocumentContentProvider(Provider.myScheme, provider));
 	}
@@ -47,8 +51,8 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 			if (!dependencies) {
 				return;
 			}
-			diffProvider = new DiffProvider(dependencies.gitAPI);
-			provider = new Provider(dependencies.gitAPI);
+			diffProvider = new DiffProvider();
+			provider = new Provider();
 			subscriptions.push(workspace.registerTextDocumentContentProvider(DiffProvider.scheme, diffProvider));
 			subscriptions.push(workspace.registerTextDocumentContentProvider(Provider.myScheme, provider));
 		}
@@ -91,17 +95,18 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 
 }
 
-function getDependencies() {
+function getDependencies(): boolean {
 	console.debug("checkForRepository");
 	const gitExtension: GitExtension = vscode.extensions.getExtension('vscode.git')?.exports;
 	if (!gitExtension || !gitExtension.enabled) {
 		window.showWarningMessage('Fugitive: No git extension found or not enabled.');
-		return null;
+		return false;
 	}
 	const api = gitExtension.getAPI(1);
 	if (api.repositories.length === 0 && !api.repositories[0]?.state.HEAD?.name) {
 		window.showWarningMessage('Fugitive: No git repository initialized');
-		return null;
+		return false;
 	}
-	return { gitAPI: api };
+	GIT = new GitWrapper(api);
+	return true;
 }

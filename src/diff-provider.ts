@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { API as GitAPI, Commit } from './vscode-git';
 import { GitWrapper } from './git-wrapper';
+import { GIT } from './extension';
 
 export class DiffProvider implements vscode.TextDocumentContentProvider {
     static scheme = 'Fugitive-Diff';
@@ -10,8 +11,11 @@ export class DiffProvider implements vscode.TextDocumentContentProvider {
     private subscriptions: vscode.Disposable[] = [];
     public git: GitWrapper;
 
-    constructor(gitAPI: GitAPI) {
-        this.git = new GitWrapper(gitAPI);
+    constructor() {
+        if (!GIT) {
+            throw Error("Git API not found!");
+        }
+        this.git = GIT;
     }
 
     dispose() {

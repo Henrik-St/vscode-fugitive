@@ -1,13 +1,12 @@
-# Feature Backlog
-* Deleting hunks with X
-* Provide help (g?) as text document
-* collapse untracked files into folders
-* provide tree view
-* release to openvsx
-* provide older commit msgs in editor
-* allow actions with selected ranges
+# Feature Backlog (size)
+* Deleting hunks with X (medium)
+* Provide help (g?) as text document (small)
+* collapse untracked files into folders (small)
+* provide tree view (large)
+* release to openvsx (small)
+* provide older commit msgs in editor (medium)
+* allow actions with selected ranges (medium)
 
 # Bug fixes:
-* fast staging does wrong actions
-* gg from vscode.vim does not work anymore
-* cursor moves after opening commit message buffer
+* gg from vscode.vim does not work anymore (large)
+* cursor moves after opening commit message buffer (small)
