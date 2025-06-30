@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { API as GitAPI, Commit } from './vscode-git';
+import { Commit } from './vscode-git';
 import { GitWrapper } from './git-wrapper';
 import { GIT } from './extension';
 

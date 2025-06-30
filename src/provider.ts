@@ -533,7 +533,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     async openDiff() {
-        if (!this.readLock()){
+        if (this.readLock()){
             vscode.window.showWarningMessage("Action in progress. Try again after completion");
             return;
         } 
@@ -576,7 +576,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     async open(split: boolean) {
-        if (!this.readLock()){
+        if (this.readLock()){
             vscode.window.showWarningMessage("Action in progress. Try again after completion");
             return;
         }
@@ -603,7 +603,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     private async openFile(resource: Resource, split: boolean) {
-        if (!this.readLock()){
+        if (this.readLock()){
             vscode.window.showWarningMessage("Action in progress. Try again after completion");
             return;
         }
@@ -625,7 +625,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     private async openCommitDiff(resource: Resource, split: boolean) {
-        if (!this.readLock()){
+        if (this.readLock()){
             vscode.window.showWarningMessage("Action in progress. Try again after completion");
             return;
         }
@@ -644,7 +644,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     async gitExclude(gitIgnore: boolean) {
-        if (!this.readLock()){
+        if (this.readLock()){
             vscode.window.showWarningMessage("Action in progress. Try again after completion");
             return;
         }
