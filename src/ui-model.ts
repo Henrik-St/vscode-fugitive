@@ -115,7 +115,7 @@ export class UIModel {
     }
 
     public getOpenedIndexChanges() {
-        return this.openedChanges;
+        return this.openedIndexChanges;
     }
 
     public clearOpenedChanges() {
