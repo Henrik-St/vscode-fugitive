@@ -31,7 +31,15 @@
         },
         {
             "name": "support.type",
-            "match": "^U |^A "
+            "match": "^ *U |^ *A "
+        },
+        {
+            "name": "variable.other.readwrite.ts",
+            "match": "^ *▷"
+        },
+        {
+            "name": "variable.other.readwrite.ts",
+            "match": "^ *▽"
         },
         {
             "captures": {

@@ -77,6 +77,8 @@ export function activate({ subscriptions }: vscode.ExtensionContext) {
 	addSubscription(() => provider!.gitExclude(false), 'fugitive.gitExclude');
 	addSubscription(() => provider!.gitExclude(true), 'fugitive.gitIgnore');
 	addSubscription(async () => provider!.refresh(), 'fugitive.refresh');
+	addSubscription(async () => provider!.toggleDirectory(), 'fugitive.toggleDirectory');
+	addSubscription(async () => provider!.toggleView(), 'fugitive.toggleView');
 	addSubscription(async () => provider!.goUp(), 'fugitive.goUp');
 	addSubscription(async () => provider!.goDown(), 'fugitive.goDown');
 	addSubscription(async () => provider!.goPreviousHunk(), 'fugitive.previousHunk');

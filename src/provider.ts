@@ -6,6 +6,7 @@ import { encodeCommit } from './diff-provider';
 import { Resource } from './resource';
 import { UIModel } from './ui-model';
 import { GIT } from './extension';
+import { getDirectoryType } from './tree-model';
 
 
 export class Provider implements vscode.TextDocumentContentProvider {
@@ -21,6 +22,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
     //status data
     private line: number;
     private previousResource: Resource | null;
+    private viewStyle: "list" | "tree" = "list"; // current view mode, list or tree
 
     private onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri>();
     onDidChange = this.onDidChangeEmitter.event; // triggers before provideTextDocumentContent
@@ -92,7 +94,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     provideTextDocumentContent(_uri: vscode.Uri): string {
         console.debug('Provider.provideTextDocumentContent');
-        this.uiModel.updateUIModel();
+        this.uiModel.updateUIModel(this.viewStyle);
         this.updateCursor();
 
         return this.uiModel.toString();
@@ -122,8 +124,8 @@ export class Provider implements vscode.TextDocumentContentProvider {
         if (doc) {
             this.onDidChangeEmitter.fire(Provider.uri);
         } else {
-            this.uiModel.clearOpenedChanges();
-            this.uiModel.clearOpenedIndexChanges();
+            this.uiModel.diffModel.clearOpenedChanges();
+            this.uiModel.diffModel.clearOpenedIndexChanges();
             doc = await vscode.workspace.openTextDocument(Provider.uri);
             this.onDidChangeEmitter.fire(Provider.uri);
         }
@@ -275,6 +277,31 @@ export class Provider implements vscode.TextDocumentContentProvider {
         });
     }
 
+    toggleView(): void {
+        // fix pointer jumping
+        this.viewStyle = this.viewStyle === "list" ? "tree" : "list";
+        this.onDidChangeEmitter.fire(Provider.uri);
+    }
+
+	toggleDirectory(): void {
+        if (!this.getLock()){
+            vscode.window.showWarningMessage("Action in progress. Try again after completion");
+            return;
+        } 
+        const resource = this.getResourceUnderCursor().item;
+        if (!resource) {
+            this.actionLock = false;
+            return;
+        }
+        if (resource.type === "DirectoryHeader") {
+            const path = resource.path;
+            this.line = vscode.window.activeTextEditor!.selection.active.line;
+            this.uiModel.treeModel.toggleDirectory(path, getDirectoryType(this.uiModel, this.line));
+            this.onDidChangeEmitter.fire(Provider.uri);
+        }
+        this.actionLock = false;
+	}
+
     async stageFile() {
         if (!this.getLock()){
             vscode.window.showWarningMessage("Action in progress. Try again after completion");
@@ -311,7 +338,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
             const change = this.git.unstaged()[resource.changeIndex];
             console.debug('stage ', change.uri.path);
             await this.git.repo.add([change.uri.path]);
-            this.uiModel.getOpenedChanges().delete(change.uri.path);
+            this.uiModel.diffModel.getOpenedChanges().delete(change.uri.path);
             return;
         }
         if(resource.type === "UnstagedHeader") {
@@ -319,7 +346,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
             console.debug(`track ${changes.length} files`);
             await this.git.repo.add(changes);
             for (const change of changes) {
-                this.uiModel.getOpenedChanges().delete(change);
+                this.uiModel.diffModel.getOpenedChanges().delete(change);
             }
             return;
         }
@@ -385,7 +412,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 console.debug(`unstage ${changes.length}`);
                 await this.git.repo.revert(changes);
                 for (const change of changes) {
-                    this.uiModel.getOpenedIndexChanges().delete(change);
+                    this.uiModel.diffModel.getOpenedIndexChanges().delete(change);
                 }
                 return;
             }
@@ -393,7 +420,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 const change = this.git.staged()[resource.changeIndex];
                 console.debug('unstage ', change.uri.path);
                 await this.git.repo.revert([change.uri.path]);
-                this.uiModel.getOpenedIndexChanges().delete(change.uri.path);
+                this.uiModel.diffModel.getOpenedIndexChanges().delete(change.uri.path);
                 return;
             }
             case "StagedDiff": {
@@ -452,14 +479,14 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 const change = this.git.untracked()[resource.changeIndex];
                 console.debug('clean ', resource);
                 await this.git.repo.clean([change.uri.path]);
-                this.uiModel.getOpenedChanges().delete(change.uri.path);
+                this.uiModel.diffModel.getOpenedChanges().delete(change.uri.path);
                 return;
             }
             case "Unstaged": {
                 const change = this.git.unstaged()[resource.changeIndex];
                 console.debug('clean ', resource);
                 await this.git.repo.clean([change.uri.path]);
-                this.uiModel.getOpenedChanges().delete(change.uri.path);
+                this.uiModel.diffModel.getOpenedChanges().delete(change.uri.path);
                 return;
             }
             case "Staged": {
@@ -467,7 +494,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 console.debug('clean ', resource);
                 await this.git.repo.revert([change.uri.path]);
                 await this.git.repo.clean([change.uri.path]);
-                this.uiModel.getOpenedIndexChanges().delete(change.uri.path);
+                this.uiModel.diffModel.getOpenedIndexChanges().delete(change.uri.path);
                 return;
             }
         }
@@ -488,30 +515,30 @@ export class Provider implements vscode.TextDocumentContentProvider {
         switch (res.type) {
             case "Unstaged": {
                 const change = this.git.unstaged()[res.changeIndex];
-                if (this.uiModel.getOpenedChanges().has(change.uri.path)) {
-                    this.uiModel.getOpenedChanges().delete(change.uri.path);
+                if (this.uiModel.diffModel.getOpenedChanges().has(change.uri.path)) {
+                    this.uiModel.diffModel.getOpenedChanges().delete(change.uri.path);
                 } else {
-                    this.uiModel.getOpenedChanges().add(change.uri.path);
+                    this.uiModel.diffModel.getOpenedChanges().add(change.uri.path);
                 }
                 break;
             }
             case "Staged": {
                 const change = this.git.staged()[res.changeIndex];
-                if (this.uiModel.getOpenedIndexChanges().has(change.uri.path)) {
-                    this.uiModel.getOpenedIndexChanges().delete(change.uri.path);
+                if (this.uiModel.diffModel.getOpenedIndexChanges().has(change.uri.path)) {
+                    this.uiModel.diffModel.getOpenedIndexChanges().delete(change.uri.path);
                 } else {
-                    this.uiModel.getOpenedIndexChanges().add(change.uri.path);
+                    this.uiModel.diffModel.getOpenedIndexChanges().add(change.uri.path);
                 }
                 break;
             }
             case "StagedDiff": {
                 const change = this.git.staged()[res.changeIndex];
-                this.uiModel.getOpenedIndexChanges().delete(change.uri.path);
+                this.uiModel.diffModel.getOpenedIndexChanges().delete(change.uri.path);
                 break;
             }
             case "UnstagedDiff": {
                 const change = this.git.unstaged()[res.changeIndex];
-                this.uiModel.getOpenedChanges().delete(change.uri.path);
+                this.uiModel.diffModel.getOpenedChanges().delete(change.uri.path);
                 break;
             }
         }
@@ -522,13 +549,13 @@ export class Provider implements vscode.TextDocumentContentProvider {
         console.debug("updateDiffs");
         await this.git.updateDiffMap("Unstaged");
         await this.git.updateDiffMap("Staged");
-        const deleteOpenedDiffs = Array.from(this.uiModel.getOpenedChanges().keys()).filter(k => !this.git.cachedUnstagedDiffs.has(k));
-        const deleteOpenedIndexDiffs = Array.from(this.uiModel.getOpenedIndexChanges().keys()).filter(k => !this.git.cachedStagedDiffs.has(k));
-        for (const key of deleteOpenedDiffs) {
-            this.uiModel.getOpenedChanges().delete(key);
+        const delete_opened_diffs = Array.from(this.uiModel.diffModel.getOpenedChanges().keys()).filter(k => !this.git.cachedUnstagedDiffs.has(k));
+        const delete_opened_index_diffs = Array.from(this.uiModel.diffModel.getOpenedIndexChanges().keys()).filter(k => !this.git.cachedStagedDiffs.has(k));
+        for (const key of delete_opened_diffs) {
+            this.uiModel.diffModel.getOpenedChanges().delete(key);
         }
-        for (const key of deleteOpenedIndexDiffs) {
-            this.uiModel.getOpenedIndexChanges().delete(key);
+        for (const key of delete_opened_index_diffs) {
+            this.uiModel.diffModel.getOpenedIndexChanges().delete(key);
         }
     }
 
@@ -678,7 +705,10 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     private getResourceUnderCursor(): Resource {
-        const line = vscode.window.activeTextEditor!.selection.active.line;
+        if (!vscode.window.activeTextEditor) {
+            throw new Error("Fugitive: No active text editor found");
+        }
+        const line = vscode.window.activeTextEditor.selection.active.line;
         this.previousResource = this.uiModel.index(line)[0];
         return this.uiModel.index(line)[0];
     }
@@ -741,6 +771,9 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 const newLine = this.uiModel.findIndex(([res]) => res.item.type === "Staged" && res.item.changeIndex === index);
                 const stagedOffset = this.uiModel.getCategoryOffset("StagedHeader") + 1;
                 this.line = newLine === -1 ? stagedOffset : newLine;
+                break;
+            }
+            case 'DirectoryHeader': {
                 break;
             }
             default:

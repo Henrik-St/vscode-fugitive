@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
-import { API as GitAPI, Repository, Commit, Status, Ref, DiffEditorSelectionHunkToolbarContext } from './vscode-git';
+import { API as GitAPI, Repository, Commit, Status, Ref, DiffEditorSelectionHunkToolbarContext, Change } from './vscode-git';
 import { readFile } from './util';
+import { ChangeTypes } from './resource';
 
 export class GitWrapper {
 
@@ -195,6 +196,29 @@ export class GitWrapper {
             + commitDiff
         ;
 
+    }
+    getChanges(type: ChangeTypes["type"]): Change[] {
+        switch (type) {
+            case "Untracked":
+                return this.untracked();
+            case "Unstaged":
+                return this.unstaged();
+            case "Staged":
+                return this.staged();
+            case "MergeChange":
+                return this.mergeChanges();
+            default:
+                throw new Error("Invalid Change Type: " + type);
+        }
+    }
+
+    findChangeIndexByPath(path: string, type: ChangeTypes["type"]): number | null {
+        const changes = this.getChanges(type);
+        const index = changes.findIndex(c => c.uri.path === path);
+        if (index !== -1) {
+            return index;
+        }
+        return null;
     }
 }
 

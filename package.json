@@ -265,6 +265,16 @@
 				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
 			},
 			{
+				"command": "fugitive.toggleView",
+				"key": "g t",
+				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+			},
+			{
+				"command": "fugitive.toggleDirectory",
+				"key": "g f",
+				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+			},
+			{
 				"command": "fugitive.help",
 				"key": "g h",
 				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
@@ -305,7 +315,7 @@
 	"devDependencies": {
 		"@types/node": "^18",
 		"@types/vscode": "^1.73.0",
-		"@typescript-eslint/eslint-plugin": "^6.7.0",
+		"@typescript-eslint/eslint-plugin": "^6.21.0",
 		"@typescript-eslint/parser": "^6.7.0",
 		"@vscode/vsce": "^3.4.0",
 		"eslint": "^8.57.1",

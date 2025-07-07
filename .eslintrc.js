@@ -12,9 +12,46 @@ module.exports = {
 	],
 	rules: {
 		'semi': [2, "always"],
-		'@typescript-eslint/no-unused-vars': 0,
-		'@typescript-eslint/no-explicit-any': 0,
-		'@typescript-eslint/explicit-module-boundary-types': 0,
+		'@typescript-eslint/no-unused-vars': 1,
+		'@typescript-eslint/no-explicit-any': 1,
+		'@typescript-eslint/explicit-module-boundary-types': 1,
 		'@typescript-eslint/no-non-null-assertion': 0,
-	}
+		'@typescript-eslint/naming-convention': [
+			'warn',
+			{
+				selector: 'variableLike',
+				format: ['snake_case'],
+				leadingUnderscore: 'allow',
+			},
+			{
+				selector: 'classProperty',
+				format: ['camelCase'],
+			},
+			{
+				selector: 'classMethod',
+				format: ['camelCase'],
+				leadingUnderscore: 'allow',
+			},
+			{
+				selector: 'typeLike',
+				format: ['PascalCase'],
+			},
+			{
+				selector: 'function',
+				format: ['camelCase'],
+				leadingUnderscore: 'allow',
+			},
+			{
+				selector: 'typeProperty',
+				format: ['camelCase'],
+			},
+			{
+				selector: 'enumMember',
+				format: ['UPPER_CASE'],
+			},
+		],
+	},
+	ignorePatterns: [
+		'vscode-git.ts',
+	]
 };
