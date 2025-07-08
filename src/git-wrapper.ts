@@ -197,6 +197,7 @@ export class GitWrapper {
         ;
 
     }
+
     getChanges(type: ChangeTypes["type"]): Change[] {
         switch (type) {
             case "Untracked":

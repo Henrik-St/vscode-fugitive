@@ -302,7 +302,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         this.actionLock = false;
 	}
 
-    async stageFile() {
+    async stageFile(): Promise<void> {
         if (!this.getLock()){
             vscode.window.showWarningMessage("Action in progress. Try again after completion");
             return;
@@ -357,6 +357,27 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 return Promise.reject("No diff index: " + resource.diffIndex);
             }
             await this.git.applyPatchToFile(change.uri, resource.diffIndex, "stage");
+            return;
+        }
+        if (resource.type === "DirectoryHeader") {
+            const line = vscode.window.activeTextEditor!.selection.active.line;
+            const type = getDirectoryType(this.uiModel, line);
+            const affected_changes = this.git
+                .getChanges(type)
+                .filter(c => {
+                    return c.originalUri.path.replace(this.git.rootUri, '').startsWith(resource.path);
+                })
+                .map(c => c.uri.path);
+
+            console.debug(`stage ${affected_changes.length} ${type} files in directory ${resource.path}`);
+            if (affected_changes.length === 0) {
+                this.actionLock = false;
+                return;
+            }
+            await this.git.repo.add(affected_changes);
+            for (const change of affected_changes) {
+                this.uiModel.diffModel.getOpenedChanges().delete(change);
+            }
             return;
         }
         this.actionLock = false;
@@ -432,6 +453,27 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 await this.git.applyPatchToFile(change.uri, resource.diffIndex, "unstage");
                 return;
             }
+            case "DirectoryHeader": {
+                const line = vscode.window.activeTextEditor!.selection.active.line;
+                const type = getDirectoryType(this.uiModel, line);
+                const affected_changes = this.git
+                    .getChanges(type)
+                    .filter(c => {
+                        return c.originalUri.path.replace(this.git.rootUri, '').startsWith(resource.path);
+                    })
+                    .map(c => c.uri.path);
+
+                console.debug(`unstage ${affected_changes.length} ${type} files in directory ${resource.path}`);
+                if (affected_changes.length === 0) {
+                    this.actionLock = false;
+                    return;
+                }
+                await this.git.repo.revert(affected_changes);
+                for (const change of affected_changes) {
+                    this.uiModel.diffModel.getOpenedIndexChanges().delete(change);
+                }
+                return;
+            }
             default: {
                 this.actionLock = false;
                 return;
@@ -495,6 +537,41 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 await this.git.repo.revert([change.uri.path]);
                 await this.git.repo.clean([change.uri.path]);
                 this.uiModel.diffModel.getOpenedIndexChanges().delete(change.uri.path);
+                return;
+            }
+            case "DirectoryHeader": {
+                const line = vscode.window.activeTextEditor!.selection.active.line;
+                const type = getDirectoryType(this.uiModel, line);
+                if( type !== "Untracked" && type !== "Unstaged" && type !== "Staged") {
+                    this.actionLock = false;
+                    return;
+                }
+                const affected_changes = this.git
+                    .getChanges(type)
+                    .filter(c => {
+                        return c.originalUri.path.replace(this.git.rootUri, '').startsWith(resource.path);
+                    })
+                    .map(c => c.uri.path);
+
+                // show confirmation dialog
+                const confirm_message = `Are you sure you want to clean ${affected_changes.length} ${type} files in directory ${resource.path}?`;
+                const confirm = await vscode.window.showWarningMessage(confirm_message, { modal: true }, "Yes", "No");
+                if (confirm !== "Yes") {
+                    this.actionLock = false;
+                    return;
+                }
+                console.debug(`clean ${affected_changes.length} ${type} files in directory ${resource.path}`);
+                if (affected_changes.length === 0) {
+                    this.actionLock = false;
+                    return;
+                }
+                if (type === "Staged") {
+                    await this.git.repo.revert(affected_changes);
+                }
+                await this.git.repo.clean(affected_changes);
+                for (const change of affected_changes) {
+                    this.uiModel.diffModel.getOpenedIndexChanges().delete(change);
+                }
                 return;
             }
         }
@@ -670,17 +747,21 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
     }
 
-    async gitExclude(gitIgnore: boolean) {
+    async gitExclude(git_ignore: boolean): Promise<void> {
         if (this.readLock()){
             vscode.window.showWarningMessage("Action in progress. Try again after completion");
             return;
         }
         const resource = this.getResourceUnderCursor();
-        const change = resource.getChange();
-        if (!change) {
-            return;
+        let path = resource.getChange()?.originalUri.path.replace(this.git.rootUri, '');
+        if (!path) {
+            if( resource.item.type === "DirectoryHeader") {
+                path = resource.item.path;
+            } else {
+                return;
+            }
         }
-        const uri = gitIgnore ?
+        const uri = git_ignore ?
             vscode.Uri.parse(this.git.rootUri + "/.gitignore") :
             vscode.Uri.parse(this.git.rootUri + "/.git/info/exclude");
 
@@ -692,13 +773,13 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
         const contents = await vscode.workspace.fs.readFile(uri);
         const enc = new TextEncoder(); // always utf-8
-        const filename = enc.encode(change.originalUri.path.replace(this.git.rootUri, ''));
+        const filename = enc.encode(path);
 
-        const newContents = new Uint8Array(contents.length + filename.length + 1);
-        newContents.set(contents);
-        newContents.set(enc.encode("\n"), contents.length);
-        newContents.set(filename, contents.length + 1);
-        await vscode.workspace.fs.writeFile(uri, newContents);
+        const new_contents = new Uint8Array(contents.length + filename.length + 1);
+        new_contents.set(contents);
+        new_contents.set(enc.encode("\n"), contents.length);
+        new_contents.set(filename, contents.length + 1);
+        await vscode.workspace.fs.writeFile(uri, new_contents);
 
         const doc = await vscode.workspace.openTextDocument(uri);
         await vscode.window.showTextDocument(doc, { preview: false, viewColumn: vscode.ViewColumn.Beside });

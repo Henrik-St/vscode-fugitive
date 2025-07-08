@@ -79,7 +79,7 @@ export class TreeModel {
 
 function getOrCreate(tree: FileTree, dir: string): FileTree {
     if(!tree.children.has(dir)){
-        tree.children.set(dir, {name: dir, children: new Map(), type: "Tree", parentDir: tree.parentDir + "/" + tree.name});
+        tree.children.set(dir, {name: dir, children: new Map(), type: "Tree", parentDir: tree.parentDir ? (tree.parentDir + "/" + tree.name): tree.name});
     }
     const child = tree.children.get(dir);
     if(!child || child.type !== "Tree"){
