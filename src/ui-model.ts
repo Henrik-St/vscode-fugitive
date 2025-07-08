@@ -54,8 +54,8 @@ export class UIModel {
 
         new_ui_model = this.diffModel.injectDiffs(new_ui_model);
 
-        const unpushedLen = this.git.cachedUnpushedCommits.length;
-        if (unpushedLen > 0) {
+        const unpushed_len = this.git.cachedUnpushedCommits.length;
+        if (unpushed_len > 0) {
             new_ui_model.push([new Resource({ type: "BlankUI"}), ""]);
             const len = this.git.cachedUnpushedCommits.length;
             let to = "";
@@ -143,16 +143,16 @@ export class UIModel {
                 }
         }
         /* eslint-enable no-fallthrough */
-        const containsCategory = this.uiModel.some(([a,_]) => 
+        const contains_category = this.uiModel.some(([a,_]) => 
             a.item.type === "MergeHeader" || a.item.type === "UntrackedHeader" || 
             a.item.type === "UnstagedHeader" || a.item.type === "StagedHeader" || 
             a.item.type === "UnpushedHeader"
         );
-        index = containsCategory ? 4 : 0;
+        index = contains_category ? 4 : 0;
         return index;
     }
 
-    public index(i: number): UIModelItem | undefined {
+    public index(i: number): UIModelItem {
         return this.uiModel[i];
     }
 

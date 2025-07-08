@@ -6,7 +6,7 @@ export async function readFile(uri: vscode.Uri): Promise<string> {
         .decode(await vscode.workspace.fs.readFile(uri));
 }
 
-export function mapStatustoString(status: number) {
+export function mapStatustoString(status: number): string {
     switch (status) {
         case Status.INDEX_ADDED:
         case Status.INTENT_TO_ADD:
@@ -36,15 +36,15 @@ export function mapStatustoString(status: number) {
         case Status.UNTRACKED:
             return 'U';
         default:
-            return status;
+            return status.toString();
     }
 }
 
-export function setCursorWithView(line: number) {
+export function setCursorWithView(line: number): void {
     const position = new vscode.Position(line, 0);
     const range = new vscode.Range(position, position);
-    const windowContainsCursor = vscode.window.activeTextEditor?.visibleRanges[0].contains(position);
-    if (!windowContainsCursor) {
+    const window_contains_cursor = vscode.window.activeTextEditor?.visibleRanges[0].contains(position);
+    if (!window_contains_cursor) {
         vscode.window.activeTextEditor!.revealRange(range);
     }
     vscode.window.activeTextEditor!.selection =

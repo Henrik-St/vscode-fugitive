@@ -14,8 +14,8 @@ export class GitWrapper {
     cachedUnstagedDiffs: Map<string, string[]>;
     cachedStagedDiffs: Map<string, string[]>;
 
-    constructor(gitAPI: GitAPI) {
-        this.api = gitAPI;
+    constructor(git_api: GitAPI) {
+        this.api = git_api;
         this.repo = this.api.repositories[0];
         this.rootUri = this.repo.rootUri.path;
         this.cachedRefs = [];
@@ -90,91 +90,91 @@ export class GitWrapper {
 
     public async updateDiffMap(type: "Unstaged" | "Staged"): Promise<void> {
         const index = type === "Staged";
-        let currentPath = "";
+        let current_path = "";
         const diffs = (await this.repo.diff(index)).split("\n");
         diffs.pop(); // last line is always empty
-        const resultMap = new Map<string, string[]>();
-        let diffCount = -1;
+        const result_map = new Map<string, string[]>();
+        let diff_count = -1;
         for (const line of diffs) {
             if (line.startsWith("diff --git")) {
                 const match = line.match(/diff --git \w\/(.*) \w\/(.*)/);
-                currentPath = match ? (this.rootUri + "/" + match[1]) : "";
-                diffCount = -1;
+                current_path = match ? (this.rootUri + "/" + match[1]) : "";
+                diff_count = -1;
                 continue;
             } else {
                 if (line.startsWith("@@")) {
-                    diffCount += 1;
+                    diff_count += 1;
                 }
-                if (diffCount >= 0 && currentPath) {
-                    const change = resultMap.get(currentPath);
+                if (diff_count >= 0 && current_path) {
+                    const change = result_map.get(current_path);
                     if (change) {
-                        if (change.length > diffCount) {
-                            change[diffCount] = change[diffCount].concat("\n", line);
-                            resultMap.set(currentPath, change);
+                        if (change.length > diff_count) {
+                            change[diff_count] = change[diff_count].concat("\n", line);
+                            result_map.set(current_path, change);
                         } else {
                             change.push(line);
                         }
                     } else {
-                        resultMap.set(currentPath, [line]);
+                        result_map.set(current_path, [line]);
                     }
                 }
             }
         }
         if (index) {
-            this.cachedStagedDiffs = resultMap;
+            this.cachedStagedDiffs = result_map;
         } else {
-            this.cachedUnstagedDiffs = resultMap;
+            this.cachedUnstagedDiffs = result_map;
         }
     }
 
-    async applyPatchToFile(resourceUri: vscode.Uri, diffIndex: number, action: "stage" | "unstage"): Promise<void> {
+    async applyPatchToFile(resource_uri: vscode.Uri, diff_index: number, action: "stage" | "unstage"): Promise<void> {
         const diff = action === "stage" ?
-            this.cachedUnstagedDiffs.get(resourceUri.path) :
-            this.cachedStagedDiffs.get(resourceUri.path)
+            this.cachedUnstagedDiffs.get(resource_uri.path) :
+            this.cachedStagedDiffs.get(resource_uri.path)
             ;
         if (!diff) {
-            return Promise.reject("No diff found for " + resourceUri);
+            return Promise.reject("No diff found for " + resource_uri);
         }
 
-        const targetLines = (await this.repo.show(":0", resourceUri.path)).split("\n"); //index
-        const sourceLines = action === "stage" ?
-            (await readFile(resourceUri)).split("\n") :
-            (await this.repo.show("HEAD", resourceUri.path)).split("\n")
+        const target_lines = (await this.repo.show(":0", resource_uri.path)).split("\n"); //index
+        const source_lines = action === "stage" ?
+            (await readFile(resource_uri)).split("\n") :
+            (await this.repo.show("HEAD", resource_uri.path)).split("\n")
             ;
-        const patchLines = diff[diffIndex].split("\n");
-        const patchMatches = patchLines.splice(0, 1)[0].match(/^@@ -(\d+),(\d+) \+(\d+),(\d+) @@/);
-        if (!patchMatches) {
+        const patch_lines = diff[diff_index].split("\n");
+        const patch_matches = patch_lines.splice(0, 1)[0].match(/^@@ -(\d+),(\d+) \+(\d+),(\d+) @@/);
+        if (!patch_matches) {
             throw Error("Fugitive: Could not parse diff");
         }
-        let [, patchTargetStart, patchTargetLength, patchSourceStart, patchSourceLength] = patchMatches.map(Number);
+        let [, patch_target_start, patch_target_length, patch_source_start, patch_source_length] = patch_matches.map(Number);
         if (action === "unstage") {
-            [patchTargetStart, patchSourceStart] = [patchSourceStart, patchTargetStart];
-            [patchTargetLength, patchSourceLength] = [patchSourceLength, patchTargetLength];
+            [patch_target_start, patch_source_start] = [patch_source_start, patch_target_start];
+            [patch_target_length, patch_source_length] = [patch_source_length, patch_target_length];
         }
 
-        const patchAtEoF = (patchTargetStart + patchTargetLength >= targetLines.length);
-        targetLines.splice(patchTargetStart - 1, patchTargetLength); // Remove patched Lines
-        const newFileArr = [
-            ...targetLines.splice(0, patchTargetStart - 1),
-            ...sourceLines.splice(patchSourceStart - 1, patchSourceLength),
+        const patch_at_eof = (patch_target_start + patch_target_length >= target_lines.length);
+        target_lines.splice(patch_target_start - 1, patch_target_length); // Remove patched Lines
+        const new_file_arr = [
+            ...target_lines.splice(0, patch_target_start - 1),
+            ...source_lines.splice(patch_source_start - 1, patch_source_length),
         ];
 
-        const hasNewLine = patchedFileHasNewLine(patchLines, action);
-        if (!patchAtEoF) {
-            newFileArr.push(...targetLines.splice(0, targetLines.length));
-        } else if (hasNewLine) {
-            newFileArr.push("");
+        const has_new_line = patchedFileHasNewLine(patch_lines, action);
+        if (!patch_at_eof) {
+            new_file_arr.push(...target_lines.splice(0, target_lines.length));
+        } else if (has_new_line) {
+            new_file_arr.push("");
         }
 
-        const newFile = newFileArr.join("\n");
-        const stageParams: DiffEditorSelectionHunkToolbarContext = {
-            modifiedUri: resourceUri,
-            originalWithModifiedChanges: newFile,
+        const new_file = new_file_arr.join("\n");
+        const stage_params: DiffEditorSelectionHunkToolbarContext = {
+            modifiedUri: resource_uri,
+            originalWithModifiedChanges: new_file,
             originalUri: vscode.Uri.parse("Default"), // not needed
             mapping: "", //not needed
         };
 
-        vscode.commands.executeCommand('git.diff.stageHunk', stageParams).then(async (success) => {
+        vscode.commands.executeCommand('git.diff.stageHunk', stage_params).then(async (success) => {
             console.debug('git.diff.stageHunk: success: ', success);
         }, (rejected) => {
             console.debug('git.diff.stageHunk: rejected: ', rejected);
@@ -182,8 +182,8 @@ export class GitWrapper {
     }
 
     async constructCommitDiff(commit: Commit): Promise<string> {
-        const commitChanges = (await this.repo.diffBetween(commit.parents[0], commit.hash)).map(diff => diff.uri.path);
-        const commitDiff = (await Promise.all(commitChanges.map(uri => {
+        const commit_changes = (await this.repo.diffBetween(commit.parents[0], commit.hash)).map(diff => diff.uri.path);
+        const commit_diff = (await Promise.all(commit_changes.map(uri => {
             return this.repo.diffBetween(commit.parents[0], commit.hash, uri);
         }))).join("\n");
 
@@ -193,7 +193,7 @@ export class GitWrapper {
             + `\n` 
             + `${commit.message}` 
             + `\n` 
-            + commitDiff
+            + commit_diff
         ;
 
     }
@@ -223,16 +223,16 @@ export class GitWrapper {
     }
 }
 
-function patchedFileHasNewLine(patchLines: string[], action: "stage" | "unstage"): boolean {
-    const noNewLineIndex = patchLines.findIndex(line => line.startsWith("\\ No newline at end of file"));
-    if (noNewLineIndex <= 0) {
+function patchedFileHasNewLine(patch_lines: string[], action: "stage" | "unstage"): boolean {
+    const no_new_line_index = patch_lines.findIndex(line => line.startsWith("\\ No newline at end of file"));
+    if (no_new_line_index <= 0) {
         return true;
     }
-    const newLineIsAdded = patchLines[noNewLineIndex - 1].charAt(0) === "+";
+    const new_line_is_added = patch_lines[no_new_line_index - 1].charAt(0) === "+";
     if (action === "stage") {
-        return noNewLineIndex !== patchLines.length - 1;
+        return no_new_line_index !== patch_lines.length - 1;
     } else if (action === "unstage") {
-        return newLineIsAdded && noNewLineIndex === patchLines.length - 1;
+        return new_line_is_added && no_new_line_index === patch_lines.length - 1;
     }
     throw Error("Fugitive: Invalid action");
 }
