@@ -88,7 +88,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         return this.actionLock;
     }
 
-    dispose() {
+    dispose(): void {
         this.subscriptions.forEach(e => e.dispose());
     }
 
@@ -104,7 +104,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
      * opens the fugitive document
      * @param filepath determines the repository to open if there a multiple
      */
-    async getDocOrRefreshIfExists(filepath?: string) {
+    async getDocOrRefreshIfExists(filepath?: string): Promise<vscode.TextDocument> {
         console.debug("getDocOrRefreshIfExists");
 
         // get the closest repo to the openend document
@@ -132,7 +132,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         return doc;
     }
 
-    goUp() {
+    goUp(): void {
 		if (!vscode.window.activeTextEditor) {
 			return;
 		}
@@ -142,7 +142,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
 			new vscode.Selection(new vscode.Position(newLine, 0), new vscode.Position(newLine, 0));
     }
 
-    goDown() {
+    goDown(): void {
 		if (!vscode.window.activeTextEditor) {
 			return;
 		}
@@ -153,7 +153,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
 			new vscode.Selection(new vscode.Position(newLine, 0), new vscode.Position(newLine, 0));
     }
 
-    goStaged() {
+    goStaged(): void {
         console.debug("goStaged");
         const index = this.uiModel.findHeader("StagedHeader");
         if (index >= 0) {
@@ -162,7 +162,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
     }
 
-    goUnstaged(goUnstaged: boolean) {
+    goUnstaged(goUnstaged: boolean): void {
         const untrackedIndex = this.uiModel.findHeader("UntrackedHeader");
         if (!goUnstaged && untrackedIndex >= 0) {
             vscode.window.activeTextEditor!.selection =
@@ -177,7 +177,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
     }
 
-    goUnpushed() {
+    goUnpushed(): void {
         const index =  this.uiModel.findHeader("UnpushedHeader");
         if (index >= 0) {
             vscode.window.activeTextEditor!.selection =
@@ -185,7 +185,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
     }
 
-    goPreviousHunk() {
+    goPreviousHunk(): void {
         const currentLine = vscode.window.activeTextEditor?.selection.active.line;
 
         if (!currentLine) {
@@ -215,7 +215,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
     }
 
-    goNextHunk() {
+    goNextHunk(): void {
         const currentLine = vscode.window.activeTextEditor?.selection.active.line;
         if (!currentLine && currentLine !== 0) {
             console.debug('no current line');
@@ -245,7 +245,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
 
-	async setRepository() {
+	async setRepository(): Promise<void> {
         if (!this.getLock()){
             vscode.window.showWarningMessage("Action in progress. Try again after completion");
             return;
@@ -269,7 +269,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         this.onDidChangeEmitter.fire(Provider.uri);
 	}
 
-    refresh() {
+    refresh(): void {
         vscode.commands.executeCommand('git.refresh', this.git.rootUri).then((succ) => {
             console.debug('git.refresh success', succ);
         }, (err) => {
@@ -383,7 +383,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         this.actionLock = false;
     }
 
-    async commit() {
+    async commit(): Promise<void> {
         if (!this.getLock()){
             vscode.window.showWarningMessage("Action in progress. Try again after completion");
             return;
@@ -417,7 +417,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
     }
 
-    async unstageFile() {
+    async unstageFile(): Promise<void> {
         if (!this.getLock()){
             vscode.window.showWarningMessage("Action in progress. Try again after completion");
             return;
@@ -481,7 +481,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
     }
 
-    async toggle() {
+    async toggle(): Promise<void> {
         const resource = this.getResourceUnderCursor().item;
         if (!resource) {
             return;
@@ -497,7 +497,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
     }
 
-    async unstageAll() {
+    async unstageAll(): Promise<void> {
         if (!this.getLock()){
             vscode.window.showWarningMessage("Action in progress. Try again after completion");
             return;
@@ -506,7 +506,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         await this.git.repo.revert(files);
     }
 
-    async cleanFile() {
+    async cleanFile(): Promise<void> {
         if (!this.getLock()){
             vscode.window.showWarningMessage("Action in progress. Try again after completion");
             return;
@@ -577,7 +577,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
     }
 
-    async toggleInlineDiff() {
+    async toggleInlineDiff(): Promise<void> {
         if (!this.getLock()){
             vscode.window.showWarningMessage("Action in progress. Try again after completion");
             return;
@@ -636,7 +636,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
     }
 
-    async openDiff() {
+    async openDiff(): Promise<void> {
         if (this.readLock()){
             vscode.window.showWarningMessage("Action in progress. Try again after completion");
             return;
@@ -679,7 +679,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         });
     }
 
-    async open(split: boolean) {
+    async open(split: boolean): Promise<void> {
         if (this.readLock()){
             vscode.window.showWarningMessage("Action in progress. Try again after completion");
             return;

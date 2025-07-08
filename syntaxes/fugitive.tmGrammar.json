@@ -23,11 +23,11 @@
         },
         {
             "name": "constant.character.escape",
-            "match": "^M |^R "
+            "match": "^ *M |^ *R "
         },
         {
             "name": "invalid.illegal",
-            "match": "^D "
+            "match": "^ *D "
         },
         {
             "name": "support.type",

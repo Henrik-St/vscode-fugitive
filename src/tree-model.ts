@@ -126,8 +126,9 @@ export function getDirectoryType(ui: UIModel, line: number): ChangeTypes["type"]
     }
     
     for (let i=line; i>=0; i--) {
-        if(!ui.index(i)) throw new Error("No item found at line " + i);
-        const type = ui.index(i)[0].item.type;
+        const ui_item = ui.index(i);
+        if(!ui_item) throw new Error("No item found at line " + i);
+        const type = ui_item[0].item.type;
         if (type === "UnstagedHeader" || type === "StagedHeader" || type === "UntrackedHeader" || type === "MergeHeader") {
             return headerTypeToChangeType(type);
         }

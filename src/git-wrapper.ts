@@ -34,7 +34,7 @@ export class GitWrapper {
         return this.api.repositories.map((i): [string, Repository] => [i.rootUri.path, i]); // name, repository pairs
     }
 
-    async setRepository(new_repo: Repository) {
+    async setRepository(new_repo: Repository): Promise<void> {
         this.repo = new_repo;
         this.rootUri = this.repo.rootUri.path;
     }
@@ -72,19 +72,19 @@ export class GitWrapper {
             this.cachedRefs.some(branch => branch.name === this.repo.state.remotes[0].name + "/" + this.repo.state.HEAD?.name); //e.g. origin/branchname
     }
 
-    untracked() {
+    untracked(): Change[] {
         return this.repo.state.workingTreeChanges.filter(c => c.status === Status.UNTRACKED);
     }
 
-    unstaged() {
+    unstaged(): Change[] {
         return this.repo.state.workingTreeChanges.filter(c => c.status !== Status.UNTRACKED);
     }
 
-    staged() {
+    staged(): Change[] {
         return this.repo.state.indexChanges;
     }
 
-    mergeChanges() {
+    mergeChanges(): Change[] {
         return this.repo.state.mergeChanges;
     }
 

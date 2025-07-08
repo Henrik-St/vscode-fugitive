@@ -76,7 +76,7 @@ export class UIModel {
         this.uiModel = new_ui_model;
     }
 
-    public findHeader(type: ResourceType["type"]) {
+    public findHeader(type: ResourceType["type"]): number {
         return this.uiModel.findIndex(([res]) => res.item.type === type);
     }
 
@@ -107,7 +107,7 @@ export class UIModel {
         return changes.map((c, i): UIModelItem => [new Resource({type: type, changeIndex: i}),this.renderChange(c)]);
     }
 
-    public toString() {
+    public toString(): string {
         return this.uiModel.map(([_, str]) => str).join("\n");
     }
 
@@ -152,11 +152,11 @@ export class UIModel {
         return index;
     }
 
-    public index(i: number) {
+    public index(i: number): UIModelItem | undefined {
         return this.uiModel[i];
     }
 
-    public length() {
+    public length(): number {
         return this.uiModel.length;
     }
 }

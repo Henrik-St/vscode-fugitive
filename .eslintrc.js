@@ -12,7 +12,14 @@ module.exports = {
 	],
 	rules: {
 		'semi': [2, "always"],
-		'@typescript-eslint/no-unused-vars': 1,
+		'@typescript-eslint/no-unused-vars': [
+			1,
+			{
+				"argsIgnorePattern": "^_",
+				"varsIgnorePattern": "^_",
+				"caughtErrorsIgnorePattern": "^_"
+			}
+		],
 		'@typescript-eslint/no-explicit-any': 1,
 		'@typescript-eslint/explicit-module-boundary-types': 1,
 		'@typescript-eslint/no-non-null-assertion': 0,

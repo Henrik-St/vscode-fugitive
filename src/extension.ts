@@ -8,7 +8,7 @@ import { GitWrapper } from './git-wrapper';
 //GLOBAL DEPENDENCIES
 export let GIT: GitWrapper | null = null;
 
-export function activate({ subscriptions }: vscode.ExtensionContext) {
+export function activate({ subscriptions }: vscode.ExtensionContext): void {
 
 	const addSubscription = (command: () => Promise<void>, name: string) => {
 		subscriptions.push(commands.registerCommand(name, async () => {
