@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { API as GitAPI, Repository, Commit, Status, Ref, DiffEditorSelectionHunkToolbarContext, Change } from './vscode-git';
 import { readFile } from './util';
-import { ChangeTypes } from './resource';
+import { ChangeTypes, ResourceType, toChangeTypes } from './resource';
 
 export class GitWrapper {
 
@@ -211,6 +211,23 @@ export class GitWrapper {
             default:
                 throw new Error("Invalid Change Type: " + type);
         }
+    }
+
+    public changeFromResource(resource: ResourceType): Change | null{
+        const converted = toChangeTypes(resource);
+        if (!converted) {
+            return null;
+        }
+        const change = this.getChanges(converted.type)[converted.changeIndex];
+        return change;
+    }
+
+    public commitFromResource(resource: ResourceType): Commit | null {
+        if (resource.type !== "Unpushed") {
+            return null;
+        }
+        const commit = this.cachedUnpushedCommits[resource.changeIndex];
+        return commit;
     }
 
     findChangeIndexByPath(path: string, type: ChangeTypes["type"]): number | null {

@@ -1,9 +1,9 @@
-import { ChangeTypes, headerTypeToChangeType, Resource } from "./resource";
+import { ChangeTypes, headerTypeToChangeType} from "./resource";
 import { UIModel, UIModelItem } from "./ui-model";
 import { mapStatustoString } from "./util";
 import { Change } from "./vscode-git";
 
-export type FileTree = {
+type FileTree = {
     children: Map<string, FileTree & {type: "Tree"} | ChangeTypes>
     name: string;
     parentDir: string;
@@ -49,7 +49,7 @@ export class TreeModel {
     }
 
     public changesToTreeModel(changes: Change[], root_uri: string, type: ChangeTypes["type"]): UIModelItem[] {
-        const tree = changesToTree(changes, root_uri, type);
+        const tree = this.changesToTree(changes, root_uri, type);
         return this.treeToModel(tree, type);
     }
 
@@ -58,7 +58,7 @@ export class TreeModel {
     }
 
     private isClosedDirectory(tree: FileTree, type: ChangeTypes["type"]): boolean {
-        return this.closedDirectories[type].has(tree.parentDir + "/" + tree.name);
+        return this.closedDirectories[type].has(tree.parentDir + tree.name);
     }
 
     private _treeToModel(tree: FileTree, depth: number, type: ChangeTypes["type"]): UIModelItem[] {
@@ -67,19 +67,51 @@ export class TreeModel {
             if(e.type == "Tree"){
                 const open_symbol = this.isClosedDirectory(e, type) ? MenuSymbol.CLOSED : MenuSymbol.OPEN;
                 const ui_text =  "  ".repeat(depth) + open_symbol + " " + e.name;
-                model.push([new Resource({type: "DirectoryHeader", path: e.parentDir + "/" + e.name}), ui_text]);
-                !this.isClosedDirectory(e, type) && model.push(...this._treeToModel(e as FileTree, depth + 1, type));
+                model.push([{type: "DirectoryHeader", path: e.parentDir + e.name}, ui_text]);
+                model.push(...this._treeToModel(e as FileTree, depth + 1, type));
             }
         }
-        !this.isClosedDirectory(tree, type) && model.push(...listFiles(tree, depth));
+        model.push(...listFiles(tree, depth));
 
         return model;
+    }
+
+    private changesToTree(changes: Change[], root_uri: string, type: ChangeTypes["type"]): FileTree {
+        const tree: FileTree = {children: new Map(), name: "/", parentDir: ""};
+        for(let i=0; i<changes.length; i++){
+            const c = changes[i];
+            const status = mapStatustoString(c.status) + " ";
+
+            const path_list = c.originalUri.path.replace(root_uri + "/", "").split("/");
+            const file_name = status + path_list.pop(); // remove filename
+            if(!file_name){
+                continue;
+            }
+            let current_tree = tree;
+            let is_closed = false;
+            for(const dir of path_list){
+                is_closed = 
+                    [...this.closedDirectories[type].keys()]
+                    .some(closed_dir => current_tree.parentDir + current_tree.name === closed_dir)
+                ;
+                if(is_closed){
+                    break; // skip closed directories
+                }
+                current_tree = getOrCreate(current_tree, dir);
+            }
+            is_closed = 
+                [...this.closedDirectories[type].keys()]
+                .some(closed_dir => current_tree.parentDir + current_tree.name === closed_dir);
+
+            !is_closed && current_tree.children.set(file_name, {changeIndex: i, type: type});
+        }
+        return tree;
     }
 }
 
 function getOrCreate(tree: FileTree, dir: string): FileTree {
     if(!tree.children.has(dir)){
-        tree.children.set(dir, {name: dir, children: new Map(), type: "Tree", parentDir: tree.parentDir ? (tree.parentDir + "/" + tree.name): tree.name});
+        tree.children.set(dir, {name: dir, children: new Map(), type: "Tree", parentDir: tree.parentDir? (tree.parentDir + tree.name + "/"): tree.name});
     }
     const child = tree.children.get(dir);
     if(!child || child.type !== "Tree"){
@@ -88,31 +120,13 @@ function getOrCreate(tree: FileTree, dir: string): FileTree {
     return child;
 }
 
-function changesToTree(changes: Change[], root_uri: string, type: ChangeTypes["type"]): FileTree {
-    const tree: FileTree = {children: new Map(), name: "", parentDir: ""};
-    for(let i=0; i<changes.length; i++){
-        const c = changes[i];
-        const status = mapStatustoString(c.status) + " ";
-        const path_list = c.originalUri.path.replace(root_uri.toString() + "/", "").split("/");
-        const file_name = status + path_list.pop(); // remove filename
-        if(!file_name){
-            continue;
-        }
-        let current_tree = tree;
-        for(const dir of path_list){
-            current_tree = getOrCreate(current_tree, dir);
-        }
-        current_tree.children.set(file_name, {changeIndex: i, type: type});
-    }
-    return tree;
-}
 
 function listFiles(tree: FileTree, depth: number): UIModelItem[]{
     const result: UIModelItem[] = []; 
     for(const e of tree.children.entries()){
         if (e[1].type !== "Tree"){
             const ui_text = "  ".repeat(depth) + e[0];
-            const new_item: UIModelItem = [new Resource(e[1]), ui_text];
+            const new_item: UIModelItem = [e[1], ui_text];
             result.push(new_item);
         }
     }
@@ -128,7 +142,7 @@ export function getDirectoryType(ui: UIModel, line: number): ChangeTypes["type"]
     for (let i=line; i>=0; i--) {
         const ui_item = ui.index(i);
         if(!ui_item) throw new Error("No item found at line " + i);
-        const type = ui_item[0].item.type;
+        const type = ui_item[0].type;
         if (type === "UnstagedHeader" || type === "StagedHeader" || type === "UntrackedHeader" || type === "MergeHeader") {
             return headerTypeToChangeType(type);
         }

@@ -1,6 +1,5 @@
 import { GIT } from "./extension";
 import { GitWrapper } from "./git-wrapper";
-import { Resource } from "./resource";
 import { UIModelItem } from "./ui-model";
 import { Change } from "./vscode-git";
 
@@ -50,7 +49,7 @@ export class DiffModel {
 
         const arr = (this.getOpenedDiffMap(change_type).get(c.uri.path) ?? []).flatMap( (str, i): UIModelItem[] => {
             return str.split("\n").map((str, line): UIModelItem => {
-                return [new Resource({type: diff_type, changeIndex: index, diffIndex: i, diffLineIndex: line}), str];
+                return [{type: diff_type, changeIndex: index, diffIndex: i, diffLineIndex: line}, str];
             });
         });
         return arr;
@@ -66,7 +65,7 @@ export class DiffModel {
         return map;
     }
 
-    public _injectDiffs(new_model: UIModelItem[], type: DiffChangeTypes): void {
+    _injectDiffs(new_model: UIModelItem[], type: DiffChangeTypes): void {
         for (const diff of this.getOpenedDiffMap(type)){
             const change_index = this.git.findChangeIndexByPath(diff[0], type);
             if (change_index === null) {
@@ -74,7 +73,7 @@ export class DiffModel {
                 continue;
             }
             const insert_index = new_model.findIndex(([res]) => {
-                return res.item.type === type && res.item.changeIndex === change_index;
+                return res.type === type && res.changeIndex === change_index;
             });
             if (insert_index === -1) {
                 console.error("Could not find change of diff: " + diff[0]);
