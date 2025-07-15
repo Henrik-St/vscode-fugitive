@@ -18,8 +18,18 @@ type ClosedDirectories = {
         [key in ChangeTypes["type"]]: Set<string>
     };
 
+type TreePerChangeType = {
+        [key in ChangeTypes["type"]]: FileTree
+    };
+
 export class TreeModel {
     private closedDirectories: ClosedDirectories;
+    private tree: TreePerChangeType = {
+        "Untracked": {children: new Map(), name: "/", parentDir: ""},
+        "Unstaged": {children: new Map(), name: "/", parentDir: ""},
+        "Staged": {children: new Map(), name: "/", parentDir: ""},
+        "MergeChange": {children: new Map(), name: "/", parentDir: ""},
+    };
     
     constructor() {
         this.closedDirectories = {
@@ -50,8 +60,14 @@ export class TreeModel {
 
     public changesToTreeModel(changes: Change[], root_uri: string, type: ChangeTypes["type"]): UIModelItem[] {
         const tree = this.changesToTree(changes, root_uri, type);
+        this.tree[type] = tree;
         return this.treeToModel(tree, type);
     }
+
+    // Traverse to the closest above node
+    // public getPreviousNodes(type: ChangeTypes["type"]): UIModelItem | null {
+    //     const tree = this.tree[type];
+    // }
 
     private treeToModel(tree: FileTree, type: ChangeTypes["type"]): UIModelItem[] {
         return this._treeToModel(tree, 0, type);
@@ -67,7 +83,7 @@ export class TreeModel {
             if(e.type == "Tree"){
                 const open_symbol = this.isClosedDirectory(e, type) ? MenuSymbol.CLOSED : MenuSymbol.OPEN;
                 const ui_text =  "  ".repeat(depth) + open_symbol + " " + e.name;
-                model.push([{type: "DirectoryHeader", path: e.parentDir + e.name}, ui_text]);
+                model.push([{type: "DirectoryHeader", path: e.parentDir + e.name, changeType: type}, ui_text]);
                 model.push(...this._treeToModel(e as FileTree, depth + 1, type));
             }
         }

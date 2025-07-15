@@ -8,6 +8,8 @@ export type ChangeTypes =
     {type: 'Staged'} & ChangeType
 ;
 
+// const HEADERTYPES = ["UntrackedHeader" , "UnstagedHeader" , "StagedHeader" , "MergeHeader"] as const;
+// export type HeaderTypes = typeof HEADERTYPES[number];
 export type HeaderTypes = "UntrackedHeader" | "UnstagedHeader" | "StagedHeader" | "MergeHeader";
 
 export type UnpushedType = {type: 'Unpushed' } & ChangeType;
@@ -21,21 +23,17 @@ export type ResourceType =
     {type: 'StagedDiff'} & DiffType  |
     {type: 'UnpushedHeader' } | UnpushedType |
     {type: 'BlankUI'} |
-    {type: 'DirectoryHeader'} & {path: string} | 
+    {type: 'DirectoryHeader'} & {path: string, changeType: ChangeTypes["type"]} | 
     ChangeTypes
 ;
 
 
-export function toChangeTypes(type: ResourceType): ChangeTypes | null {
-    if (
-        type.type === "Unstaged" ||
+export function isChangeTypes(type: ResourceType): type is ChangeTypes {
+    return type.type === "Unstaged" ||
         type.type === "Staged" ||
         type.type === "Untracked" ||
         type.type === "MergeChange"
-    ) {
-        return type;
-    }
-    return null;
+    ;
 }
 
 export function changeTypeToHeaderType(type: ChangeTypes["type"]): HeaderTypes {
@@ -55,17 +53,5 @@ export function headerTypeToChangeType(type: HeaderTypes): ChangeTypes["type"] {
         case "StagedHeader": return "Staged";
         case "MergeHeader": return "MergeChange";
         default: throw new Error("Invalid Header Type");
-    }
-}
-
-
-export function toUnpushedType(type: ResourceType): UnpushedType | null {
-    switch(type.type) {
-        case "Unpushed": {
-            return type;
-        }
-        default: {
-            return null;
-        }
     }
 }

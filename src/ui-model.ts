@@ -14,8 +14,10 @@ export class UIModel {
 
     public diffModel: DiffModel;
     public treeModel: TreeModel;
+    public previousUIModel: UIModelItem[];
 
     constructor() {
+        this.previousUIModel= [];
         this.uiModel = [];
         if (!GIT) {
             throw Error("Git API not found!");
@@ -25,7 +27,7 @@ export class UIModel {
         this.treeModel = new TreeModel();
     }
 
-    public updateUIModel(view: "list" | "tree"): void {
+    public update(view: "list" | "tree"): void {
         console.debug('Provider.provideTextDocumentContent');
         let new_ui_model: UIModelItem[] = [];
         let head = "Detached";
@@ -73,6 +75,7 @@ export class UIModel {
             new_ui_model.push([{ type: "UnpushedHeader"}, `Unpushed ${to}(${len}):`]);
             new_ui_model.push(...commits);
         }
+        this.previousUIModel = this.uiModel;
         this.uiModel = new_ui_model;
     }
 

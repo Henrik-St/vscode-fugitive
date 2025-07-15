@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { API as GitAPI, Repository, Commit, Status, Ref, DiffEditorSelectionHunkToolbarContext, Change } from './vscode-git';
 import { readFile } from './util';
-import { ChangeTypes, ResourceType, toChangeTypes } from './resource';
+import { ChangeTypes, ResourceType, isChangeTypes } from './resource';
 
 export class GitWrapper {
 
@@ -214,11 +214,10 @@ export class GitWrapper {
     }
 
     public changeFromResource(resource: ResourceType): Change | null{
-        const converted = toChangeTypes(resource);
-        if (!converted) {
+        if (!isChangeTypes(resource)) {
             return null;
         }
-        const change = this.getChanges(converted.type)[converted.changeIndex];
+        const change = this.getChanges(resource.type)[resource.changeIndex];
         return change;
     }
 

@@ -3,7 +3,7 @@ import {Status, Repository } from './vscode-git';
 import { GitWrapper } from './git-wrapper';
 import { setCursorWithView } from './util';
 import { encodeCommit } from './diff-provider';
-import { ResourceType} from './resource';
+import { changeTypeToHeaderType, isChangeTypes, ResourceType } from './resource';
 import { UIModel } from './ui-model';
 import { GIT } from './extension';
 import { getDirectoryType } from './tree-model';
@@ -97,8 +97,12 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     provideTextDocumentContent(_uri: vscode.Uri): string {
         console.debug('Provider.provideTextDocumentContent');
-        this.uiModel.updateUIModel(this.viewStyle);
-        this.updateCursor();
+        this.uiModel.update(this.viewStyle);
+        if(this.viewStyle === "tree") {
+            this.updateCursorTreeView();
+        } else {
+            this.updateCursor();
+        }
 
         return this.uiModel.toString();
     }
@@ -811,30 +815,20 @@ export class Provider implements vscode.TextDocumentContentProvider {
             return;
         }
         switch (this.previousResource.type) {
-            case 'MergeChange': {
-                const index = this.git.mergeChanges().length == 0 ? 0 :
-                    this.previousResource.changeIndex > this.git.mergeChanges().length - 1 ?
-                        this.git.mergeChanges().length - 1 : this.previousResource.changeIndex;
-                const merge_offset = this.uiModel.getCategoryOffset("MergeHeader") + 1;
-                this.line = merge_offset + index;
+            case 'UntrackedHeader':
+            case 'UnstagedHeader': 
+            case 'StagedHeader': {
+                const offset = this.uiModel.getCategoryOffset(this.previousResource.type) + 1;
+                this.line = offset + 0;
                 break;
             }
-            case 'UntrackedHeader': {
-                const untracked_offset = this.uiModel.getCategoryOffset("UntrackedHeader") + 1;
-                this.line = untracked_offset + 0;
-                break;
-            }
+            case 'MergeChange':
             case 'Untracked': {
-                const index = this.git.untracked().length == 0 ? 0 :
-                    this.previousResource.changeIndex > this.git.untracked().length - 1 ?
-                        this.git.untracked().length - 1 : this.previousResource.changeIndex;
-                const untracked_offset = this.uiModel.getCategoryOffset("UntrackedHeader") + 1;
-                this.line = untracked_offset + index;
-                break;
-            }
-            case 'UnstagedHeader': {
-                const unstaged_offset = this.uiModel.getCategoryOffset("UnstagedHeader") + 1;
-                this.line = unstaged_offset + 0;
+                const index = this.git.getChanges(this.previousResource.type).length == 0 ? 0 :
+                    this.previousResource.changeIndex > this.git.getChanges(this.previousResource.type).length - 1 ?
+                        this.git.getChanges(this.previousResource.type).length - 1 : this.previousResource.changeIndex;
+                const category_offset = this.uiModel.getCategoryOffset(changeTypeToHeaderType(this.previousResource.type)) + 1;
+                this.line = category_offset + index;
                 break;
             }
             case 'UnstagedDiff':
@@ -847,11 +841,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 this.line = new_line === -1 ? unstaged_offset : new_line;
                 break;
             }
-            case 'StagedHeader': {
-                const staged_offset = this.uiModel.getCategoryOffset("StagedHeader") + 1;
-                this.line = staged_offset + 0;
-                break;
-            }
             case 'StagedDiff':
             case 'Staged': {
                 const index = this.git.staged().length == 0 ? 0 :
@@ -862,15 +851,31 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 this.line = new_line === -1 ? staged_offset : new_line;
                 break;
             }
-            case 'DirectoryHeader': {
-                this.line = 
-                    vscode.window.activeTextEditor?.selection.active.line 
-                    || (this.uiModel.length() >= 5 ? 5: 0); //go to first item if present
-                break;
-            }
             default:
                 console.error("updateCursor: " + this.previousResource.type + " not implemented");
         }
+    }
+
+    /**
+     * Todo: this is just a temporary solution
+     */
+    private updateCursorTreeView() {
+        console.debug('updateCursor');
+        if (!this.previousResource) {
+            this.line = 
+                vscode.window.activeTextEditor?.selection.active.line 
+                || (this.uiModel.length() >= 5 ? 5: 0); //go to first item if present
+            return;
+        }
+        const type = this.previousResource; // fixate type for assertion
+        if (!isChangeTypes(type)) {
+            this.line = 
+                vscode.window.activeTextEditor?.selection.active.line 
+                || (this.uiModel.length() >= 5 ? 5: 0);
+            return;
+        }
+        const offset = this.uiModel.getCategoryOffset(changeTypeToHeaderType(type.type)) + 1;
+        this.line = offset;
     }
 
 }
