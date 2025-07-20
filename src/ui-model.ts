@@ -11,10 +11,10 @@ export type UIModelItem = [ResourceType, string];
 export class UIModel {
     private uiModel: UIModelItem[];
     private git: GitWrapper;
+    private previousUIModel: UIModelItem[];
 
     public diffModel: DiffModel;
     public treeModel: TreeModel;
-    public previousUIModel: UIModelItem[];
 
     constructor() {
         this.previousUIModel= [];
@@ -77,6 +77,14 @@ export class UIModel {
         }
         this.previousUIModel = this.uiModel;
         this.uiModel = new_ui_model;
+    }
+
+    public get(): UIModelItem[] {
+        return this.uiModel;
+    }
+
+    public getPrevious(): UIModelItem[] {
+        return this.previousUIModel;
     }
 
     public findHeader(type: ResourceType["type"]): number {

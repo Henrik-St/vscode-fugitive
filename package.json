@@ -298,7 +298,29 @@
 				"scopeName": "source.fugitive",
 				"path": "./syntaxes/fugitive.tmGrammar.json"
 			}
-		]
+		],
+		"configuration": {
+			"title": "Fugitive",
+			"properties": {
+				"fugitive.viewStyle": {
+					"type": "string",
+					"enum": [
+						"list",
+						"tree"
+					],
+					"markdownEnumDescriptions": [
+						"Show changes as a List",
+						"Show changes as a Directory Tree"
+					],
+					"enumItemLabels": [
+						"List",
+						"Tree"
+					],
+					"default": "list",
+					"description": "Determines the view style"
+				}
+			}
+		}
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run compile",
