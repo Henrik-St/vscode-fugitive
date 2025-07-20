@@ -116,6 +116,11 @@
 				"command": "fugitive.setRepo",
 				"title": "Fugitive: Set Repository",
 				"when": "resourceScheme == fugitive"
+			},
+			{
+				"command": "fugitive.goTop",
+				"title": "Fugitive: Go To Top",
+				"when": "resourceScheme == fugitive"
 			}
 		],
 		"keybindings": [
@@ -277,6 +282,11 @@
 			{
 				"command": "fugitive.help",
 				"key": "g h",
+				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+			},
+			{
+				"command": "fugitive.goTop",
+				"key": "g g",
 				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
 			}
 		],

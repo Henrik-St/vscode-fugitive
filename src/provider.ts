@@ -172,6 +172,11 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
     }
 
+    goTop(): void {
+        console.debug("goTop");
+        setCursorWithView(0);
+    }
+
     goUnstaged(go_unstaged: boolean): void {
         const untracked_index = this.uiModel.findHeader("UntrackedHeader");
         if (!go_unstaged && untracked_index >= 0) {

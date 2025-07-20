@@ -88,6 +88,7 @@ export function activate({ subscriptions }: vscode.ExtensionContext): void {
 	add_subscription(async () => provider!.goUnstaged(true), 'fugitive.goUnstaged');
 	add_subscription(async () => provider!.goUnpushed(), 'fugitive.goUnpushed');
 	add_subscription(async () => provider!.goStaged(), 'fugitive.goStaged');
+	add_subscription(async () => provider!.goTop(), 'fugitive.goTop');
 	add_subscription(() => thenable_to_promise(vscode.commands.executeCommand("extension.open", "hnrk-str.vscode-fugitive")), 'fugitive.help');
 	add_subscription(() => thenable_to_promise(vscode.commands.executeCommand('workbench.action.closeActiveEditor')), 'fugitive.close');
 	add_subscription(() => thenable_to_promise(vscode.commands.executeCommand('git.stash')), 'fugitive.stash');
