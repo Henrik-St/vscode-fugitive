@@ -52,6 +52,8 @@ The default mappings assume QUERTZ as the keyboard layout. See below for how to 
 | fugitive.help             | g h                   | Open the README of this extension                      |
 | fugitive.close            | g q                   | Close Fugitive                                         |
 | fugitive.refresh          | g r                   | Refresh the git status                                 |
+| fugitive.toggleView       | g t                   | Toggle between the tree and list view                  |
+| fugitive.toggleDirectory  | g f                   | Open/Close a directory fold in tree view               |
 | fugitive.setRepository    |                       | Switch between multiple subrepositories                |
 
 Additionally, j/k are mapped to up/down in non vim mode.

@@ -18,7 +18,7 @@ export class DiffProvider implements vscode.TextDocumentContentProvider {
         this.git = GIT;
     }
 
-    dispose() {
+    dispose(): void {
         this.subscriptions.forEach(e => e.dispose());
     }
 
@@ -33,8 +33,8 @@ let seq = 0;
 
 export function encodeCommit(commit: Commit): vscode.Uri {
 	const query = JSON.stringify(commit);
-    const shortHash = commit.hash.slice(0, 8);
-	return vscode.Uri.parse(`${DiffProvider.scheme}:${shortHash}.diff?${query}#${seq++}`);
+    const short_hash = commit.hash.slice(0, 8);
+	return vscode.Uri.parse(`${DiffProvider.scheme}:${short_hash}.diff?${query}#${seq++}`);
 }
 
 export function decodeCommit(uri: vscode.Uri): Commit {
