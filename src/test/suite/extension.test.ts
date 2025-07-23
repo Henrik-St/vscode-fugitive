@@ -1,12 +1,11 @@
 import * as assert from 'assert';
 
 import * as vscode from 'vscode';
-import { exec } from 'child_process';
+import { execSync } from 'child_process';
 
 function wait(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
-
 
 function setLine(line: number) {
     if (line < 0) {
@@ -21,50 +20,44 @@ function cmdAtLine(line: number, command: string) {
     return vscode.commands.executeCommand(command);
 }
 
+async function getDocument(): Promise<vscode.TextDocument> {
+        console.debug('fugitive.open executed');
+        const editor = vscode.window.activeTextEditor;
+        assert.ok(editor, 'No active text editor after executing fugitive.open command');
+        assert.strictEqual(editor.document.uri.toString(), 'fugitive:Fugitive', 'Active text editor does not have the expected URI');
+        return editor.document;
+}
+
 const test_repo_path = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
 
 suite('Extension Test Suite', () => {
-    suiteSetup(() => {
-        console.log('Running suiteSetup');
-        // get directory of test-repo
-        exec(`touch ${test_repo_path}/untracked.txt`, (error, stdout, stderr) => {
-            console.log(error, stdout, stderr); 
-        });
-        exec(`echo change >> ${test_repo_path}/unstaged.txt`, (error, stdout, stderr) => {
-            console.log(error, stdout, stderr); 
-        });
-        exec(`echo change >> ${test_repo_path}/staged.txt`, (error, stdout, stderr) => {
-            console.log(error, stdout, stderr); 
-        });
+    suiteSetup(async function (){
+        console.info('Running suiteSetup');
+        this.timeout(5000);
+        const l = execSync(`touch ${test_repo_path}/untracked.txt`);
+        console.debug("Touch:", l);
+        const m = execSync(`echo change >> ${test_repo_path}/unstaged.txt`);
+        console.debug("unstaged: ", m); 
+        const n = execSync(`echo change >> ${test_repo_path}/staged.txt`);
+        console.debug("staged:", n); 
+        await vscode.commands.executeCommand('fugitive.open');
+
     });
-    suiteTeardown(() => {
-        vscode.commands.executeCommand('');
-        console.log('Running suiteTeardown');
-        // get directory of test-repo
-        console.log('test-repo git reset executed');
-        console.log(`cd ${test_repo_path} && git reset && git checkout -- . && git clean -fd`);
-        exec(`cd ${test_repo_path} && git reset && git checkout -- . && git clean -fd`, (error, stdout, stderr) => {
-            console.log(error);
-            console.log(stdout);
-            console.log(stderr);
-        });
-        vscode.window.showInformationMessage('All tests done!');
+    suiteTeardown(function (){
+        console.info('Running suiteTeardown');
+        execSync(`cd ${test_repo_path} && git reset && git checkout -- . && git clean -fd`);
+        console.debug(`cd ${test_repo_path} && git reset && git checkout -- . && git clean -fd`);
+        console.info('All tests done!');
     });
 
-	vscode.window.showInformationMessage('Start all tests.');
     const extension = vscode.extensions.getExtension('hnrk-str.vscode-fugitive');
     test('Extension is loaded', () => {
         assert.ok(extension, 'Extension hnrk-str.vscode-fugitive is not loaded');
     });
 
-    test('Check status contents', async () => {
-        await vscode.commands.executeCommand('fugitive.open');
-        console.debug('fugitive.open executed');
-        // get string of line 6
-        const editor = vscode.window.activeTextEditor;
-        assert.ok(editor, 'No active text editor after executing fugitive.open command');
-        assert.strictEqual(editor.document.uri.toString(), 'fugitive:Fugitive', 'Active text editor does not have the expected URI');
-        const document = editor.document;
+    test('Check status contents', async function () {
+        this.timeout(10_000);
+        const document = await getDocument();
         const assert_line = (line: number, expected_text: string) => {
             const line_text = document.lineAt(line).text;
             assert.strictEqual(line_text, expected_text, `Line ${line} does not contain expected text`);
@@ -96,6 +89,24 @@ suite('Extension Test Suite', () => {
             5, 
             "Cursor goes from staged to unstaged"
         );
-    }).timeout(100000);
+        
+    });
+
+    test('Go to Unstaged', async function() {
+        const document = await getDocument();
+        await cmdAtLine(10, 'fugitive.goUnstaged');
+        assert(
+            vscode.window.activeTextEditor?.selection.active.line,
+            "No active cursor"
+        );
+        const text = document.lineAt(
+            vscode.window.activeTextEditor?.selection.active.line, 
+        ).text;
+        console.debug(text);
+        assert.match(
+            text,
+            /Unstaged.*/
+        );
+    });
     
 });

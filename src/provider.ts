@@ -883,9 +883,11 @@ export class Provider implements vscode.TextDocumentContentProvider {
     private updateCursorTreeView() {
         console.debug('updateCursor');
         if (!this.previousResource) {
+            const line = vscode.window.activeTextEditor?.selection.active.line;
+            const ui_length = this.uiModel.length();
             this.line = 
-                vscode.window.activeTextEditor?.selection.active.line 
-                || (this.uiModel.length() >= 5 ? 5: 0); //go to first item if present
+                line && line < ui_length ? 
+                    line: (ui_length >= 5 ? 5: 0); //go to first item if present
             return;
         }
 
