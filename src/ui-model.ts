@@ -1,4 +1,4 @@
-import { GIT } from "./extension";
+import { GIT, LOGGER } from "./extension";
 import { TreeModel} from "./tree-model";
 import { GitWrapper } from "./git-wrapper";
 import { ChangeTypes, ResourceType, changeTypeToHeaderType } from "./resource";
@@ -28,7 +28,7 @@ export class UIModel {
     }
 
     public update(view: "list" | "tree"): void {
-        console.debug('Provider.provideTextDocumentContent');
+        LOGGER.trace('ui-model.update');
         let new_ui_model: UIModelItem[] = [];
         let head = "Detached";
         if (this.git.repo.state.HEAD?.name) {

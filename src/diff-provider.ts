@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { Commit } from './vscode-git';
 import { GitWrapper } from './git-wrapper';
-import { GIT } from './extension';
+import { GIT, LOGGER } from './extension';
 
 export class DiffProvider implements vscode.TextDocumentContentProvider {
     static scheme = 'Fugitive-Diff';
@@ -23,7 +23,7 @@ export class DiffProvider implements vscode.TextDocumentContentProvider {
     }
 
     provideTextDocumentContent(uri: vscode.Uri): Promise<string> {
-        console.debug('DiffProvider.provideTextDocumentContent');
+        LOGGER.debug('DiffProvider.provideTextDocumentContent');
         return this.git.constructCommitDiff(decodeCommit(uri));
     }
 

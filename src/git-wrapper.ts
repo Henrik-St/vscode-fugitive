@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { API as GitAPI, Repository, Commit, Status, Ref, DiffEditorSelectionHunkToolbarContext, Change } from './vscode-git';
 import { readFile } from './util';
 import { ChangeTypes, ResourceType, isChangeTypes } from './resource';
+import { LOGGER } from './extension';
 
 export class GitWrapper {
 
@@ -44,7 +45,7 @@ export class GitWrapper {
     }
 
     async updateBranchInfo(): Promise<void> {
-        console.debug("updateBranchInfo");
+        LOGGER.debug("updateBranchInfo");
         this.cachedRefs = await this.repo.getRefs({});
         if (this.getCachedHasRemoteBranch()) {
             this.cachedUnpushedCommits = await this.repo.log({ range: this.repo.state.remotes[0].name + "/" + this.repo.state.HEAD?.name + "..HEAD" });
@@ -175,9 +176,9 @@ export class GitWrapper {
         };
 
         vscode.commands.executeCommand('git.diff.stageHunk', stage_params).then(async (success) => {
-            console.debug('git.diff.stageHunk: success: ', success);
+            LOGGER.debug('git.diff.stageHunk: success: ', success);
         }, (rejected) => {
-            console.debug('git.diff.stageHunk: rejected: ', rejected);
+            LOGGER.debug('git.diff.stageHunk: rejected: ', rejected);
         });
     }
 

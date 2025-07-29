@@ -7,5 +7,6 @@
 * allow actions with selected ranges (medium)
 
 # Bug fixes:
+* increase performance of tree view and long list of changes
 * vscode.vim bindings with conflicting first letter (g*, c*) do not work anymore (large)
 * cursor moves after opening commit message buffer (small)

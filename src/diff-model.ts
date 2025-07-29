@@ -1,4 +1,4 @@
-import { GIT } from "./extension";
+import { GIT, LOGGER } from "./extension";
 import { GitWrapper } from "./git-wrapper";
 import { UIModelItem } from "./ui-model";
 import { Change } from "./vscode-git";
@@ -69,14 +69,14 @@ export class DiffModel {
         for (const diff of this.getOpenedDiffMap(type)){
             const change_index = this.git.findChangeIndexByPath(diff[0], type);
             if (change_index === null) {
-                console.error("Could not find change index of diff: " + diff[0]);
+                LOGGER.error("Could not find change index of diff: " + diff[0]);
                 continue;
             }
             const insert_index = new_model.findIndex(([res]) => {
                 return res.type === type && res.changeIndex === change_index;
             });
             if (insert_index === -1) {
-                console.error("Could not find change of diff: " + diff[0]);
+                LOGGER.error("Could not find change of diff: " + diff[0]);
                 continue;
             }
             const change = this.git.getChanges(type)[change_index];

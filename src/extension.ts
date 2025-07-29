@@ -8,16 +8,18 @@ import { GitWrapper } from './git-wrapper';
 //GLOBAL DEPENDENCIES
 // eslint-disable-next-line @typescript-eslint/naming-convention
 export let GIT: GitWrapper | null = null;
+// eslint-disable-next-line @typescript-eslint/naming-convention
+export const LOGGER: vscode.LogOutputChannel = vscode.window.createOutputChannel('Fugitive', {log: true});
 
 export function activate({ subscriptions }: vscode.ExtensionContext): void {
 
 	const add_subscription = (command: () => Promise<void>, name: string) => {
 		subscriptions.push(commands.registerCommand(name, async () => {
-			console.debug(name);
+			LOGGER.debug(name);
 			try {
 				await command();
 			} catch (error) {
-				console.error('Error on ', name,':', error);
+				LOGGER.debug('Error on ', name,':', error);
 				vscode.window.showErrorMessage('Fugitive: Error on ' + name);
 			}
 		}));
@@ -32,7 +34,7 @@ export function activate({ subscriptions }: vscode.ExtensionContext): void {
 		});
 	};
 
-	console.debug('fugitive.activate');
+	LOGGER.debug('fugitive.activate');
 	let provider: Provider | null = null;
 	let diff_provider: DiffProvider | null = null;
 	const dependencies = getDependencies();
@@ -45,7 +47,7 @@ export function activate({ subscriptions }: vscode.ExtensionContext): void {
 
 
 	subscriptions.push(commands.registerCommand('fugitive.open', async () => {
-		console.debug('fugitive.open');
+		LOGGER.debug('fugitive.open');
 
 		if (!provider) {
 			const dependencies = getDependencies();
@@ -100,7 +102,7 @@ export function activate({ subscriptions }: vscode.ExtensionContext): void {
 }
 
 function getDependencies(): boolean {
-	console.debug("checkForRepository");
+	LOGGER.debug("checkForRepository");
 	const git_extension: GitExtension = vscode.extensions.getExtension('vscode.git')?.exports;
 	if (!git_extension || !git_extension.enabled) {
 		window.showWarningMessage('Fugitive: No git extension found or not enabled.');
