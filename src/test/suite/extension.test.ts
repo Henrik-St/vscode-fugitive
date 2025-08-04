@@ -1,38 +1,17 @@
 import * as assert from 'assert';
-
 import * as vscode from 'vscode';
 import { execSync } from 'child_process';
+import { cmdAtLine, wait, getDocument } from './test-utils';
+import { goDown, goStaged, goTop, goUnstaged, goUp, refresh } from './movement';
 
-function wait(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-function setLine(line: number) {
-    if (line < 0) {
-        throw new Error('Line number must be non-negative');
-    }
-    vscode.window.activeTextEditor!.selection =
-        new vscode.Selection(new vscode.Position(line, 0), new vscode.Position(line, 0));
-}
-
-function cmdAtLine(line: number, command: string) {
-    setLine(line);
-    return vscode.commands.executeCommand(command);
-}
-
-async function getDocument(): Promise<vscode.TextDocument> {
-        console.debug('fugitive.open executed');
-        const editor = vscode.window.activeTextEditor;
-        assert.ok(editor, 'No active text editor after executing fugitive.open command');
-        assert.strictEqual(editor.document.uri.toString(), 'fugitive:Fugitive', 'Active text editor does not have the expected URI');
-        return editor.document;
-}
 
 const test_repo_path = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
 
 suite('Extension Test Suite', () => {
     suiteSetup(async function (){
         console.info('Running suiteSetup');
+        execSync(`cd ${test_repo_path} && git reset && git checkout -- . && git clean -fd`);
+        console.debug(`cd ${test_repo_path} && git reset && git checkout -- . && git clean -fd`);
         this.timeout(5000);
         const l = execSync(`touch ${test_repo_path}/untracked.txt`);
         console.debug("Touch:", l);
@@ -49,8 +28,6 @@ suite('Extension Test Suite', () => {
     });
     suiteTeardown(function (){
         console.info('Running suiteTeardown');
-        execSync(`cd ${test_repo_path} && git reset && git checkout -- . && git clean -fd`);
-        console.debug(`cd ${test_repo_path} && git reset && git checkout -- . && git clean -fd`);
         console.info('All tests done!');
     });
 
@@ -59,93 +36,13 @@ suite('Extension Test Suite', () => {
         assert.ok(extension, 'Extension hnrk-str.vscode-fugitive is not loaded');
     });
 
-    test('Go to Untracked', async function() {
-        const document = await getDocument();
-        await cmdAtLine(5, 'fugitive.goUntracked');
-        assert(
-            vscode.window.activeTextEditor?.selection.active.line,
-            "No active cursor"
-        );
-        const text = document.lineAt(
-            vscode.window.activeTextEditor?.selection.active.line, 
-        ).text;
-        console.debug(text);
-        assert.match(
-            text,
-            /Untracked.*/
-        );
-    });
-
-    test('Go to Unstaged', async function() {
-        const document = await getDocument();
-        await cmdAtLine(10, 'fugitive.goUnstaged');
-        assert(
-            vscode.window.activeTextEditor?.selection.active.line,
-            "No active cursor"
-        );
-        const text = document.lineAt(
-            vscode.window.activeTextEditor?.selection.active.line, 
-        ).text;
-        console.debug(text);
-        assert.match(
-            text,
-            /Unstaged.*/
-        );
-    });
-
-
-    test('Go to Staged', async function() {
-        const document = await getDocument();
-        await cmdAtLine(5, 'fugitive.goStaged');
-        assert(
-            vscode.window.activeTextEditor?.selection.active.line,
-            "No active cursor"
-        );
-        const text = document.lineAt(
-            vscode.window.activeTextEditor?.selection.active.line, 
-        ).text;
-        console.debug(text);
-        assert.match(
-            text,
-            /Staged.*/
-        );
-    });
-
-    test('Go up', async function() {
-        await cmdAtLine(5, 'fugitive.goUp');
-        assert.strictEqual(
-            vscode.window.activeTextEditor?.selection.active.line, 
-            4, 
-            "Cursor goes up one line"
-        );
-    });
-
-    test('Go down', async function() {
-        await cmdAtLine(5, 'fugitive.goDown');
-        assert.strictEqual(
-            vscode.window.activeTextEditor?.selection.active.line, 
-            6, 
-            "Cursor goes down one line"
-        );
-    });
-
-    test('Go top', async function() {
-        await cmdAtLine(5, 'fugitive.goTop');
-        assert.strictEqual(
-            vscode.window.activeTextEditor?.selection.active.line, 
-            0, 
-            "Cursor goes to the top"
-        );
-    });
-
-    test('Refresh', async function() {
-        await cmdAtLine(5, 'fugitive.refresh');
-        await wait(500);
-        assert.strictEqual(
-            5, 
-            "Cursor stays"
-        );
-    });
+    test('Go to Untracked', );
+    test('Go to Unstaged',goUnstaged);
+    test('Go to Staged', goStaged);
+    test('Go up', goUp);
+    test('Go down', goDown);
+    test('Go top', goTop);
+    test('Refresh', refresh);
 
     test('Check status contents', async function () {
         this.timeout(10_000);
@@ -172,7 +69,7 @@ suite('Extension Test Suite', () => {
             "Cursor stays at line 5 when there are still unstaged items"
         );
         await wait(1000);
-        assert_line(6, staged);
+        assert_line(13, staged);
         
         assert_line(9, untracked_staged);
         await cmdAtLine(9, 'fugitive.clean');

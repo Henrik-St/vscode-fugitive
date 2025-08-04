@@ -45,7 +45,7 @@ export class GitWrapper {
     }
 
     async updateBranchInfo(): Promise<void> {
-        LOGGER.debug("updateBranchInfo");
+        LOGGER.trace("updateBranchInfo");
         this.cachedRefs = await this.repo.getRefs({});
         if (this.getCachedHasRemoteBranch()) {
             this.cachedUnpushedCommits = await this.repo.log({ range: this.repo.state.remotes[0].name + "/" + this.repo.state.HEAD?.name + "..HEAD" });

@@ -5,7 +5,8 @@
 * release to openvsx (small)
 * provide older commit msgs in editor (medium)
 * allow actions with selected ranges (medium)
-* merge changes: use incoming use current
+* merge changes: use incoming use current (small)
+* add hover over info (medium)
 
 # Bug fixes:
 * increase performance of tree view and long list of changes

@@ -651,7 +651,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     private async updateDiffs() {
-        LOGGER.debug("updateDiffs");
+        LOGGER.trace("updateDiffs");
         await this.git.updateDiffMap("Unstaged");
         await this.git.updateDiffMap("Staged");
         const delete_opened_diffs = Array.from(this.uiModel.diffModel.getOpenedChanges().keys()).filter(k => !this.git.cachedUnstagedDiffs.has(k));

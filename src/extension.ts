@@ -108,6 +108,8 @@ function getDependencies(): boolean {
 		window.showWarningMessage('Fugitive: No git extension found or not enabled.');
 		return false;
 	}
+
+	// Handle by UI to for smooth experience
 	const api = git_extension.getAPI(1);
 	if (api.repositories.length === 0 && !api.repositories[0]?.state.HEAD?.name) {
 		window.showWarningMessage('Fugitive: No git repository initialized');
