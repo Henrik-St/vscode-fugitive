@@ -26,7 +26,7 @@ The default mappings assume QUERTZ as the keyboard layout. See below for how to 
 | ------------------------- | --------------------- | ------------------------------------------------------ |
 | fugitive.stage            | s                     | Stage (add) the file or hunk under the cursor.         |
 | fugitive.unstage          | u                     | Unstage (reset) the file or hunk under the cursor.     |
-| fugitive.toggleIndex      | -                     | Stage or unstage the file or hunk under the cursor.    |
+| fugitive.toggle           | -                     | Stage or unstage the file or hunk under the cursor.    |
 | fugitive.unstageAll       | U                     | Unstage everything.                                    |
 | fugitive.clean            | X                     | Discard the change under the cursor.                   |
 | fugitive.toggleInlineDiff | shift+0 (QUERTZ: =)   | Toggle an inline diff on the file under the cursor.    |

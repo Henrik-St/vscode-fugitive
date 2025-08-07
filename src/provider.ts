@@ -283,8 +283,13 @@ export class Provider implements vscode.TextDocumentContentProvider {
         const repo = repos.filter(i => i[0] === value)[0][1];
 		this.git.setRepository(repo);
 
+        await this.git.updateBranchInfo();
+        await this.updateDiffs();
 
-        this.onDidChangeEmitter.fire(Provider.uri);
+        const doc = vscode.workspace.textDocuments.find(doc => doc.uri.scheme === Provider.myScheme);
+        if (doc) {
+            this.onDidChangeEmitter.fire(doc.uri);
+        }
 	}
 
     refresh(): void {
