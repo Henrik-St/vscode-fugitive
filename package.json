@@ -2,7 +2,7 @@
 	"name": "vscode-fugitive",
 	"displayName": "Fugitive for VS Code",
 	"description": "This is a simple extension that adds a subset of the fugitive plugin to VS Code",
-	"version": "0.2.9",
+	"version": "0.3.0",
 	"publisher": "hnrk-str",
 	"private": true,
 	"license": "MIT",
@@ -345,7 +345,7 @@
 		"major": "npm version major --no-git-tag-version",
 		"pretest": "npm run compile",
 		"test": "vscode-test",
-		"install": "npm run vscode:package && code --install-extension $(ls ./*.vsix) && rm $(ls ./*.vsix)"
+		"test-install": "npm run vscode:package && code --install-extension $(ls ./*.vsix) && rm $(ls ./*.vsix)"
 	},
 	"devDependencies": {
 		"@types/node": "^18",
