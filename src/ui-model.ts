@@ -1,38 +1,42 @@
-import { GIT } from "./extension";
+import { GIT, LOGGER } from "./extension";
+import { TreeModel} from "./tree-model";
 import { GitWrapper } from "./git-wrapper";
-import { Resource, ResourceType } from "./resource";
+import { ChangeTypes, ResourceType, changeTypeToHeaderType } from "./resource";
 import { mapStatustoString} from './util';
 import { Change } from "./vscode-git";
+import { DiffModel } from "./diff-model";
+
+export type UIModelItem = [ResourceType, string];
 
 export class UIModel {
-    private uiModel: [Resource, string][];
+    private uiModel: UIModelItem[];
     private git: GitWrapper;
+    private previousUIModel: UIModelItem[];
 
-    private openedChanges: Set<string>;
-    private openedIndexChanges: Set<string>;
-
+    public diffModel: DiffModel;
+    public treeModel: TreeModel;
 
     constructor() {
+        this.previousUIModel= [];
         this.uiModel = [];
         if (!GIT) {
             throw Error("Git API not found!");
         }
         this.git = GIT;
-
-        this.openedChanges = new Set();
-        this.openedIndexChanges = new Set();
+        this.diffModel = new DiffModel();
+        this.treeModel = new TreeModel();
     }
 
-    public updateUIModel() {
-        console.debug('Provider.provideTextDocumentContent');
-        const newUIModel: [Resource, string][] = [];
+    public update(view: "list" | "tree"): void {
+        LOGGER.trace('ui-model.update');
+        let new_ui_model: UIModelItem[] = [];
         let head = "Detached";
         if (this.git.repo.state.HEAD?.name) {
             head = this.git.repo.state.HEAD.name;
         } else if (this.git.repo.state.HEAD?.commit) {
             head += " at " + this.git.repo.state.HEAD.commit.slice(0, 8);
         }
-        newUIModel.push([new Resource({type: 'HeadUI'}), `Head: ${head}`]);
+        new_ui_model.push([{type: 'HeadUI'}, `Head: ${head}`]);
 
         if (this.git.repo.state.rebaseCommit) {
             head = "Rebasing at " + this.git.repo.state.rebaseCommit.hash.slice(0, 8);
@@ -42,54 +46,19 @@ export class UIModel {
         if (this.git.getCachedHasRemoteBranch()) {
             merge = `Merge: ${this.git.repo.state.remotes[0].name}/${head}`;
         }
-        newUIModel.push([new Resource({ type: 'MergeUI'}), merge]);
-        newUIModel.push([new Resource({ type: 'HelpUI'}), "Help: g h"]);
+        new_ui_model.push([{ type: 'MergeUI'}, merge]);
+        new_ui_model.push([{ type: 'HelpUI'}, "Help: g h"]);
 
-        // render untracked
-        const mergeChanges = this.git.repo.state.mergeChanges;
-        if (mergeChanges.length > 0) {
-            newUIModel.push([new Resource({ type: "BlankUI"}), ""]);
-            newUIModel.push([new Resource({ type: 'MergeHeader'}), `Merge Changes (${mergeChanges.length}):`]);
-            const m = mergeChanges.map((c, i): [Resource, string] => ([new Resource({ type: "MergeChange", changeIndex: i}),this.renderChange(c)]));
-            newUIModel.push(...m);
-        }
-        const untracked = this.git.untracked();
-        if (untracked.length > 0) {
-            newUIModel.push([new Resource({ type: "BlankUI"}), ""]);
-            newUIModel.push([new Resource({type: "UntrackedHeader"}), `Untracked (${untracked.length}):`]);
-            const m = untracked.map((c, i): [Resource, string] => [new Resource({type: "Untracked", changeIndex: i}),this.renderChange(c)]);
-            newUIModel.push(...m);
-        }
-        // render unstaged
-        const unstaged = this.git.unstaged();
-        if (unstaged.length > 0) {
-            newUIModel.push([new Resource({ type: "BlankUI"}), ""]);
-            newUIModel.push([new Resource({ type: "UnstagedHeader"}), `Unstaged (${unstaged.length}):`]);
-            const m = unstaged.flatMap((c, i): [Resource, string][] => (
-                [
-                    this.getChangeModel(c, i, "Unstaged"),
-                    ...this.getDiffModel(c, i, "Unstaged", "UnstagedDiff")
-                ]
-            ));
-            newUIModel.push(...m);
-        }
-        // render staged
-        const staged = this.git.staged();
-        if (staged.length > 0) {
-            newUIModel.push([new Resource({ type: "BlankUI"}), ""]);
-            newUIModel.push([new Resource({ type: "StagedHeader"}), `Staged (${staged.length}):`]);
-            const m = staged.flatMap((c, i): [Resource, string][] => (
-                [
-                    this.getChangeModel(c, i, "Staged"),
-                    ...this.getDiffModel(c, i, "Staged", "StagedDiff")
-                ]
-            ));
-            newUIModel.push(...m);
-        }
+        this.renderSection("MergeChange", view, new_ui_model, "Merge Changes");
+        this.renderSection("Untracked", view, new_ui_model, "Untracked");
+        this.renderSection("Unstaged", view, new_ui_model, "Unstaged");
+        this.renderSection("Staged", view, new_ui_model, "Staged");
 
-        const unpushedLen = this.git.cachedUnpushedCommits.length;
-        if (unpushedLen > 0) {
-            newUIModel.push([new Resource({ type: "BlankUI"}), ""]);
+        new_ui_model = this.diffModel.injectDiffs(new_ui_model);
+
+        const unpushed_len = this.git.cachedUnpushedCommits.length;
+        if (unpushed_len > 0) {
+            new_ui_model.push([{ type: "BlankUI"}, ""]);
             const len = this.git.cachedUnpushedCommits.length;
             let to = "";
             if (this.git.repo.state.remotes[0]?.name) {
@@ -99,82 +68,59 @@ export class UIModel {
                     to = "to * ";
                 }
             }
-            const commits = this.git.cachedUnpushedCommits.map((c, i): [Resource, string] => [
-                new Resource({ type: "Unpushed", changeIndex: i}),
+            const commits = this.git.cachedUnpushedCommits.map((c, i): UIModelItem => [
+                { type: "Unpushed", changeIndex: i},
                 c.hash.slice(0, 8) + " " + c.message.split("\n")[0].slice(0, 80)
             ]);
-            newUIModel.push([new Resource({ type: "UnpushedHeader"}), `Unpushed ${to}(${len}):`]);
-            newUIModel.push(...commits);
+            new_ui_model.push([{ type: "UnpushedHeader"}, `Unpushed ${to}(${len}):`]);
+            new_ui_model.push(...commits);
         }
-        this.uiModel = newUIModel;
+        this.previousUIModel = this.uiModel;
+        this.uiModel = new_ui_model;
     }
 
-
-    public getOpenedChanges() {
-        return this.openedChanges;
+    public get(): UIModelItem[] {
+        return this.uiModel;
     }
 
-    public getOpenedIndexChanges() {
-        return this.openedIndexChanges;
+    public getPrevious(): UIModelItem[] {
+        return this.previousUIModel;
     }
 
-    public clearOpenedChanges() {
-        return this.openedChanges.clear();
+    public findHeader(type: ResourceType["type"]): number {
+        return this.uiModel.findIndex(([res]) => res.type === type);
     }
 
-    public clearOpenedIndexChanges() {
-        return this.openedIndexChanges.clear();
-    }
-
-    public findHeader(type: ResourceType["type"]) {
-        return this.uiModel.findIndex(([res]) => res.item.type === type);
-    }
-
-    public findIndex(predicate: (item: [Resource, string]) => boolean) {
+    public findIndex(predicate: (item: UIModelItem) => boolean): number {
         return this.uiModel.findIndex(predicate);
     }
-    
-    
 
     private renderChange(c: Change): string {
         return mapStatustoString(c.status) + " " + c.originalUri.path.replace(this.git.rootUri + '/', '');
     }
 
-
-    private getChangeModel(c: Change, i: number, changeType: "Unstaged" | "Staged"): [Resource, string] {
-        return [new Resource({ type: changeType, changeIndex: i }), this.renderChange(c)];
-    }
-
-    private getDiffModel(c: Change, index: number, changeType: "Staged" | "Unstaged", diffType: "StagedDiff" | "UnstagedDiff"): [Resource, string][] {
-        const hasDiff = this.getOpenedDiffMap(changeType).has(c.uri.path);
-        if (!hasDiff) {
-            return [];
+    private renderSection(type: ChangeTypes["type"], view: "list" | "tree", new_ui_model: UIModelItem[], section_title: string) {
+        const changes = this.git.getChanges(type);
+        if (changes.length > 0) {
+            new_ui_model.push([{ type: "BlankUI"}, ""]);
+            new_ui_model.push([{ type: changeTypeToHeaderType(type)}, `${section_title} (${changes.length}):`]);
+            let m: UIModelItem[] = [];
+            if (view === "tree") {
+                m = this.treeModel.changesToTreeModel(changes, this.git.rootUri, type);
+            } else if (view === "list") {
+                m = this.changesToListModel(changes, type);
+            }
+            new_ui_model.push(...m);
         }
-
-        const arr = (this.getOpenedDiffMap(changeType).get(c.uri.path) ?? []).flatMap( (str, i): [Resource, string][] => {
-            return str.split("\n").map((str, lineI): [Resource, string] => {
-                return [new Resource({type: diffType, changeIndex: index, diffIndex: i, diffLineIndex: lineI}), str];
-            });
-        });
-        return arr;
     }
 
-
-    private getOpenedDiffMap(type: "Staged" | "Unstaged"): Map<string, string[]> {
-        const openedMap = type === "Staged" ? this.openedIndexChanges : this.openedChanges;
-        const diffMap = type === "Staged" ? this.git.cachedStagedDiffs : this.git.cachedUnstagedDiffs;
-        const map = new Map<string, string[]>();
-        for (const m of diffMap) {
-            openedMap.has(m[0]) && map.set(m[0], m[1]);
-        }
-        return map;
+    private changesToListModel(changes: Change[], type: ChangeTypes["type"]): UIModelItem[] {
+        return changes.map((c, i): UIModelItem => [{type: type, changeIndex: i},this.renderChange(c)]);
     }
 
-
-    public toString() {
+    public toString(): string {
         return this.uiModel.map(([_, str]) => str).join("\n");
     }
-
 
     public getCategoryOffset(type: ResourceType['type']): number {
         let index = -1;
@@ -182,46 +128,46 @@ export class UIModel {
         // Fallthrough is intended here to got to fallback category
         switch (type) {
             case 'UnpushedHeader': 
-                index = this.uiModel.findIndex(([res]) => res.item.type === 'UnpushedHeader');
+                index = this.uiModel.findIndex(([res]) => res.type === 'UnpushedHeader');
                 if (index !== -1) {
                     return index;
                 }
             case 'StagedHeader':
-                index = this.uiModel.findIndex(([res]) => res.item.type === 'StagedHeader');
+                index = this.uiModel.findIndex(([res]) => res.type === 'StagedHeader');
                 if (index !== -1) {
                     return index;
                 }
             case 'UnstagedHeader':
-                index = this.uiModel.findIndex(([res]) => res.item.type === 'UnstagedHeader');
+                index = this.uiModel.findIndex(([res]) => res.type === 'UnstagedHeader');
                 if (index !== -1) {
                     return index;
                 }
             case 'UntrackedHeader':
-                index = this.uiModel.findIndex(([res]) => res.item.type === 'UntrackedHeader');
+                index = this.uiModel.findIndex(([res]) => res.type === 'UntrackedHeader');
                 if (index !== -1) {
                     return index;
                 }
             case 'MergeHeader':
-                index = this.uiModel.findIndex(([res]) => res.item.type === 'MergeHeader');
+                index = this.uiModel.findIndex(([res]) => res.type === 'MergeHeader');
                 if (index !== -1) {
                     return index;
                 }
         }
         /* eslint-enable no-fallthrough */
-        const containsCategory = this.uiModel.some(([a,_]) => 
-            a.item.type === "MergeHeader" || a.item.type === "UntrackedHeader" || 
-            a.item.type === "UnstagedHeader" || a.item.type === "StagedHeader" || 
-            a.item.type === "UnpushedHeader"
+        const contains_category = this.uiModel.some(([a,_]) => 
+            a.type === "MergeHeader" || a.type === "UntrackedHeader" || 
+            a.type === "UnstagedHeader" || a.type === "StagedHeader" || 
+            a.type === "UnpushedHeader"
         );
-        index = containsCategory ? 4 : 0;
+        index = contains_category ? 4 : 0;
         return index;
     }
 
-    public index(i: number) {
+    public index(i: number): UIModelItem {
         return this.uiModel[i];
     }
 
-    public length() {
+    public length(): number {
         return this.uiModel.length;
     }
 }

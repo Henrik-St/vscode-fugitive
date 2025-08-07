@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { Commit } from './vscode-git';
 import { GitWrapper } from './git-wrapper';
-import { GIT } from './extension';
+import { GIT, LOGGER } from './extension';
 
 export class DiffProvider implements vscode.TextDocumentContentProvider {
     static scheme = 'Fugitive-Diff';
@@ -18,12 +18,12 @@ export class DiffProvider implements vscode.TextDocumentContentProvider {
         this.git = GIT;
     }
 
-    dispose() {
+    dispose(): void {
         this.subscriptions.forEach(e => e.dispose());
     }
 
     provideTextDocumentContent(uri: vscode.Uri): Promise<string> {
-        console.debug('DiffProvider.provideTextDocumentContent');
+        LOGGER.debug('DiffProvider.provideTextDocumentContent');
         return this.git.constructCommitDiff(decodeCommit(uri));
     }
 
@@ -33,8 +33,8 @@ let seq = 0;
 
 export function encodeCommit(commit: Commit): vscode.Uri {
 	const query = JSON.stringify(commit);
-    const shortHash = commit.hash.slice(0, 8);
-	return vscode.Uri.parse(`${DiffProvider.scheme}:${shortHash}.diff?${query}#${seq++}`);
+    const short_hash = commit.hash.slice(0, 8);
+	return vscode.Uri.parse(`${DiffProvider.scheme}:${short_hash}.diff?${query}#${seq++}`);
 }
 
 export function decodeCommit(uri: vscode.Uri): Commit {

@@ -2,7 +2,7 @@
 	"name": "vscode-fugitive",
 	"displayName": "Fugitive for VS Code",
 	"description": "This is a simple extension that adds a subset of the fugitive plugin to VS Code",
-	"version": "0.2.9",
+	"version": "0.3.0",
 	"publisher": "hnrk-str",
 	"private": true,
 	"license": "MIT",
@@ -115,6 +115,11 @@
 			{
 				"command": "fugitive.setRepo",
 				"title": "Fugitive: Set Repository",
+				"when": "resourceScheme == fugitive"
+			},
+			{
+				"command": "fugitive.goTop",
+				"title": "Fugitive: Go To Top",
 				"when": "resourceScheme == fugitive"
 			}
 		],
@@ -265,8 +270,23 @@
 				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
 			},
 			{
+				"command": "fugitive.toggleView",
+				"key": "g t",
+				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+			},
+			{
+				"command": "fugitive.toggleDirectory",
+				"key": "g f",
+				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+			},
+			{
 				"command": "fugitive.help",
 				"key": "g h",
+				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+			},
+			{
+				"command": "fugitive.goTop",
+				"key": "g g",
 				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
 			}
 		],
@@ -288,7 +308,29 @@
 				"scopeName": "source.fugitive",
 				"path": "./syntaxes/fugitive.tmGrammar.json"
 			}
-		]
+		],
+		"configuration": {
+			"title": "Fugitive",
+			"properties": {
+				"fugitive.viewStyle": {
+					"type": "string",
+					"enum": [
+						"list",
+						"tree"
+					],
+					"markdownEnumDescriptions": [
+						"Show changes as a List",
+						"Show changes as a Directory Tree"
+					],
+					"enumItemLabels": [
+						"List",
+						"Tree"
+					],
+					"default": "list",
+					"description": "Determines the view style"
+				}
+			}
+		}
 	},
 	"scripts": {
 		"vscode:prepublish": "npm run compile",
@@ -302,16 +344,17 @@
 		"minor": "npm version minor --no-git-tag-version",
 		"major": "npm version major --no-git-tag-version",
 		"pretest": "npm run compile",
-		"test": "vscode-test"
+		"test": "vscode-test",
+		"test-install": "npm run vscode:package && code --install-extension $(ls ./*.vsix) && rm $(ls ./*.vsix)"
 	},
 	"devDependencies": {
 		"@types/node": "^18",
 		"@types/vscode": "^1.73.0",
-		"@typescript-eslint/eslint-plugin": "^6.7.0",
+		"@typescript-eslint/eslint-plugin": "^6.21.0",
 		"@typescript-eslint/parser": "^6.7.0",
 		"@vscode/test-cli": "^0.0.11",
 		"@vscode/test-electron": "^2.5.2",
-		"@vscode/vsce": "^3.4.0",
+		"@vscode/vsce": "^3.6.0",
 		"eslint": "^8.57.1",
 		"typescript": "^5.4.2"
 	}

@@ -23,15 +23,23 @@
         },
         {
             "name": "constant.character.escape",
-            "match": "^M |^R "
+            "match": "^ *M |^ *R "
         },
         {
             "name": "invalid.illegal",
-            "match": "^D "
+            "match": "^ *D "
         },
         {
             "name": "support.type",
-            "match": "^U |^A "
+            "match": "^ *U |^ *A "
+        },
+        {
+            "name": "variable.other.readwrite.ts",
+            "match": "^ *▷"
+        },
+        {
+            "name": "variable.other.readwrite.ts",
+            "match": "^ *▽"
         },
         {
             "captures": {
