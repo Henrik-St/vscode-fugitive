@@ -6,6 +6,7 @@ This is a simple extension that adds a subset of the [fugitive plugin](https://g
 
 This extension is meant to be used with the [vscodevim.vim](https://marketplace.visualstudio.com/items?itemName=vscodevim.vim) plugin.
 You can register the fugitive.open as a vim mapping like the following in your settings.json:
+
 ```json
   "vim.normalModeKeyBindings": [
     {
@@ -18,6 +19,7 @@ You can register the fugitive.open as a vim mapping like the following in your s
 ```
 
 ## Keymaps
+
 The following table shows the available keymaps.
 Keymaps with an asterisk are done with a VS Code specific customization.
 The default mappings assume QUERTZ as the keyboard layout. See below for how to configure different layouts.
@@ -37,14 +39,14 @@ The default mappings assume QUERTZ as the keyboard layout. See below for how to 
 | fugitive.stash            | c z z                 | Push stash.                                            |
 | fugitive.stashStaged      | c z s                 | Push stash of the stage.                               |
 | fugitive.popLatestStash   | c z P                 | Pop topmost stash.                                     |
-| fugitive.popStash*        | c z p                 | Pop a selected stash.                                  |
-| fugitive.checkoutBranch*  | c o b                 | Checkout a selected branch.                            |
+| fugitive.popStash\*       | c z p                 | Pop a selected stash.                                  |
+| fugitive.checkoutBranch\* | c o b                 | Checkout a selected branch.                            |
 | fugitive.goUntracked      | g u                   | Jump to the Untracked / Unstaged section.              |
 | fugitive.goUnstaged       | g U                   | Jump to the Unstaged section.                          |
 | fugitive.goStaged         | g s                   | Jump to the Staged section.                            |
 | fugitive.goUnpushed       | g p                   | Jump to the Unpushed section.                          |
-| fugitive.gitExclude*      | g i                   | Open .git/info/exclude. Add the file under the cursor. |
-| fugitive.gitIgnore*       | g I                   | Open .gitignore. Add the file under the cursor         |
+| fugitive.gitExclude\*     | g i                   | Open .git/info/exclude. Add the file under the cursor. |
+| fugitive.gitIgnore\*      | g I                   | Open .gitignore. Add the file under the cursor         |
 | fugitive.openFile         | O                     | Open the file under the cursor in a new tab.           |
 | fugitive.openFileSplit    | o                     | Open the file under the cursor in a new split.         |
 | fugitive.previousHunk     | shift+8 (QUERTZ: '(') | Jump to the previous hunk.                             |
@@ -58,8 +60,8 @@ The default mappings assume QUERTZ as the keyboard layout. See below for how to 
 
 Additionally, j/k are mapped to up/down in non vim mode.
 
-
 ## Using different keyboard layouts
+
 To change the keymapping to i.e. QUERTY the following entry needs to be added to the keyboard.json
 
 ```
@@ -82,8 +84,9 @@ To change the keymapping to i.e. QUERTY the following entry needs to be added to
 ```
 
 ## Out of scope
+
 1. At the moment the vim extension does not support registering custom commands.
-Hence the Git statusline commands are not part of this scope.
-If you are interested in this functionality, i have opened an issue on the vim extension github [here](https://github.com/VSCodeVim/Vim/issues/9103).
+   Hence the Git statusline commands are not part of this scope.
+   If you are interested in this functionality, i have opened an issue on the vim extension github [here](https://github.com/VSCodeVim/Vim/issues/9103).
 2. The vscode git api does not have first-class support for interactive rebasing.
-Therefore, functionality relying on rebasing is not provided in this extension.
+   Therefore, functionality relying on rebasing is not provided in this extension.

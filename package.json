@@ -1,361 +1,364 @@
 {
-	"name": "vscode-fugitive",
-	"displayName": "Fugitive for VS Code",
-	"description": "This is a simple extension that adds a subset of the fugitive plugin to VS Code",
-	"version": "0.3.0",
-	"publisher": "hnrk-str",
-	"private": true,
-	"license": "MIT",
-	"repository": {
-		"type": "git",
-		"url": "https://github.com/Henrik-St/vscode-fugitive.git"
-	},
-	"bugs": {
-		"url": "https://github.com/Henrik-St/vscode-fugitive/issues"
-	},
-	"engines": {
-		"vscode": "^1.74.0"
-	},
-	"categories": [
-		"SCM Providers"
-	],
-	"activationEvents": [],
-	"extensionDependencies": [
-		"vscode.git",
-		"vscode.git-base"
-	],
-	"main": "./out/extension.js",
-	"icon": "./resources/icons/logo.png",
-	"contributes": {
-		"commands": [
-			{
-				"command": "fugitive.open",
-				"title": "Fugitive"
-			},
-			{
-				"command": "fugitive.stage",
-				"title": "Fugitive stage",
-				"when": "resourceScheme == fugitive"
-			},
-			{
-				"command": "fugitive.unstage",
-				"title": "Fugitive unstage",
-				"when": "resourceScheme == fugitive"
-			},
-			{
-				"command": "fugitive.unstageAll",
-				"title": "Fugitive unstage all",
-				"when": "resourceScheme == fugitive"
-			},
-			{
-				"command": "fugitive.clean",
-				"title": "Fugitive: clean",
-				"when": "resourceScheme == fugitive"
-			},
-			{
-				"command": "fugitive.toggleInlineDiff",
-				"title": "Fugitive: Toggle inline diff",
-				"when": "resourceScheme == fugitive"
-			},
-			{
-				"command": "fugitive.commit",
-				"title": "Fugitive: commit",
-				"when": "resourceScheme == fugitive"
-			},
-			{
-				"command": "fugitive.openDiff",
-				"title": "Fugitive: open diff",
-				"when": "resourceScheme == fugitive"
-			},
-			{
-				"command": "fugitive.help",
-				"title": "Fugitive: open help",
-				"when": "resourceScheme == fugitive"
-			},
-			{
-				"command": "fugitive.close",
-				"title": "Fugitive: close",
-				"when": "resourceScheme == fugitive"
-			},
-			{
-				"command": "fugitive.refresh",
-				"title": "Fugitive: refresh",
-				"when": "resourceScheme == fugitive"
-			},
-			{
-				"command": "fugitive.goUntracked",
-				"title": "Fugitive: go to untracked/unstaged section",
-				"when": "resourceScheme == fugitive"
-			},
-			{
-				"command": "fugitive.goUnstaged",
-				"title": "Fugitive: go to unstaged section",
-				"when": "resourceScheme == fugitive"
-			},
-			{
-				"command": "fugitive.checkoutBranch",
-				"title": "Fugitive: checkout a branch",
-				"when": "resourceScheme == fugitive"
-			},
-			{
-				"command": "fugitive.gitExclude",
-				"title": "Fugitive: exclude file under cursor",
-				"when": "resourceScheme == fugitive"
-			},
-			{
-				"command": "fugitive.gitIgnore",
-				"title": "Fugitive: ignore file under cursor",
-				"when": "resourceScheme == fugitive"
-			},
-			{
-				"command": "fugitive.goStaged",
-				"title": "Fugitive: go to staged section",
-				"when": "resourceScheme == fugitive"
-			},
-			{
-				"command": "fugitive.setRepo",
-				"title": "Fugitive: Set Repository",
-				"when": "resourceScheme == fugitive"
-			},
-			{
-				"command": "fugitive.goTop",
-				"title": "Fugitive: Go To Top",
-				"when": "resourceScheme == fugitive"
-			}
-		],
-		"keybindings": [
-			{
-				"command": "fugitive.stage",
-				"key": "s",
-				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
-			},
-			{
-				"command": "fugitive.unstage",
-				"key": "u",
-				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
-			},
-			{
-				"command": "fugitive.toggle",
-				"key": "-",
-				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
-			},
-			{
-				"command": "fugitive.unstageAll",
-				"key": "shift+u",
-				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
-			},
-			{
-				"command": "fugitive.clean",
-				"key": "shift+x",
-				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
-			},
-			{
-				"command": "fugitive.toggleInlineDiff",
-				"key": "shift+0",
-				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
-			},
-			{
-				"command": "fugitive.openDiff",
-				"key": "d v",
-				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
-			},
-			{
-				"command": "fugitive.commit",
-				"key": "c c",
-				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
-			},
-			{
-				"command": "fugitive.amend",
-				"key": "c a",
-				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
-			},
-			{
-				"command": "fugitive.amendNoEdit",
-				"key": "c e",
-				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
-			},
-			{
-				"command": "fugitive.stash",
-				"key": "c z z",
-				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
-			},
-			{
-				"command": "fugitive.stashStaged",
-				"key": "c z s",
-				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
-			},
-			{
-				"command": "fugitive.popLatestStash",
-				"key": "c z shift+p",
-				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
-			},
-			{
-				"command": "fugitive.popStash",
-				"key": "c z p",
-				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
-			},
-			{
-				"command": "fugitive.goUp",
-				"key": "k",
-				"when": "!vim.mode && resourceScheme == fugitive && editorTextFocus"
-			},
-			{
-				"command": "fugitive.goDown",
-				"key": "j",
-				"when": "!vim.mode && resourceScheme == fugitive && editorTextFocus"
-			},
-			{
-				"command": "fugitive.goUntracked",
-				"key": "g u",
-				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
-			},
-			{
-				"command": "fugitive.goUnstaged",
-				"key": "g shift+u",
-				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
-			},
-			{
-				"command": "fugitive.goStaged",
-				"key": "g s",
-				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
-			},
-			{
-				"command": "fugitive.goUnpushed",
-				"key": "g p",
-				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
-			},
-			{
-				"command": "fugitive.openFile",
-				"key": "shift+o",
-				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
-			},
-			{
-				"command": "fugitive.openFileSplit",
-				"key": "o",
-				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
-			},
-			{
-				"command": "fugitive.previousHunk",
-				"key": "shift+8",
-				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
-			},
-			{
-				"command": "fugitive.nextHunk",
-				"key": "shift+9",
-				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
-			},
-			{
-				"command": "fugitive.checkoutBranch",
-				"key": "c o b",
-				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
-			},
-			{
-				"command": "fugitive.gitExclude",
-				"key": "g i",
-				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
-			},
-			{
-				"command": "fugitive.gitIgnore",
-				"key": "g shift+i",
-				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
-			},
-			{
-				"command": "fugitive.close",
-				"key": "g q",
-				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
-			},
-			{
-				"command": "fugitive.refresh",
-				"key": "g r",
-				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
-			},
-			{
-				"command": "fugitive.toggleView",
-				"key": "g t",
-				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
-			},
-			{
-				"command": "fugitive.toggleDirectory",
-				"key": "g f",
-				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
-			},
-			{
-				"command": "fugitive.help",
-				"key": "g h",
-				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
-			},
-			{
-				"command": "fugitive.goTop",
-				"key": "g g",
-				"when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
-			}
-		],
-		"languages": [
-			{
-				"id": "fugitive",
-				"filenames": [
-					"fugitive"
-				],
-				"icon": {
-					"light": "resources/icons/git.png",
-					"dark": "resources/icons/git.png"
-				}
-			}
-		],
-		"grammars": [
-			{
-				"language": "fugitive",
-				"scopeName": "source.fugitive",
-				"path": "./syntaxes/fugitive.tmGrammar.json"
-			}
-		],
-		"configuration": {
-			"title": "Fugitive",
-			"properties": {
-				"fugitive.viewStyle": {
-					"type": "string",
-					"enum": [
-						"list",
-						"tree"
-					],
-					"markdownEnumDescriptions": [
-						"Show changes as a List",
-						"Show changes as a Directory Tree"
-					],
-					"enumItemLabels": [
-						"List",
-						"Tree"
-					],
-					"default": "list",
-					"description": "Determines the view style"
-				}
-			}
-		}
-	},
-	"scripts": {
-		"vscode:prepublish": "npm run compile",
-		"vscode:package": "vsce package",
-		"vscode:publish": "vsce publish",
-		"compile": "tsc -p ./",
-		"lint": "eslint \"src/**/*.ts\"",
-		"watch": "tsc -watch -p ./",
-		"tag": "git tag $npm_package_version",
-		"patch": "npm version patch --no-git-tag-version",
-		"minor": "npm version minor --no-git-tag-version",
-		"major": "npm version major --no-git-tag-version",
-		"pretest": "npm run compile",
-		"test": "vscode-test",
-		"test-install": "npm run vscode:package && code --install-extension $(ls ./*.vsix) && rm $(ls ./*.vsix)"
-	},
-	"devDependencies": {
-		"@types/node": "^18",
-		"@types/vscode": "^1.73.0",
-		"@typescript-eslint/eslint-plugin": "^6.21.0",
-		"@typescript-eslint/parser": "^6.7.0",
-		"@vscode/test-cli": "^0.0.11",
-		"@vscode/test-electron": "^2.5.2",
-		"@vscode/vsce": "^3.6.0",
-		"eslint": "^8.57.1",
-		"typescript": "^5.4.2"
-	}
+    "name": "vscode-fugitive",
+    "displayName": "Fugitive for VS Code",
+    "description": "This is a simple extension that adds a subset of the fugitive plugin to VS Code",
+    "version": "0.3.1",
+    "publisher": "hnrk-str",
+    "private": true,
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/Henrik-St/vscode-fugitive.git"
+    },
+    "bugs": {
+        "url": "https://github.com/Henrik-St/vscode-fugitive/issues"
+    },
+    "engines": {
+        "vscode": "^1.74.0"
+    },
+    "categories": [
+        "SCM Providers"
+    ],
+    "activationEvents": [],
+    "extensionDependencies": [
+        "vscode.git",
+        "vscode.git-base"
+    ],
+    "main": "./out/extension.js",
+    "icon": "./resources/icons/logo.png",
+    "contributes": {
+        "commands": [
+            {
+                "command": "fugitive.open",
+                "title": "Fugitive"
+            },
+            {
+                "command": "fugitive.stage",
+                "title": "Fugitive stage",
+                "when": "resourceScheme == fugitive"
+            },
+            {
+                "command": "fugitive.unstage",
+                "title": "Fugitive unstage",
+                "when": "resourceScheme == fugitive"
+            },
+            {
+                "command": "fugitive.unstageAll",
+                "title": "Fugitive unstage all",
+                "when": "resourceScheme == fugitive"
+            },
+            {
+                "command": "fugitive.clean",
+                "title": "Fugitive: clean",
+                "when": "resourceScheme == fugitive"
+            },
+            {
+                "command": "fugitive.toggleInlineDiff",
+                "title": "Fugitive: Toggle inline diff",
+                "when": "resourceScheme == fugitive"
+            },
+            {
+                "command": "fugitive.commit",
+                "title": "Fugitive: commit",
+                "when": "resourceScheme == fugitive"
+            },
+            {
+                "command": "fugitive.openDiff",
+                "title": "Fugitive: open diff",
+                "when": "resourceScheme == fugitive"
+            },
+            {
+                "command": "fugitive.help",
+                "title": "Fugitive: open help",
+                "when": "resourceScheme == fugitive"
+            },
+            {
+                "command": "fugitive.close",
+                "title": "Fugitive: close",
+                "when": "resourceScheme == fugitive"
+            },
+            {
+                "command": "fugitive.refresh",
+                "title": "Fugitive: refresh",
+                "when": "resourceScheme == fugitive"
+            },
+            {
+                "command": "fugitive.goUntracked",
+                "title": "Fugitive: go to untracked/unstaged section",
+                "when": "resourceScheme == fugitive"
+            },
+            {
+                "command": "fugitive.goUnstaged",
+                "title": "Fugitive: go to unstaged section",
+                "when": "resourceScheme == fugitive"
+            },
+            {
+                "command": "fugitive.checkoutBranch",
+                "title": "Fugitive: checkout a branch",
+                "when": "resourceScheme == fugitive"
+            },
+            {
+                "command": "fugitive.gitExclude",
+                "title": "Fugitive: exclude file under cursor",
+                "when": "resourceScheme == fugitive"
+            },
+            {
+                "command": "fugitive.gitIgnore",
+                "title": "Fugitive: ignore file under cursor",
+                "when": "resourceScheme == fugitive"
+            },
+            {
+                "command": "fugitive.goStaged",
+                "title": "Fugitive: go to staged section",
+                "when": "resourceScheme == fugitive"
+            },
+            {
+                "command": "fugitive.setRepo",
+                "title": "Fugitive: Set Repository",
+                "when": "resourceScheme == fugitive"
+            },
+            {
+                "command": "fugitive.goTop",
+                "title": "Fugitive: Go To Top",
+                "when": "resourceScheme == fugitive"
+            }
+        ],
+        "keybindings": [
+            {
+                "command": "fugitive.stage",
+                "key": "s",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+            },
+            {
+                "command": "fugitive.unstage",
+                "key": "u",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+            },
+            {
+                "command": "fugitive.toggle",
+                "key": "-",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+            },
+            {
+                "command": "fugitive.unstageAll",
+                "key": "shift+u",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+            },
+            {
+                "command": "fugitive.clean",
+                "key": "shift+x",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+            },
+            {
+                "command": "fugitive.toggleInlineDiff",
+                "key": "shift+0",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+            },
+            {
+                "command": "fugitive.openDiff",
+                "key": "d v",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+            },
+            {
+                "command": "fugitive.commit",
+                "key": "c c",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+            },
+            {
+                "command": "fugitive.amend",
+                "key": "c a",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+            },
+            {
+                "command": "fugitive.amendNoEdit",
+                "key": "c e",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+            },
+            {
+                "command": "fugitive.stash",
+                "key": "c z z",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+            },
+            {
+                "command": "fugitive.stashStaged",
+                "key": "c z s",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+            },
+            {
+                "command": "fugitive.popLatestStash",
+                "key": "c z shift+p",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+            },
+            {
+                "command": "fugitive.popStash",
+                "key": "c z p",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+            },
+            {
+                "command": "fugitive.goUp",
+                "key": "k",
+                "when": "!vim.mode && resourceScheme == fugitive && editorTextFocus"
+            },
+            {
+                "command": "fugitive.goDown",
+                "key": "j",
+                "when": "!vim.mode && resourceScheme == fugitive && editorTextFocus"
+            },
+            {
+                "command": "fugitive.goUntracked",
+                "key": "g u",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+            },
+            {
+                "command": "fugitive.goUnstaged",
+                "key": "g shift+u",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+            },
+            {
+                "command": "fugitive.goStaged",
+                "key": "g s",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+            },
+            {
+                "command": "fugitive.goUnpushed",
+                "key": "g p",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+            },
+            {
+                "command": "fugitive.openFile",
+                "key": "shift+o",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+            },
+            {
+                "command": "fugitive.openFileSplit",
+                "key": "o",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+            },
+            {
+                "command": "fugitive.previousHunk",
+                "key": "shift+8",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+            },
+            {
+                "command": "fugitive.nextHunk",
+                "key": "shift+9",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+            },
+            {
+                "command": "fugitive.checkoutBranch",
+                "key": "c o b",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+            },
+            {
+                "command": "fugitive.gitExclude",
+                "key": "g i",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+            },
+            {
+                "command": "fugitive.gitIgnore",
+                "key": "g shift+i",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+            },
+            {
+                "command": "fugitive.close",
+                "key": "g q",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+            },
+            {
+                "command": "fugitive.refresh",
+                "key": "g r",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+            },
+            {
+                "command": "fugitive.toggleView",
+                "key": "g t",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+            },
+            {
+                "command": "fugitive.toggleDirectory",
+                "key": "g f",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+            },
+            {
+                "command": "fugitive.help",
+                "key": "g h",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+            },
+            {
+                "command": "fugitive.goTop",
+                "key": "g g",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+            }
+        ],
+        "languages": [
+            {
+                "id": "fugitive",
+                "filenames": [
+                    "fugitive"
+                ],
+                "icon": {
+                    "light": "resources/icons/git.png",
+                    "dark": "resources/icons/git.png"
+                }
+            }
+        ],
+        "grammars": [
+            {
+                "language": "fugitive",
+                "scopeName": "source.fugitive",
+                "path": "./syntaxes/fugitive.tmGrammar.json"
+            }
+        ],
+        "configuration": {
+            "title": "Fugitive",
+            "properties": {
+                "fugitive.viewStyle": {
+                    "type": "string",
+                    "enum": [
+                        "list",
+                        "tree"
+                    ],
+                    "markdownEnumDescriptions": [
+                        "Show changes as a List",
+                        "Show changes as a Directory Tree"
+                    ],
+                    "enumItemLabels": [
+                        "List",
+                        "Tree"
+                    ],
+                    "default": "list",
+                    "description": "Determines the view style"
+                }
+            }
+        }
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "vscode:package": "vsce package",
+        "vscode:publish": "vsce publish",
+        "compile": "tsc -p ./",
+        "lint": "eslint \"src/**/*.ts\"",
+        "format": "prettier . --write",
+        "test:format": "prettier . --check",
+        "watch": "tsc -watch -p ./",
+        "tag": "git tag $npm_package_version",
+        "patch": "npm version patch --no-git-tag-version",
+        "minor": "npm version minor --no-git-tag-version",
+        "major": "npm version major --no-git-tag-version",
+        "pretest": "npm run compile",
+        "test": "vscode-test",
+        "test-install": "npm run vscode:package && code --install-extension $(ls ./*.vsix) && rm $(ls ./*.vsix)"
+    },
+    "devDependencies": {
+        "@types/node": "^18",
+        "@types/vscode": "^1.73.0",
+        "@typescript-eslint/eslint-plugin": "^6.21.0",
+        "@typescript-eslint/parser": "^6.7.0",
+        "@vscode/test-cli": "^0.0.11",
+        "@vscode/test-electron": "^2.5.2",
+        "@vscode/vsce": "^3.6.0",
+        "eslint": "^8.57.1",
+        "prettier": "^3.6.2",
+        "typescript": "^5.4.2"
+    }
 }

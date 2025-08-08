@@ -41,15 +41,20 @@ export class DiffModel {
         return this.openedIndexChanges.clear();
     }
 
-    private getDiffModel(c: Change, index: number, change_type: "Staged" | "Unstaged", diff_type: "StagedDiff" | "UnstagedDiff"): UIModelItem[] {
+    private getDiffModel(
+        c: Change,
+        index: number,
+        change_type: "Staged" | "Unstaged",
+        diff_type: "StagedDiff" | "UnstagedDiff"
+    ): UIModelItem[] {
         const has_diff = this.getOpenedDiffMap(change_type).has(c.uri.path);
         if (!has_diff) {
             return [];
         }
 
-        const arr = (this.getOpenedDiffMap(change_type).get(c.uri.path) ?? []).flatMap( (str, i): UIModelItem[] => {
+        const arr = (this.getOpenedDiffMap(change_type).get(c.uri.path) ?? []).flatMap((str, i): UIModelItem[] => {
             return str.split("\n").map((str, line): UIModelItem => {
-                return [{type: diff_type, changeIndex: index, diffIndex: i, diffLineIndex: line}, str];
+                return [{ type: diff_type, changeIndex: index, diffIndex: i, diffLineIndex: line }, str];
             });
         });
         return arr;
@@ -66,7 +71,7 @@ export class DiffModel {
     }
 
     _injectDiffs(new_model: UIModelItem[], type: DiffChangeTypes): void {
-        for (const diff of this.getOpenedDiffMap(type)){
+        for (const diff of this.getOpenedDiffMap(type)) {
             const change_index = this.git.findChangeIndexByPath(diff[0], type);
             if (change_index === null) {
                 LOGGER.error("Could not find change index of diff: " + diff[0]);
@@ -92,6 +97,4 @@ export class DiffModel {
         this._injectDiffs(new_model, "Staged");
         return new_model;
     }
-
-
 }

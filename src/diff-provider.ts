@@ -1,10 +1,10 @@
-import * as vscode from 'vscode';
-import { Commit } from './vscode-git';
-import { GitWrapper } from './git-wrapper';
-import { GIT, LOGGER } from './extension';
+import * as vscode from "vscode";
+import { Commit } from "./vscode-git";
+import { GitWrapper } from "./git-wrapper";
+import { GIT, LOGGER } from "./extension";
 
 export class DiffProvider implements vscode.TextDocumentContentProvider {
-    static scheme = 'Fugitive-Diff';
+    static scheme = "Fugitive-Diff";
 
     private onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri>();
     onDidChange = this.onDidChangeEmitter.event; // triggers before provideTextDocumentContent
@@ -19,25 +19,24 @@ export class DiffProvider implements vscode.TextDocumentContentProvider {
     }
 
     dispose(): void {
-        this.subscriptions.forEach(e => e.dispose());
+        this.subscriptions.forEach((e) => e.dispose());
     }
 
     provideTextDocumentContent(uri: vscode.Uri): Promise<string> {
-        LOGGER.debug('DiffProvider.provideTextDocumentContent');
+        LOGGER.debug("DiffProvider.provideTextDocumentContent");
         return this.git.constructCommitDiff(decodeCommit(uri));
     }
-
 }
 
 let seq = 0;
 
 export function encodeCommit(commit: Commit): vscode.Uri {
-	const query = JSON.stringify(commit);
+    const query = JSON.stringify(commit);
     const short_hash = commit.hash.slice(0, 8);
-	return vscode.Uri.parse(`${DiffProvider.scheme}:${short_hash}.diff?${query}#${seq++}`);
+    return vscode.Uri.parse(`${DiffProvider.scheme}:${short_hash}.diff?${query}#${seq++}`);
 }
 
 export function decodeCommit(uri: vscode.Uri): Commit {
-	const commit = JSON.parse(uri.query) as Commit;
-	return commit;
+    const commit = JSON.parse(uri.query) as Commit;
+    return commit;
 }
