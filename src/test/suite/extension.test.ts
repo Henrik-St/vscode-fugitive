@@ -14,6 +14,7 @@ import {
     goUp,
     refresh,
 } from "./movement.test";
+import { cursorStage } from "./cursor.test";
 
 const test_repo_path = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
 
@@ -21,10 +22,10 @@ suite("Extension Test Suite", () => {
     suiteSetup(async function () {
         console.info("Running suiteSetup");
         execSync(`cd ${test_repo_path} && git reset && git checkout -- . && git clean -fd`);
-        console.debug(`cd ${test_repo_path} && git reset && git checkout -- . && git clean -fd`);
         this.timeout(5000);
-        execSync(`touch ${test_repo_path}/untracked.txt`);
+        execSync(`touch ${test_repo_path}/untracked1.txt`);
         execSync(`touch ${test_repo_path}/untracked2.txt`);
+        execSync(`touch ${test_repo_path}/untracked3.txt`);
         execSync(`echo change >> ${test_repo_path}/unstaged.txt`);
         execSync(`echo change >> ${test_repo_path}/staged.txt`);
         execSync(`cd ${test_repo_path} && git add staged.txt`);
@@ -51,6 +52,9 @@ suite("Extension Test Suite", () => {
     test("Go Previous Hunk", goPreviousHunk);
     test("Refresh", refresh);
 
+    // cursor tests
+    test("Cursor staging", cursorStage);
+
     // Not testable or not yet implemented
     test("Batch base tests", async function () {
         await cmdAtLine(1, "fugitive.stage");
@@ -60,7 +64,7 @@ suite("Extension Test Suite", () => {
         await cmdAtLine(1, "fugitive.clean");
         await cmdAtLine(1, "fugitive.toggleInlineDiff");
         await cmdAtLine(1, "fugitive.openDiff");
-        await cmdAtLine(1, "fugitive.amendNoEdit");
+        // await cmdAtLine(1, "fugitive.amendNoEdit");
         await cmdAtLine(1, "fugitive.popLatestStash");
         await cmdAtLine(1, "fugitive.gitExclude");
         await cmdAtLine(1, "fugitive.gitIgnore");

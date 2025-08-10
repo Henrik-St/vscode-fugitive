@@ -1,15 +1,16 @@
 export type ChangePayload = { changeIndex: number };
 export type DiffPayload = { changeIndex: number; diffIndex: number; diffLineIndex: number };
 
-export type ChangeCategory = "Unstaged" | "Staged" | "Untracked" | "MergeChange";
+const change_types = ["Unstaged", "Staged", "Untracked", "MergeChange"] as const;
+export type ChangeCategory = (typeof change_types)[number];
 export type ChangeType = { type: ChangeCategory } & ChangePayload;
 
-export type DiffCategory = "UnstagedDiff" | "StagedDiff";
+const diff_types = ["UnstagedDiff", "StagedDiff"] as const;
+export type DiffCategory = (typeof diff_types)[number];
 export type DiffType = { type: DiffCategory } & DiffPayload;
 
-// const HEADERTYPES = ["UntrackedHeader", "UnstagedHeader", "StagedHeader", "MergeHeader"] as const;
-// export type HeaderTypes = (typeof HEADERTYPES)[number];
-export type HeaderType = "UntrackedHeader" | "UnstagedHeader" | "StagedHeader" | "MergeHeader" | "UnpushedHeader";
+const header_types = ["UntrackedHeader", "UnstagedHeader", "StagedHeader", "MergeHeader", "UnpushedHeader"] as const;
+export type HeaderType = (typeof header_types)[number];
 
 export type UnpushedType = { type: "Unpushed" } & ChangePayload;
 
@@ -25,17 +26,19 @@ export type ResourceType =
     | DiffType;
 
 export function isChangeType(type: ResourceType): type is ChangeType {
-    return (
-        type.type === "Unstaged" || type.type === "Staged" || type.type === "Untracked" || type.type === "MergeChange"
-    );
+    return (change_types as readonly ResourceType["type"][]).includes(type.type);
+}
+
+export function isChangeCategory(type: ResourceType["type"]): type is ChangeCategory {
+    return (change_types as readonly ResourceType["type"][]).includes(type);
 }
 
 export function isDiffType(type: ResourceType): type is DiffType {
-    return type.type === "UnstagedDiff" || type.type === "StagedDiff";
+    return (diff_types as readonly ResourceType["type"][]).includes(type.type);
 }
 
 export function isHeaderType(type: ResourceType["type"]): type is HeaderType {
-    return type === "UntrackedHeader" || type === "UnstagedHeader" || type === "StagedHeader" || type === "MergeHeader";
+    return (header_types as readonly ResourceType["type"][]).includes(type);
 }
 
 export function changeTypeToHeaderType(type: ChangeType["type"]): HeaderType {
@@ -73,17 +76,14 @@ export function diffTypeToHeaderType(type: ResourceType["type"]): HeaderType {
 }
 
 export function diffTypeToChangeType(type: ResourceType["type"]): ChangeType["type"] {
+    if (isChangeCategory(type)) {
+        return type;
+    }
     switch (type) {
         case "UnstagedDiff":
             return "Unstaged";
         case "StagedDiff":
             return "Staged";
-        case "Unstaged":
-            return "Unstaged";
-        case "Staged":
-            return "Staged";
-        case "MergeChange":
-            return "MergeChange";
         default:
             throw new Error("Invalid Diff Type");
     }
