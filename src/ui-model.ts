@@ -1,7 +1,7 @@
 import { GIT, LOGGER } from "./extension";
 import { TreeModel } from "./tree-model";
 import { GitWrapper } from "./git-wrapper";
-import { ChangeTypes, ResourceType, changeTypeToHeaderType } from "./resource";
+import { ChangeType, HeaderType, ResourceType, changeTypeToHeaderType } from "./resource";
 import { mapStatustoString } from "./util";
 import { Change } from "./vscode-git";
 import { DiffModel } from "./diff-model";
@@ -102,7 +102,7 @@ export class UIModel {
     }
 
     private renderSection(
-        type: ChangeTypes["type"],
+        type: ChangeType["type"],
         view: "list" | "tree",
         new_ui_model: UIModelItem[],
         section_title: string
@@ -121,7 +121,7 @@ export class UIModel {
         }
     }
 
-    private changesToListModel(changes: Change[], type: ChangeTypes["type"]): UIModelItem[] {
+    private changesToListModel(changes: Change[], type: ChangeType["type"]): UIModelItem[] {
         return changes.map((c, i): UIModelItem => [{ type: type, changeIndex: i }, this.renderChange(c)]);
     }
 
@@ -129,7 +129,10 @@ export class UIModel {
         return this.uiModel.map(([_, str]) => str).join("\n");
     }
 
-    public getCategoryOffset(type: ResourceType["type"]): number {
+    /**
+     * @todo tighten type api: difftype is not allowed right now
+     */
+    public getCategoryOffset(type: HeaderType): number {
         let index = -1;
         /* eslint-disable no-fallthrough */
         // Fallthrough is intended here to got to fallback category

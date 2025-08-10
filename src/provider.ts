@@ -3,7 +3,14 @@ import { Status, Repository, Change } from "./vscode-git";
 import { GitWrapper } from "./git-wrapper";
 import { setCursorWithView } from "./util";
 import { encodeCommit } from "./diff-provider";
-import { ChangeTypes, changeTypeToHeaderType, HeaderTypes, isChangeTypes, ResourceType } from "./resource";
+import {
+    ChangeType,
+    changeTypeToHeaderType,
+    diffTypeToHeaderType,
+    HeaderType,
+    isChangeType,
+    ResourceType,
+} from "./resource";
 import { UIModel } from "./ui-model";
 import { GIT, LOGGER } from "./extension";
 import { getDirectoryType } from "./tree-model";
@@ -32,7 +39,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
         if (!GIT) {
             throw Error("Git API not found!");
         }
-        // create vscode output channel
         this.git = GIT;
         this.actionLock = false;
 
@@ -940,8 +946,8 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
         let path: string | null = null;
         let changes: Change[] = [];
-        let header_type: HeaderTypes | null = null;
-        let change_type: ChangeTypes["type"] | null = null;
+        let header_type: HeaderType | null = null;
+        let change_type: ChangeType["type"] | null = null;
         let is_file_type: boolean | null = null;
         switch (this.previousResource.type) {
             case "Untracked":
@@ -971,7 +977,30 @@ export class Provider implements vscode.TextDocumentContentProvider {
                     );
                     return;
                 }
+
+                const offset = this.getNewOffsetFromPreviousChange();
+                if (offset) {
+                    this.line = offset;
+                    return;
+                }
                 path = this.previousChange.originalUri.path;
+                break;
+            }
+            case "UnstagedDiff":
+            case "StagedDiff": {
+                header_type = diffTypeToHeaderType(this.previousResource.type);
+                if (!this.previousChange) {
+                    LOGGER.warn(
+                        "updateCursorTreeView: No previous change found for resource: " + this.previousResource.type
+                    );
+                    return;
+                }
+                const offset = this.getNewOffsetFromPreviousChange();
+                if (offset) {
+                    this.line = offset;
+                    return;
+                }
+
                 break;
             }
             case "DirectoryHeader": {
@@ -1007,7 +1036,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         const dir = path_split.join("/");
 
         // get change in same directory
-        if (isChangeTypes(this.previousResource)) {
+        if (isChangeType(this.previousResource)) {
             const new_change_index = changes.findIndex((c) => c.originalUri.path.startsWith(dir));
             if (new_change_index !== -1) {
                 const prev = this.previousResource;
@@ -1036,5 +1065,43 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
         this.line = this.uiModel.getCategoryOffset(header_type) + 1;
         return;
+    }
+
+    /**
+     * Used for cursor updating
+     * Checks if the previous change is still present and returns the new offset
+     */
+    getNewOffsetFromPreviousChange(): number | null {
+        if (!this.previousChange || !this.previousResource) {
+            return null;
+        }
+        const len = this.uiModel.length();
+        const previous_change_path = this.previousChange.originalUri.path;
+
+        const prev_type = diffTypeToHeaderType(this.previousResource.type);
+        const header_offset = this.uiModel.getCategoryOffset(prev_type) + 1;
+        outer: for (let i = header_offset; i < len; i++) {
+            const res = this.uiModel.index(i)[0];
+            switch (res.type) {
+                case "Untracked":
+                case "Unstaged":
+                case "Staged": {
+                    const found =
+                        this.git.getChanges(res.type)[res.changeIndex].originalUri.path === previous_change_path;
+                    if (found) {
+                        this.line = i;
+                        return i;
+                    }
+                    break;
+                }
+                case "BlankUI": {
+                    break outer;
+                }
+                default: {
+                    continue;
+                }
+            }
+        }
+        return null;
     }
 }

@@ -1,7 +1,7 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
 import { execSync } from "child_process";
-import { cmdAtLine, wait, getDocument } from "./utils.test";
+import { cmdAtLine } from "./utils.test";
 import {
     close,
     goDown,
@@ -23,16 +23,11 @@ suite("Extension Test Suite", () => {
         execSync(`cd ${test_repo_path} && git reset && git checkout -- . && git clean -fd`);
         console.debug(`cd ${test_repo_path} && git reset && git checkout -- . && git clean -fd`);
         this.timeout(5000);
-        const l = execSync(`touch ${test_repo_path}/untracked.txt`);
-        console.debug("Touch:", l);
-        const l2 = execSync(`touch ${test_repo_path}/untracked2.txt`);
-        console.debug("Touch:", l2);
-        const m = execSync(`echo change >> ${test_repo_path}/unstaged.txt`);
-        console.debug("unstaged: ", m);
-        const n = execSync(`echo change >> ${test_repo_path}/staged.txt`);
-        console.debug("staged:", n);
-        const o = execSync(`cd ${test_repo_path} && git add staged.txt`);
-        console.debug("stage:", o);
+        execSync(`touch ${test_repo_path}/untracked.txt`);
+        execSync(`touch ${test_repo_path}/untracked2.txt`);
+        execSync(`echo change >> ${test_repo_path}/unstaged.txt`);
+        execSync(`echo change >> ${test_repo_path}/staged.txt`);
+        execSync(`cd ${test_repo_path} && git add staged.txt`);
         await vscode.commands.executeCommand("fugitive.open");
     });
     suiteTeardown(function () {

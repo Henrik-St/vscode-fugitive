@@ -1,12 +1,12 @@
 import { GIT, LOGGER } from "./extension";
 import { GitWrapper } from "./git-wrapper";
+import { DiffType } from "./resource";
 import { UIModelItem } from "./ui-model";
 import { Change } from "./vscode-git";
 
 type DiffChangeTypes = "Unstaged" | "Staged";
-type DiffTypes = "UnstagedDiff" | "StagedDiff";
 
-function changeTypeToDiffType(type: DiffChangeTypes): DiffTypes {
+function changeTypeToDiffType(type: DiffChangeTypes): DiffType["type"] {
     return type === "Unstaged" ? "UnstagedDiff" : "StagedDiff";
 }
 

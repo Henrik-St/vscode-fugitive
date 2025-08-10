@@ -1,10 +1,10 @@
-import { ChangeTypes, headerTypeToChangeType } from "./resource";
+import { ChangeType, headerTypeToChangeType } from "./resource";
 import { UIModelItem } from "./ui-model";
 import { mapStatustoString } from "./util";
 import { Change } from "./vscode-git";
 
 type FileTree = {
-    children: Map<string, (FileTree & { type: "Tree" }) | ChangeTypes>;
+    children: Map<string, (FileTree & { type: "Tree" }) | ChangeType>;
     name: string;
     parentDir: string;
 };
@@ -15,11 +15,11 @@ enum MenuSymbol {
 }
 
 type ClosedDirectories = {
-    [key in ChangeTypes["type"]]: Set<string>;
+    [key in ChangeType["type"]]: Set<string>;
 };
 
 type TreePerChangeType = {
-    [key in ChangeTypes["type"]]: FileTree;
+    [key in ChangeType["type"]]: FileTree;
 };
 
 export class TreeModel {
@@ -45,12 +45,12 @@ export class TreeModel {
     }
 
     public clearOpenedDirectories(): void {
-        for (const type of Object.keys(this.closedDirectories) as ChangeTypes["type"][]) {
+        for (const type of Object.keys(this.closedDirectories) as ChangeType["type"][]) {
             this.closedDirectories[type].clear();
         }
     }
 
-    public toggleDirectory(dir: string, type: ChangeTypes["type"]): void {
+    public toggleDirectory(dir: string, type: ChangeType["type"]): void {
         if (this.closedDirectories[type].has(dir)) {
             this.closedDirectories[type].delete(dir);
         } else {
@@ -58,7 +58,7 @@ export class TreeModel {
         }
     }
 
-    public changesToTreeModel(changes: Change[], root_uri: string, type: ChangeTypes["type"]): UIModelItem[] {
+    public changesToTreeModel(changes: Change[], root_uri: string, type: ChangeType["type"]): UIModelItem[] {
         const tree = this.changesToTree(changes, root_uri, type);
         this.tree[type] = tree;
         return this.treeToModel(tree, type);
@@ -69,15 +69,15 @@ export class TreeModel {
     //     const tree = this.tree[type];
     // }
 
-    private treeToModel(tree: FileTree, type: ChangeTypes["type"]): UIModelItem[] {
+    private treeToModel(tree: FileTree, type: ChangeType["type"]): UIModelItem[] {
         return this._treeToModel(tree, 0, type);
     }
 
-    private isClosedDirectory(tree: FileTree, type: ChangeTypes["type"]): boolean {
+    private isClosedDirectory(tree: FileTree, type: ChangeType["type"]): boolean {
         return this.closedDirectories[type].has(tree.parentDir + tree.name);
     }
 
-    private _treeToModel(tree: FileTree, depth: number, type: ChangeTypes["type"]): UIModelItem[] {
+    private _treeToModel(tree: FileTree, depth: number, type: ChangeType["type"]): UIModelItem[] {
         const model: UIModelItem[] = [];
         for (const e of tree.children.values()) {
             if (e.type == "Tree") {
@@ -92,7 +92,7 @@ export class TreeModel {
         return model;
     }
 
-    private changesToTree(changes: Change[], root_uri: string, type: ChangeTypes["type"]): FileTree {
+    private changesToTree(changes: Change[], root_uri: string, type: ChangeType["type"]): FileTree {
         const tree: FileTree = { children: new Map(), name: "/", parentDir: "" };
         for (let i = 0; i < changes.length; i++) {
             const c = changes[i];
@@ -152,7 +152,7 @@ function listFiles(tree: FileTree, depth: number): UIModelItem[] {
     return result;
 }
 
-export function getDirectoryType(ui: readonly UIModelItem[], line: number): ChangeTypes["type"] {
+export function getDirectoryType(ui: readonly UIModelItem[], line: number): ChangeType["type"] {
     const item = ui[line];
     if (!item) {
         throw new Error("No item found at line " + line);

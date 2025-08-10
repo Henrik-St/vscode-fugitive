@@ -9,7 +9,7 @@ import {
     Change,
 } from "./vscode-git";
 import { readFile } from "./util";
-import { ChangeTypes, ResourceType, isChangeTypes } from "./resource";
+import { ChangeType, ResourceType, diffTypeToChangeType, isChangeType, isDiffType } from "./resource";
 import { LOGGER } from "./extension";
 
 export class GitWrapper {
@@ -220,7 +220,7 @@ export class GitWrapper {
         );
     }
 
-    getChanges(type: ChangeTypes["type"]): Change[] {
+    getChanges(type: ChangeType["type"]): Change[] {
         switch (type) {
             case "Untracked":
                 return this.untracked();
@@ -236,10 +236,11 @@ export class GitWrapper {
     }
 
     public changeFromResource(resource: ResourceType): Change | null {
-        if (!isChangeTypes(resource)) {
+        if (!isChangeType(resource) && !isDiffType(resource)) {
             return null;
         }
-        const change = this.getChanges(resource.type)[resource.changeIndex];
+        const resource_type = diffTypeToChangeType(resource.type);
+        const change = this.getChanges(resource_type)[resource.changeIndex];
         return change;
     }
 
@@ -251,7 +252,7 @@ export class GitWrapper {
         return commit;
     }
 
-    findChangeIndexByPath(path: string, type: ChangeTypes["type"]): number | null {
+    findChangeIndexByPath(path: string, type: ChangeType["type"]): number | null {
         const changes = this.getChanges(type);
         const index = changes.findIndex((c) => c.uri.path === path);
         if (index !== -1) {
