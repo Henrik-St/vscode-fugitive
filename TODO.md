@@ -20,12 +20,12 @@
 
 | Command                   | Test Status | Description                                            |
 | ------------------------- | ----------- | ------------------------------------------------------ |
-| fugitive.stage            | N           | Stage (add) the file or hunk under the cursor.         |
-| fugitive.unstage          | N           | Unstage (reset) the file or hunk under the cursor.     |
+| fugitive.stage            | Y           | Stage (add) the file or hunk under the cursor.         |
+| fugitive.unstage          | Y           | Unstage (reset) the file or hunk under the cursor.     |
 | fugitive.toggleIndex      | N           | Stage or unstage the file or hunk under the cursor.    |
 | fugitive.unstageAll       | N           | Unstage everything.                                    |
 | fugitive.clean            | N           | Discard the change under the cursor.                   |
-| fugitive.toggleInlineDiff | N           | Toggle an inline diff on the file under the cursor.    |
+| fugitive.toggleInlineDiff | Y           | Toggle an inline diff on the file under the cursor.    |
 | fugitive.openDiff         | N           | Opens the change under the cursor in a vertical split. |
 | fugitive.commit           | N           | Create a commit.                                       |
 | fugitive.amend            | N           | Amend the last commit and edit the message.            |
@@ -48,6 +48,6 @@
 | fugitive.help             | N           | Open the README of this extension                      |
 | fugitive.close            | Y           | Close Fugitive                                         |
 | fugitive.refresh          | Y           | Refresh the git status                                 |
-| fugitive.toggleView       | N           | Toggle between the tree and list view                  |
+| fugitive.toggleView       | Y           | Toggle between the tree and list view                  |
 | fugitive.toggleDirectory  | N           | Open/Close a directory fold in tree view               |
 | fugitive.setRepository    | N           | Switch between multiple subrepositories                |

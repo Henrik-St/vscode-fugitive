@@ -328,9 +328,9 @@ export class Provider implements vscode.TextDocumentContentProvider {
         );
     }
 
-    toggleView(): void {
+    async toggleView(view_style?: "list" | "tree"): Promise<void> {
         this.getResourceUnderCursor();
-        this.viewStyle = this.viewStyle === "list" ? "tree" : "list";
+        this.viewStyle = view_style ?? (this.viewStyle === "list" ? "tree" : "list");
         const conf_name = "viewStyle";
 
         const conf = vscode.workspace.getConfiguration("fugitive");
@@ -342,7 +342,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         } else if (insp?.workspaceValue) {
             conf_scope = vscode.ConfigurationTarget.Workspace;
         }
-        conf.update(conf_name, this.viewStyle, conf_scope);
+        await conf.update(conf_name, this.viewStyle, conf_scope);
 
         this.onDidChangeEmitter.fire(Provider.uri);
     }

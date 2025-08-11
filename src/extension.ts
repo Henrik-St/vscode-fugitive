@@ -83,7 +83,6 @@ export function activate({ subscriptions }: vscode.ExtensionContext): void {
     add_subscription(() => provider!.gitExclude(true), "fugitive.gitIgnore");
     add_subscription(async () => provider!.refresh(), "fugitive.refresh");
     add_subscription(async () => provider!.toggleDirectory(), "fugitive.toggleDirectory");
-    add_subscription(async () => provider!.toggleView(), "fugitive.toggleView");
     add_subscription(async () => provider!.goUp(), "fugitive.goUp");
     add_subscription(async () => provider!.goDown(), "fugitive.goDown");
     add_subscription(async () => provider!.goPreviousHunk(), "fugitive.previousHunk");
@@ -115,6 +114,22 @@ export function activate({ subscriptions }: vscode.ExtensionContext): void {
         () => thenable_to_promise(vscode.commands.executeCommand("git.checkout")),
         "fugitive.checkoutBranch"
     );
+
+    // Register toggleView command
+    {
+        const name = "fugitive.toggleView";
+        subscriptions.push(
+            commands.registerCommand(name, async (view_style?: "list" | "tree") => {
+                LOGGER.debug(name);
+                try {
+                    await provider!.toggleView(view_style);
+                } catch (error) {
+                    LOGGER.debug("Error on ", name, ":", error);
+                    vscode.window.showErrorMessage("Fugitive: Error on " + name);
+                }
+            })
+        );
+    }
 }
 
 function getDependencies(): boolean {

@@ -11,10 +11,11 @@ import {
     goTop,
     goUnpushed,
     goUnstaged,
+    goUntracked,
     goUp,
     refresh,
 } from "./movement.test";
-import { cursorStage } from "./cursor.test";
+import { cursorStage, cursorUnstage } from "./cursor.test";
 
 const test_repo_path = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
 
@@ -33,6 +34,7 @@ suite("Extension Test Suite", () => {
     });
     suiteTeardown(function () {
         console.info("Running suiteTeardown");
+        execSync(`cd ${test_repo_path} && git reset && git checkout -- . && git clean -fd`);
         console.info("All tests done!");
     });
 
@@ -41,19 +43,20 @@ suite("Extension Test Suite", () => {
         assert.ok(extension, "Extension hnrk-str.vscode-fugitive is not loaded");
     });
 
-    test("Go to Untracked");
+    test("Go to Untracked", goUntracked);
     test("Go to Unstaged", goUnstaged);
     test("Go to Staged", goStaged);
     test("Go to Unpushed", goUnpushed);
     test("Go up", goUp);
     test("Go down", goDown);
     test("Go top", goTop);
-    test("Go Next Hunk", goNextHunk);
-    test("Go Previous Hunk", goPreviousHunk);
     test("Refresh", refresh);
 
     // cursor tests
     test("Cursor staging", cursorStage);
+    test("Go Next Hunk", goNextHunk);
+    test("Go Previous Hunk", goPreviousHunk);
+    test("Cursor unstaging", cursorUnstage);
 
     // Not testable or not yet implemented
     test("Batch base tests", async function () {
@@ -93,18 +96,18 @@ suite("Extension Test Suite", () => {
 
     //     console.debug("-------check cursor behavior-----");
     //     await cmdAtLine(6, 'fugitive.stage');
-    //     await wait(1000);
+    //     await wait(500);
     //     assert.strictEqual(
     //         vscode.window.activeTextEditor?.selection.active.line,
     //         5,
     //         "Cursor stays at line 5 when there are still unstaged items"
     //     );
-    //     await wait(1000);
+    //     await wait(500);
     //     assert_line(13, staged);
 
     //     assert_line(9, untracked_staged);
     //     await cmdAtLine(9, 'fugitive.clean');
-    //     await wait(1000);
+    //     await wait(500);
     //     assert.strictEqual(
     //         vscode.window.activeTextEditor?.selection.active.line,
     //         5,
