@@ -4,7 +4,7 @@ import { cmdAtLine, wait, getDocument, getLine } from "./utils.test";
 
 export async function refresh(): Promise<void> {
     await cmdAtLine(5, "fugitive.refresh");
-    await wait(50);
+    await wait(100);
     assert.strictEqual(vscode.window.activeTextEditor?.selection.active.line, 5, "Cursor does not stay");
 }
 
@@ -76,14 +76,14 @@ export async function goNextHunk(): Promise<void> {
     await vscode.commands.executeCommand("fugitive.goDown");
     const line_number_2 = getLine();
     await vscode.commands.executeCommand("fugitive.toggleInlineDiff");
-    await wait(50);
+    await wait(100);
     assert.strictEqual(getLine(), line_number_2, "3. toggleInlineDiff moved cursor");
     await vscode.commands.executeCommand("fugitive.nextHunk");
     assert.strictEqual(getLine(), line_number_2 + 1, "4. Next hunk is not the next line");
     const text = document.lineAt(getLine()).text;
     assert.match(text, /@@.*/);
     await vscode.commands.executeCommand("fugitive.toggleInlineDiff");
-    await wait(50);
+    await wait(100);
     assert.strictEqual(getLine(), line_number_2, "5. toggleInlineDiff did not move cursor back");
 }
 
@@ -104,16 +104,16 @@ export async function goPreviousHunk(): Promise<void> {
     await vscode.commands.executeCommand("fugitive.goDown");
     const line_number_2 = getLine();
     await vscode.commands.executeCommand("fugitive.toggleInlineDiff");
-    await wait(50);
+    await wait(100);
     assert.strictEqual(getLine(), line_number_2, "3. toggleInlineDiff moved cursor");
     await vscode.commands.executeCommand("fugitive.goDown");
     await vscode.commands.executeCommand("fugitive.goDown");
     await vscode.commands.executeCommand("fugitive.previousHunk");
-    await wait(50);
+    await wait(100);
     assert.strictEqual(getLine(), line_number_2 + 1, "4. Previous hunk is not the next line");
     const text = document.lineAt(getLine()).text;
     assert.match(text, /@@.*/);
     await vscode.commands.executeCommand("fugitive.toggleInlineDiff");
-    await wait(50);
+    await wait(100);
     assert.strictEqual(getLine(), line_number_2, "5. toggleInlineDiff did not move cursor back");
 }

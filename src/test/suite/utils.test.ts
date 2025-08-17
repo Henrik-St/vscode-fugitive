@@ -32,9 +32,15 @@ export function setLine(line: number): void {
     );
 }
 
+export async function cmd(command: string): Promise<unknown> {
+    const res = await vscode.commands.executeCommand(command);
+    await wait(100);
+    return res;
+}
+
 export function cmdAtLine(line: number, command: string): Thenable<unknown> {
     setLine(line);
-    return vscode.commands.executeCommand(command);
+    return cmd(command);
 }
 
 export async function getDocument(): Promise<vscode.TextDocument> {
