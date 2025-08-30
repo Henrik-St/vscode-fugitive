@@ -1,5 +1,8 @@
-export type ChangePayload = { changeIndex: number };
-export type DiffPayload = { changeIndex: number; diffIndex: number; diffLineIndex: number };
+export type ChangePayload = {
+    changeIndex: number; // the array index of the git change
+    listIndex: number; // the index of the change in a list i.e. directory for list view changeIndex = listIndex
+};
+export type DiffPayload = ChangePayload & { diffIndex: number; diffLineIndex: number };
 
 const change_types = ["Unstaged", "Staged", "Untracked", "MergeChange"] as const;
 export type ChangeCategory = (typeof change_types)[number];

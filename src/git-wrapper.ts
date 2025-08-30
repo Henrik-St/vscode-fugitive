@@ -244,6 +244,11 @@ export class GitWrapper {
         return change;
     }
 
+    public changeFromChangeType(resource: ChangeType): Change {
+        const change = this.getChanges(resource.type)[resource.changeIndex];
+        return change;
+    }
+
     public commitFromResource(resource: ResourceType): Commit | null {
         if (resource.type !== "Unpushed") {
             return null;

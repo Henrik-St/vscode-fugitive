@@ -9,9 +9,9 @@ import { DiffModel } from "./diff-model";
 export type UIModelItem = [ResourceType, string];
 
 export class UIModel {
-    private uiModel: UIModelItem[];
-    private git: GitWrapper;
-    private previousUIModel: UIModelItem[];
+    private uiModel: readonly UIModelItem[];
+    private readonly git: GitWrapper;
+    private previousUIModel: readonly UIModelItem[];
 
     public diffModel: DiffModel;
     public treeModel: TreeModel;
@@ -70,7 +70,7 @@ export class UIModel {
             }
             const commits = this.git.cachedUnpushedCommits.map(
                 (c, i): UIModelItem => [
-                    { type: "Unpushed", changeIndex: i },
+                    { type: "Unpushed", changeIndex: i, listIndex: i },
                     c.hash.slice(0, 8) + " " + c.message.split("\n")[0].slice(0, 80),
                 ]
             );
@@ -81,11 +81,11 @@ export class UIModel {
         this.uiModel = new_ui_model;
     }
 
-    public get(): UIModelItem[] {
+    public get(): readonly UIModelItem[] {
         return this.uiModel;
     }
 
-    public getPrevious(): UIModelItem[] {
+    public getPrevious(): readonly UIModelItem[] {
         return this.previousUIModel;
     }
 
@@ -122,15 +122,21 @@ export class UIModel {
     }
 
     private changesToListModel(changes: Change[], type: ChangeType["type"]): UIModelItem[] {
-        return changes.map((c, i): UIModelItem => [{ type: type, changeIndex: i }, this.renderChange(c)]);
+        return changes.map((c, i): UIModelItem => [{ type: type, changeIndex: i, listIndex: i }, this.renderChange(c)]);
     }
 
     public toString(): string {
         return this.uiModel.map(([_, str]) => str).join("\n");
     }
 
+    public toStringDebug(): string {
+        return this.uiModel.map(([_, str], i) => `${i.toString().padStart(2, "0")}: ${str}`).join("\n");
+    }
+
     /**
-     * @todo tighten type api: difftype is not allowed right now
+     * @param type Category type to find
+     * Gets the line number of the start of a category, based on the current UI model.
+     * This can deviate from the current git state
      */
     public getCategoryOffset(type: HeaderType): number {
         let index = -1;

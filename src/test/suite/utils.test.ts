@@ -53,3 +53,21 @@ export async function getDocument(): Promise<vscode.TextDocument> {
     );
     return editor.document;
 }
+
+export function logDocument(document: vscode.TextDocument, expected: number): void {
+    const doc_text = document.getText();
+    const current_line = getLine();
+    console.log("\n--------- Document content -----------");
+    const new_text = doc_text
+        .split("\n")
+        .map((line, i) =>
+            i === current_line && i === expected
+                ? `>>: ${line}`
+                : i === current_line
+                  ? `AC: ${line}`
+                  : i === expected
+                    ? `EX: ${line}`
+                    : `${i.toString().padStart(2, "0")}: ${line}`
+        );
+    console.log(new_text.join("\n"));
+}

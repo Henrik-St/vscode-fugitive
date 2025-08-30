@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import * as assert from "assert";
-import { cmd, cmdAtLine, getLine } from "./utils.test";
+import { cmd, cmdAtLine, getLine, logDocument } from "./utils.test";
 
 /**
  * Stage all files one by one in the untracked area
@@ -19,6 +19,22 @@ export async function cursorStage(): Promise<void> {
  * CURRENTLY FAILS! Fix implementation of tree view cursor
  * Unstage all one by one in the staged area
  * Use the tree view
+ * --------- Expected Initial Document Content -----------
+    00: Head: main
+    01: Merge: origin/main
+    02: Help: g h
+    03: 
+    04: Unstaged (1):
+    05: M unstaged.txt
+    06: 
+    07: Staged (4):
+    08: M staged.txt
+    09: A untracked1.txt
+    >>: A untracked2.txt
+    11: A untracked3.txt
+    12: 
+    13: Unpushed to origin/main (1):
+    14: fbcd88e3 fix: set test basis
  */
 export async function cursorUnstage(): Promise<void> {
     await vscode.commands.executeCommand("fugitive.toggleView", "list");
@@ -48,22 +64,30 @@ export async function cursorUnstage(): Promise<void> {
         .findIndex((t: string) => /Staged.*/.test(t));
 
     const line_number = getLine();
+    logDocument(document, line_of_header + 3);
     assert.strictEqual(line_number, line_of_header + 3, "Line number is not correct");
     await cmd("fugitive.unstage");
     line_of_header = document
         .getText()
         .split("\n")
         .findIndex((t: string) => /Staged.*/.test(t));
-    console.log(document.getText());
+    logDocument(document, line_of_header + 3);
     assert.strictEqual(getLine(), line_of_header + 3, "1. Cursor does not go down one line after unstaging");
     await cmd("fugitive.unstage");
     line_of_header = document
         .getText()
         .split("\n")
         .findIndex((t: string) => /Staged.*/.test(t));
+    logDocument(document, line_of_header + 2);
     assert.strictEqual(getLine(), line_of_header + 2, "2. Cursor does not go down one line after unstaging");
     await cmd("fugitive.unstage");
-    assert.strictEqual(getLine(), line_of_header + 1, "Cursor does not stay at line after unstaging at end");
+    logDocument(document, line_of_header + 2);
+    assert.strictEqual(getLine(), line_of_header + 2, "Cursor does not stay at line after unstaging at end");
     await cmd("fugitive.unstage");
-    assert.strictEqual(getLine(), 6, "Cursor does not go to category above");
+    line_of_header = document
+        .getText()
+        .split("\n")
+        .findIndex((t: string) => /Unstaged.*/.test(t));
+    logDocument(document, line_of_header + 1);
+    assert.strictEqual(getLine(), line_of_header + 1, "Cursor does not go to category above");
 }

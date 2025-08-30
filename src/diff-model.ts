@@ -11,7 +11,7 @@ function changeTypeToDiffType(type: DiffChangeTypes): DiffType["type"] {
 }
 
 export class DiffModel {
-    private git: GitWrapper;
+    private readonly git: GitWrapper;
     private openedChanges: Set<string>;
     private openedIndexChanges: Set<string>;
 
@@ -43,7 +43,8 @@ export class DiffModel {
 
     private getDiffModel(
         c: Change,
-        index: number,
+        change_index: number,
+        list_index: number,
         change_type: "Staged" | "Unstaged",
         diff_type: "StagedDiff" | "UnstagedDiff"
     ): UIModelItem[] {
@@ -54,7 +55,16 @@ export class DiffModel {
 
         const arr = (this.getOpenedDiffMap(change_type).get(c.uri.path) ?? []).flatMap((str, i): UIModelItem[] => {
             return str.split("\n").map((str, line): UIModelItem => {
-                return [{ type: diff_type, changeIndex: index, diffIndex: i, diffLineIndex: line }, str];
+                return [
+                    {
+                        type: diff_type,
+                        changeIndex: change_index,
+                        listIndex: list_index,
+                        diffIndex: i,
+                        diffLineIndex: line,
+                    },
+                    str,
+                ];
             });
         });
         return arr;
@@ -85,7 +95,13 @@ export class DiffModel {
                 continue;
             }
             const change = this.git.getChanges(type)[change_index];
-            const diff_model = this.getDiffModel(change, change_index, type, changeTypeToDiffType(type));
+            const ui_item = new_model[insert_index][0];
+            if (ui_item.type !== type) {
+                LOGGER.error("Could not find change of diff: " + diff[0]);
+                continue;
+            }
+            const list_index = ui_item.listIndex;
+            const diff_model = this.getDiffModel(change, change_index, list_index, type, changeTypeToDiffType(type));
             // insert diffModel after index
             new_model.splice(insert_index + 1, 0, ...diff_model);
         }

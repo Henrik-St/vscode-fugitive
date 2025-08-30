@@ -118,7 +118,12 @@ export class TreeModel {
                 (closed_dir) => current_tree.parentDir + current_tree.name === closed_dir
             );
 
-            !is_closed && current_tree.children.set(file_name, { changeIndex: i, type: type });
+            !is_closed &&
+                current_tree.children.set(file_name, {
+                    changeIndex: i,
+                    type: type,
+                    listIndex: current_tree.children.size, // assumes the list is sorted lexicographically
+                });
         }
         return tree;
     }
