@@ -13,6 +13,8 @@ import {
     goUnstaged,
     goUntracked,
     goUp,
+    openDiff,
+    openFile,
     refresh,
 } from "./movement.test";
 import { cursorStage, cursorUnstage } from "./cursor.test";
@@ -23,11 +25,9 @@ const test_repo_path = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
 suite("Extension Test Suite", () => {
     suiteSetup(async function () {
         console.info("Running suiteSetup");
-        execSync(`cd ${test_repo_path} && git reset && git checkout -- . && git clean -fd`);
+        execSync(`cd ${test_repo_path} && git reset && git checkout -- . && git clean -fd && git clean -f`); // two cleans to account for gitignore
         this.timeout(5000);
-        execSync(`touch ${test_repo_path}/untracked1.txt`);
-        execSync(`touch ${test_repo_path}/untracked2.txt`);
-        execSync(`touch ${test_repo_path}/untracked3.txt`);
+        execSync(`cd ${test_repo_path} && touch untracked1.txt untracked2.txt untracked3.txt`);
         execSync(`echo change >> ${test_repo_path}/unstaged.txt`);
         execSync(`echo change >> ${test_repo_path}/staged.txt`);
         execSync(`cd ${test_repo_path} && git add staged.txt`);
@@ -35,7 +35,7 @@ suite("Extension Test Suite", () => {
     });
     suiteTeardown(function () {
         console.info("Running suiteTeardown");
-        execSync(`cd ${test_repo_path} && git reset && git checkout -- . && git clean -fd`);
+        execSync(`cd ${test_repo_path} && git reset && git checkout -- . && git clean -fd && git clean -f`); // two cleans to account for gitignore
         console.info("All tests done!");
     });
 
@@ -52,6 +52,8 @@ suite("Extension Test Suite", () => {
     test("Go down", goDown);
     test("Go top", goTop);
     test("Refresh", refresh);
+    test("Open Diff", openDiff);
+    test("Open File", openFile);
 
     // cursor tests
     test("Cursor staging", cursorStage);
@@ -60,20 +62,14 @@ suite("Extension Test Suite", () => {
     test("Cursor unstaging", cursorUnstage);
     test("Git ignore", gitIgnore);
 
-    // Not testable or not yet implemented
+    // Not testable or not yet implemented as test
     test("Batch base tests", async function () {
-        await cmdAtLine(1, "fugitive.unstage");
-        await cmdAtLine(1, "fugitive.toggle");
         // await cmdAtLine(1, 'fugitive.unstageAll');
         await cmdAtLine(1, "fugitive.clean");
-        await cmdAtLine(1, "fugitive.openDiff");
         // await cmdAtLine(1, "fugitive.amendNoEdit");
         await cmdAtLine(1, "fugitive.popLatestStash");
-        await cmdAtLine(1, "fugitive.openFile");
         await cmdAtLine(1, "fugitive.openFileSplit");
-        await cmdAtLine(1, "fugitive.toggleView");
         await cmdAtLine(1, "fugitive.toggleDirectory");
-        assert.strictEqual(true, true, "Batch base tests passed");
     });
 
     test("Close", close);

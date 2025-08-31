@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import * as assert from "assert";
-import { cmdAtLine, wait, getDocument, getLine } from "./utils.test";
+import { cmdAtLine, wait, getDocument, getLine, cmd } from "./utils.test";
 
 export async function refresh(): Promise<void> {
     await cmdAtLine(5, "fugitive.refresh");
@@ -116,4 +116,39 @@ export async function goPreviousHunk(): Promise<void> {
     await vscode.commands.executeCommand("fugitive.toggleInlineDiff");
     await wait(100);
     assert.strictEqual(getLine(), line_number_2, "5. toggleInlineDiff did not move cursor back");
+}
+
+/** --------- Expected Document content -----------
+    ...
+    09: Unstaged (1):
+    10: M unstaged.txt
+    11: 
+    ...
+ */
+export async function openDiff(): Promise<void> {
+    cmdAtLine(10, "fugitive.openDiff");
+    await wait(500);
+    const editor = vscode.window.activeTextEditor;
+    assert.ok(editor, "No active text editor after executing fugitive.openDiff command");
+    const path = editor.document.uri.path;
+    assert.ok(path.endsWith("unstaged.txt"), "Diff file is not unstaged.txt: " + path);
+    await cmd("workbench.action.closeActiveEditor");
+    await getDocument(); // assert again that fugitive is active
+}
+
+/** --------- Expected Document content -----------
+    ...
+    12: Staged (1):
+    13: M staged.txt
+    ...
+ */
+export async function openFile(): Promise<void> {
+    cmdAtLine(13, "fugitive.openFile");
+    await wait(500);
+    const editor = vscode.window.activeTextEditor;
+    assert.ok(editor, "No active text editor after executing fugitive.openDiff command");
+    const path = editor.document.uri.path;
+    assert.ok(path.endsWith("staged.txt"), "Opened file is not staged.txt: " + path);
+    await cmd("workbench.action.closeActiveEditor");
+    await getDocument(); // assert again that fugitive is active
 }

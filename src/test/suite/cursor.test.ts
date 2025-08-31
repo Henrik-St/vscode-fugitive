@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import * as assert from "assert";
-import { cmd, cmdAtLine, getLine, logDocument } from "./utils.test";
+import { cmd, cmdAtLine, getLine } from "./utils.test";
 
 /**
  * Stage all files one by one in the untracked area
@@ -8,7 +8,7 @@ import { cmd, cmdAtLine, getLine, logDocument } from "./utils.test";
 export async function cursorStage(): Promise<void> {
     await cmdAtLine(6, "fugitive.stage");
     assert.strictEqual(vscode.window.activeTextEditor?.selection.active.line, 6, "Cursor does not stay at line 7");
-    await cmdAtLine(6, "fugitive.stage");
+    await cmdAtLine(6, "fugitive.toggle"); // same as stage
     assert.strictEqual(getLine(), 5, "Cursor does not stay in bounds of changes");
     await cmdAtLine(5, "fugitive.stage");
     assert.strictEqual(getLine(), 5, "Cursor does not stay at beginning of change category");
@@ -64,30 +64,25 @@ export async function cursorUnstage(): Promise<void> {
         .findIndex((t: string) => /Staged.*/.test(t));
 
     const line_number = getLine();
-    logDocument(document, line_of_header + 3);
     assert.strictEqual(line_number, line_of_header + 3, "Line number is not correct");
     await cmd("fugitive.unstage");
     line_of_header = document
         .getText()
         .split("\n")
         .findIndex((t: string) => /Staged.*/.test(t));
-    logDocument(document, line_of_header + 3);
     assert.strictEqual(getLine(), line_of_header + 3, "1. Cursor does not go down one line after unstaging");
-    await cmd("fugitive.unstage");
+    await cmd("fugitive.toggle"); // same as unstage
     line_of_header = document
         .getText()
         .split("\n")
         .findIndex((t: string) => /Staged.*/.test(t));
-    logDocument(document, line_of_header + 2);
     assert.strictEqual(getLine(), line_of_header + 2, "2. Cursor does not go down one line after unstaging");
     await cmd("fugitive.unstage");
-    logDocument(document, line_of_header + 2);
     assert.strictEqual(getLine(), line_of_header + 2, "Cursor does not stay at line after unstaging at end");
     await cmd("fugitive.unstage");
     line_of_header = document
         .getText()
         .split("\n")
         .findIndex((t: string) => /Unstaged.*/.test(t));
-    logDocument(document, line_of_header + 1);
     assert.strictEqual(getLine(), line_of_header + 1, "Cursor does not go to category above");
 }
