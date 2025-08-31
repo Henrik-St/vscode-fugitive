@@ -180,8 +180,8 @@ export class Cursor {
                             dir
                 );
                 if (first_dir_entry_offset !== -1) {
-                    const num_changes_in_dir = changes.filter((c) =>
-                        c.originalUri.path.replace(this.git.rootUri, "").startsWith(dir + "/")
+                    const num_changes_in_dir = changes.filter(
+                        (c) => dirname(c.originalUri.path).replace(this.git.rootUri, "") === dir
                     ).length;
                     this.line =
                         first_dir_entry_offset + Math.min(this.previousResource.listIndex, num_changes_in_dir - 1);
