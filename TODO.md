@@ -22,11 +22,11 @@
 | ------------------------- | ----------- | ------------------------------------------------------ |
 | fugitive.stage            | Y           | Stage (add) the file or hunk under the cursor.         |
 | fugitive.unstage          | Y           | Unstage (reset) the file or hunk under the cursor.     |
-| fugitive.toggleIndex      | N           | Stage or unstage the file or hunk under the cursor.    |
+| fugitive.toggle           | Y           | Stage or unstage the file or hunk under the cursor.    |
 | fugitive.unstageAll       | N           | Unstage everything.                                    |
 | fugitive.clean            | N           | Discard the change under the cursor.                   |
 | fugitive.toggleInlineDiff | Y           | Toggle an inline diff on the file under the cursor.    |
-| fugitive.openDiff         | N           | Opens the change under the cursor in a vertical split. |
+| fugitive.openDiff         | Y           | Opens the change under the cursor in a vertical split. |
 | fugitive.commit           | N           | Create a commit.                                       |
 | fugitive.amend            | N           | Amend the last commit and edit the message.            |
 | fugitive.amendNoEdit      | N           | Amend the last commit without editing the message.     |
@@ -40,8 +40,8 @@
 | fugitive.goStaged         | Y           | Jump to the Staged section.                            |
 | fugitive.goUnpushed       | Y           | Jump to the Unpushed section.                          |
 | fugitive.gitExclude       | N           | Open .git/info/exclude. Add the file under the cursor. |
-| fugitive.gitIgnore        | N           | Open .gitignore. Add the file under the cursor         |
-| fugitive.openFile         | N           | Open the file under the cursor in a new tab.           |
+| fugitive.gitIgnore        | Y           | Open .gitignore. Add the file under the cursor         |
+| fugitive.openFile         | Y           | Open the file under the cursor in a new tab.           |
 | fugitive.openFileSplit    | N           | Open the file under the cursor in a new split.         |
 | fugitive.previousHunk     | Y           | Jump to the previous hunk.                             |
 | fugitive.nextHunk         | Y           | Jump to the next hunk.                                 |
