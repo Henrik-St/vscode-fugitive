@@ -16,7 +16,6 @@ export async function cursorStage(): Promise<void> {
 }
 
 /**
- * CURRENTLY FAILS! Fix implementation of tree view cursor
  * Unstage all one by one in the staged area
  * Use the tree view
  * --------- Expected Initial Document Content -----------

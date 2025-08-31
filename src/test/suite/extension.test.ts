@@ -13,12 +13,10 @@ import {
     goUnstaged,
     goUntracked,
     goUp,
-    openDiff,
-    openFile,
     refresh,
 } from "./movement.test";
 import { cursorStage, cursorUnstage } from "./cursor.test";
-import { gitIgnore } from "./open_files.test";
+import { gitIgnore, openDiff, openFile } from "./open_files.test";
 
 const test_repo_path = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
 
