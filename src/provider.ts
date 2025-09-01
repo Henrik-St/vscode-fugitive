@@ -5,7 +5,6 @@ import { encodeCommit } from "./diff-provider";
 import { ResourceType } from "./resource";
 import { UIModel } from "./ui-model";
 import { GIT, LOGGER } from "./extension";
-import { getDirectoryType } from "./tree-model";
 import { Cursor } from "./cursor";
 
 export class Provider implements vscode.TextDocumentContentProvider {
@@ -332,7 +331,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         if (resource.type === "DirectoryHeader") {
             const path = resource.path;
             this.cursor.setLine(vscode.window.activeTextEditor!.selection.active.line);
-            this.uiModel.treeModel.toggleDirectory(path, getDirectoryType(this.uiModel.get(), this.cursor.getLine()));
+            this.uiModel.treeModel.toggleDirectory(path, resource.changeType);
             this.fireOnDidChange();
         }
         this.actionLock = false;
@@ -396,8 +395,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
             return;
         }
         if (resource.type === "DirectoryHeader") {
-            const line = vscode.window.activeTextEditor!.selection.active.line;
-            const type = getDirectoryType(this.uiModel.get(), line);
+            const type = resource.changeType;
             const affected_changes = this.git
                 .getChanges(type)
                 .filter((c) => {
@@ -490,8 +488,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 return;
             }
             case "DirectoryHeader": {
-                const line = vscode.window.activeTextEditor!.selection.active.line;
-                const type = getDirectoryType(this.uiModel.get(), line);
+                const type = resource.changeType;
                 const affected_changes = this.git
                     .getChanges(type)
                     .filter((c) => {
@@ -576,8 +573,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 return;
             }
             case "DirectoryHeader": {
-                const line = vscode.window.activeTextEditor!.selection.active.line;
-                const type = getDirectoryType(this.uiModel.get(), line);
+                const type = resource.changeType;
                 if (type !== "Untracked" && type !== "Unstaged" && type !== "Staged") {
                     this.actionLock = false;
                     return;

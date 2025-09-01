@@ -13,7 +13,6 @@ import {
 import { Change } from "./vscode-git";
 import { Provider } from "./provider";
 import { UIModel } from "./ui-model";
-import { getDirectoryType } from "./tree-model";
 import { dirname } from "path";
 
 /**
@@ -190,7 +189,7 @@ export class Cursor {
                 break;
             }
             case "DirectoryHeader": {
-                change_type = getDirectoryType(ui_model.getPrevious(), this.line);
+                change_type = this.previousResource.changeType;
                 header_type = changeTypeToHeaderType(change_type);
                 changes = this.git.getChanges(change_type);
                 is_file_type = false;

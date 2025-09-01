@@ -1,4 +1,4 @@
-import { ChangeType, headerTypeToChangeType } from "./resource";
+import { ChangeType } from "./resource";
 import { UIModelItem } from "./ui-model";
 import { mapStatustoString } from "./util";
 import { Change } from "./vscode-git";
@@ -155,26 +155,4 @@ function listFiles(tree: FileTree, depth: number): UIModelItem[] {
         }
     }
     return result;
-}
-
-export function getDirectoryType(ui: readonly UIModelItem[], line: number): ChangeType["type"] {
-    const item = ui[line];
-    if (!item) {
-        throw new Error("No item found at line " + line);
-    }
-
-    for (let i = line; i >= 0; i--) {
-        const ui_item = ui[i];
-        if (!ui_item) throw new Error("No item found at line " + i);
-        const type = ui_item[0].type;
-        if (
-            type === "UnstagedHeader" ||
-            type === "StagedHeader" ||
-            type === "UntrackedHeader" ||
-            type === "MergeHeader"
-        ) {
-            return headerTypeToChangeType(type);
-        }
-    }
-    throw new Error("No directory type found for line " + line);
 }
