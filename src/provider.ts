@@ -1,27 +1,24 @@
 import * as vscode from "vscode";
-import { Status, Repository, Change } from "./vscode-git";
+import { Status, Repository } from "./vscode-git";
 import { GitWrapper } from "./git-wrapper";
-import { setCursorWithView } from "./util";
 import { encodeCommit } from "./diff-provider";
-import { ChangeTypes, changeTypeToHeaderType, HeaderTypes, isChangeTypes, ResourceType } from "./resource";
+import { ResourceType } from "./resource";
 import { UIModel } from "./ui-model";
 import { GIT, LOGGER } from "./extension";
-import { getDirectoryType } from "./tree-model";
+import { Cursor } from "./cursor";
 
 export class Provider implements vscode.TextDocumentContentProvider {
     static myScheme = "fugitive";
     static uri = vscode.Uri.parse(Provider.myScheme + ":Fugitive");
 
-    public git: GitWrapper;
+    public readonly git: GitWrapper;
 
     private actionLock: boolean;
 
     private uiModel: UIModel;
+    private cursor: Cursor;
 
     //status data
-    private line: number;
-    private previousResource: ResourceType | null;
-    private previousChange: Change | null;
     private viewStyle: "list" | "tree" = "list"; // current view mode, list or tree
 
     private onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri>();
@@ -32,16 +29,12 @@ export class Provider implements vscode.TextDocumentContentProvider {
         if (!GIT) {
             throw Error("Git API not found!");
         }
-        // create vscode output channel
         this.git = GIT;
         this.actionLock = false;
 
-        this.line = 0;
-        this.previousResource = null;
-        this.previousChange = null;
-
         this.uiModel = new UIModel();
         this.viewStyle = vscode.workspace.getConfiguration("fugitive").get("viewStyle", "list");
+        this.cursor = new Cursor();
 
         // on Git Changed on all repositories
         const git_disposables = this.git.api.repositories.map((repo) => {
@@ -52,7 +45,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
                 const doc = vscode.workspace.textDocuments.find((doc) => doc.uri.scheme === Provider.myScheme);
                 if (doc) {
-                    this.onDidChangeEmitter.fire(doc.uri);
+                    this.fireOnDidChange();
                 }
             });
         });
@@ -65,10 +58,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
             ) {
                 LOGGER.debug("onDidChangeTextDocument");
                 // overrides cursor behaviour
-                vscode.window.activeTextEditor!.selection = new vscode.Selection(
-                    new vscode.Position(this.line, 0),
-                    new vscode.Position(this.line, 0)
-                );
+                this.cursor.syncCursorLine();
                 this.actionLock = false; // reset action lock
                 LOGGER.debug("release lock");
             }
@@ -76,15 +66,8 @@ export class Provider implements vscode.TextDocumentContentProvider {
         this.subscriptions = [...git_disposables, doc_dispose];
     }
 
-    private setLine(line?: number): void {
-        if (vscode.window.activeTextEditor?.document.uri.toString() !== Provider.uri.toString()) {
-            return;
-        }
-        const new_line = line || this.line;
-        vscode.window.activeTextEditor!.selection = new vscode.Selection(
-            new vscode.Position(new_line, 0),
-            new vscode.Position(new_line, 0)
-        );
+    private fireOnDidChange(): void {
+        this.onDidChangeEmitter.fire(Provider.uri);
     }
 
     private getLock(): boolean {
@@ -116,9 +99,9 @@ export class Provider implements vscode.TextDocumentContentProvider {
         LOGGER.debug("Provider.provideTextDocumentContent");
         this.uiModel.update(this.viewStyle);
         if (this.viewStyle === "tree") {
-            this.updateCursorTreeView();
+            this.cursor.updateCursorTreeView(this.uiModel);
         } else {
-            this.updateCursor();
+            this.cursor.updateCursor(this.uiModel);
         }
 
         return this.uiModel.toString();
@@ -145,14 +128,12 @@ export class Provider implements vscode.TextDocumentContentProvider {
         await this.updateDiffs();
 
         let doc = vscode.workspace.textDocuments.find((doc) => doc.uri === Provider.uri);
-        if (doc) {
-            this.onDidChangeEmitter.fire(Provider.uri);
-        } else {
+        if (!doc) {
             this.uiModel.diffModel.clearOpenedChanges();
             this.uiModel.diffModel.clearOpenedIndexChanges();
             doc = await vscode.workspace.openTextDocument(Provider.uri);
-            this.onDidChangeEmitter.fire(Provider.uri);
         }
+        this.fireOnDidChange();
         return doc;
     }
 
@@ -162,7 +143,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
         const line = vscode.window.activeTextEditor!.selection.active.line;
         const new_line = Math.max(line - 1, 0);
-        this.setLine(new_line);
+        this.cursor.syncCursorLine(new_line);
     }
 
     goDown(): void {
@@ -172,29 +153,29 @@ export class Provider implements vscode.TextDocumentContentProvider {
         const line_count = vscode.window.activeTextEditor.document.lineCount;
         const line = vscode.window.activeTextEditor!.selection.active.line;
         const new_line = Math.min(line + 1, line_count - 1);
-        this.setLine(new_line);
+        this.cursor.syncCursorLine(new_line);
     }
 
     goStaged(): void {
         const index = this.uiModel.findHeader("StagedHeader");
         if (index >= 0) {
-            this.setLine(index);
+            this.cursor.syncCursorLine(index);
         }
     }
 
     goTop(): void {
-        setCursorWithView(0);
+        this.cursor.syncCursorWithView(0);
     }
 
     goUnstaged(go_unstaged: boolean): void {
         const untracked_index = this.uiModel.findHeader("UntrackedHeader");
         if (!go_unstaged && untracked_index >= 0) {
-            this.setLine(untracked_index);
+            this.cursor.syncCursorLine(untracked_index);
             return;
         }
         const unstaged_index = this.uiModel.findHeader("UnstagedHeader");
         if (unstaged_index >= 0) {
-            this.setLine(unstaged_index);
+            this.cursor.syncCursorLine(unstaged_index);
             return;
         }
     }
@@ -202,7 +183,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
     goUnpushed(): void {
         const index = this.uiModel.findHeader("UnpushedHeader");
         if (index >= 0) {
-            this.setLine(index);
+            this.cursor.syncCursorLine(index);
         }
     }
 
@@ -233,12 +214,10 @@ export class Provider implements vscode.TextDocumentContentProvider {
             }
 
             if (type === "MergeChange" || type === "Untracked" || type === "Unstaged" || type === "Staged") {
-                this.line = i;
-                setCursorWithView(this.line);
+                this.cursor.syncCursorWithView(i);
                 return;
             } else if ((type === "UnstagedDiff" || type === "StagedDiff") && res.diffLineIndex === 0) {
-                this.line = i;
-                setCursorWithView(this.line);
+                this.cursor.syncCursorWithView(i);
                 return;
             }
         }
@@ -270,12 +249,10 @@ export class Provider implements vscode.TextDocumentContentProvider {
             }
 
             if (type === "MergeChange" || type === "Untracked" || type === "Unstaged" || type === "Staged") {
-                this.line = i;
-                setCursorWithView(this.line);
+                this.cursor.syncCursorWithView(i);
                 return;
             } else if ((type === "UnstagedDiff" || type === "StagedDiff") && res.diffLineIndex === 0) {
-                this.line = i;
-                setCursorWithView(this.line);
+                this.cursor.syncCursorWithView(i);
                 return;
             }
         }
@@ -307,7 +284,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
         const doc = vscode.workspace.textDocuments.find((doc) => doc.uri.scheme === Provider.myScheme);
         if (doc) {
-            this.onDidChangeEmitter.fire(doc.uri);
+            this.fireOnDidChange();
         }
     }
 
@@ -322,9 +299,9 @@ export class Provider implements vscode.TextDocumentContentProvider {
         );
     }
 
-    toggleView(): void {
+    async toggleView(view_style?: "list" | "tree"): Promise<void> {
         this.getResourceUnderCursor();
-        this.viewStyle = this.viewStyle === "list" ? "tree" : "list";
+        this.viewStyle = view_style ?? (this.viewStyle === "list" ? "tree" : "list");
         const conf_name = "viewStyle";
 
         const conf = vscode.workspace.getConfiguration("fugitive");
@@ -336,9 +313,9 @@ export class Provider implements vscode.TextDocumentContentProvider {
         } else if (insp?.workspaceValue) {
             conf_scope = vscode.ConfigurationTarget.Workspace;
         }
-        conf.update(conf_name, this.viewStyle, conf_scope);
+        await conf.update(conf_name, this.viewStyle, conf_scope);
 
-        this.onDidChangeEmitter.fire(Provider.uri);
+        this.fireOnDidChange();
     }
 
     toggleDirectory(): void {
@@ -353,9 +330,9 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
         if (resource.type === "DirectoryHeader") {
             const path = resource.path;
-            this.line = vscode.window.activeTextEditor!.selection.active.line;
-            this.uiModel.treeModel.toggleDirectory(path, getDirectoryType(this.uiModel.get(), this.line));
-            this.onDidChangeEmitter.fire(Provider.uri);
+            this.cursor.setLine(vscode.window.activeTextEditor!.selection.active.line);
+            this.uiModel.treeModel.toggleDirectory(path, resource.changeType);
+            this.fireOnDidChange();
         }
         this.actionLock = false;
     }
@@ -418,8 +395,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
             return;
         }
         if (resource.type === "DirectoryHeader") {
-            const line = vscode.window.activeTextEditor!.selection.active.line;
-            const type = getDirectoryType(this.uiModel.get(), line);
+            const type = resource.changeType;
             const affected_changes = this.git
                 .getChanges(type)
                 .filter((c) => {
@@ -512,8 +488,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 return;
             }
             case "DirectoryHeader": {
-                const line = vscode.window.activeTextEditor!.selection.active.line;
-                const type = getDirectoryType(this.uiModel.get(), line);
+                const type = resource.changeType;
                 const affected_changes = this.git
                     .getChanges(type)
                     .filter((c) => {
@@ -598,8 +573,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 return;
             }
             case "DirectoryHeader": {
-                const line = vscode.window.activeTextEditor!.selection.active.line;
-                const type = getDirectoryType(this.uiModel.get(), line);
+                const type = resource.changeType;
                 if (type !== "Untracked" && type !== "Unstaged" && type !== "Staged") {
                     this.actionLock = false;
                     return;
@@ -673,7 +647,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 break;
             }
         }
-        this.onDidChangeEmitter.fire(Provider.uri);
+        this.fireOnDidChange();
     }
 
     private async updateDiffs() {
@@ -853,188 +827,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
      * @returns the information for the current set line
      */
     private getResourceUnderCursor(): ResourceType {
-        if (!vscode.window.activeTextEditor) {
-            throw new Error("Fugitive: No active text editor found");
-        }
-        const line = vscode.window.activeTextEditor.selection.active.line;
-        this.line = line;
-        this.previousResource = this.uiModel.index(line)[0];
-        this.previousChange = this.git.changeFromResource(this.previousResource);
-        return this.uiModel.index(line)[0];
-    }
-
-    /**
-     * updates the cursor position, else it will jump almost randomly
-     * at this point the uimodel is updated and git is updated
-     * only the actual buffer is not updated yet
-     */
-    private updateCursor() {
-        LOGGER.debug("updateCursor");
-        if (!this.previousResource) {
-            this.line = vscode.window.activeTextEditor?.selection.active.line || (this.uiModel.length() >= 5 ? 5 : 0); //go to first item if present
-
-            return;
-        }
-        switch (this.previousResource.type) {
-            case "UntrackedHeader":
-            case "UnstagedHeader":
-            case "StagedHeader": {
-                const offset = this.uiModel.getCategoryOffset(this.previousResource.type) + 1;
-                this.line = offset + 0;
-                break;
-            }
-            case "MergeChange":
-            case "Untracked": {
-                const index =
-                    this.git.getChanges(this.previousResource.type).length == 0
-                        ? 0
-                        : this.previousResource.changeIndex > this.git.getChanges(this.previousResource.type).length - 1
-                          ? this.git.getChanges(this.previousResource.type).length - 1
-                          : this.previousResource.changeIndex;
-                const category_offset =
-                    this.uiModel.getCategoryOffset(changeTypeToHeaderType(this.previousResource.type)) + 1;
-                this.line = category_offset + index;
-                break;
-            }
-            case "UnstagedDiff":
-            case "Unstaged": {
-                const index =
-                    this.git.unstaged().length == 0
-                        ? 0
-                        : this.previousResource.changeIndex > this.git.unstaged().length - 1
-                          ? this.git.unstaged().length - 1
-                          : this.previousResource.changeIndex;
-                const new_line = this.uiModel.findIndex(
-                    ([res]) => res.type === "Unstaged" && res.changeIndex === index
-                );
-                const unstaged_offset = this.uiModel.getCategoryOffset("UnstagedHeader") + 1;
-                this.line = new_line === -1 ? unstaged_offset : new_line;
-                break;
-            }
-            case "StagedDiff":
-            case "Staged": {
-                const index =
-                    this.git.staged().length == 0
-                        ? 0
-                        : this.previousResource.changeIndex > this.git.staged().length - 1
-                          ? this.git.staged().length - 1
-                          : this.previousResource.changeIndex;
-                const new_line = this.uiModel.findIndex(([res]) => res.type === "Staged" && res.changeIndex === index);
-                const staged_offset = this.uiModel.getCategoryOffset("StagedHeader") + 1;
-                this.line = new_line === -1 ? staged_offset : new_line;
-                break;
-            }
-            default:
-                LOGGER.error("updateCursor: " + this.previousResource.type + " not implemented");
-        }
-    }
-
-    private updateCursorTreeView() {
-        LOGGER.debug("updateCursorTreeView");
-        if (!this.previousResource) {
-            const line = vscode.window.activeTextEditor?.selection.active.line;
-            const ui_length = this.uiModel.length();
-            this.line = line && line < ui_length ? line : ui_length >= 5 ? 5 : 0; //go to first item if present
-            return;
-        }
-
-        let path: string | null = null;
-        let changes: Change[] = [];
-        let header_type: HeaderTypes | null = null;
-        let change_type: ChangeTypes["type"] | null = null;
-        let is_file_type: boolean | null = null;
-        switch (this.previousResource.type) {
-            case "Untracked":
-            case "Unstaged":
-            case "Staged": {
-                changes = this.git.getChanges(this.previousResource.type);
-                header_type = changeTypeToHeaderType(this.previousResource.type);
-                change_type = this.previousResource.type;
-                is_file_type = true;
-                if (changes.length === 0) {
-                    this.line = this.uiModel.getCategoryOffset(header_type) + 1;
-                    return;
-                }
-                // TODO: preserve index of change in directory
-                // const has_changes_below = this.uiModel.previousUIModel[this.line][0].type === this.previousResource.type;
-                // let num_changes_above = 0;
-                // let line_cursor = this.line - 1;
-                // while(this.uiModel.previousUIModel[line_cursor][0].type === this.previousResource.type){
-                //     num_changes_above++;
-                //     line_cursor--;
-                // }
-                // const path = this.uiModel.previousUIModel[line_cursor][0].path;
-                //  = num_changes_above - (has_changes_below ? 0 : 1);
-                if (!this.previousChange) {
-                    LOGGER.warn(
-                        "updateCursorTreeView: No previous change found for resource: " + this.previousResource.type
-                    );
-                    return;
-                }
-                path = this.previousChange.originalUri.path;
-                break;
-            }
-            case "DirectoryHeader": {
-                change_type = getDirectoryType(this.uiModel.getPrevious(), this.line);
-                header_type = changeTypeToHeaderType(change_type);
-                changes = this.git.getChanges(change_type);
-                is_file_type = false;
-                if (changes.length === 0) {
-                    this.line = this.uiModel.getCategoryOffset(header_type) + 1;
-                    return;
-                }
-                path = this.previousResource.path;
-                break;
-            }
-            case "UntrackedHeader":
-            case "UnstagedHeader":
-            case "StagedHeader": {
-                this.line = this.uiModel.getCategoryOffset(this.previousResource.type) + 1;
-                return;
-            }
-            default: {
-                LOGGER.error("updateCursorTreeView: No path found for resource: " + this.previousResource.type);
-                return;
-            }
-        }
-        if (!path) {
-            LOGGER.error("updateCursorTreeView: No path found for resource: " + this.previousResource.type);
-            return;
-        }
-        let new_line = -1;
-        const path_split = path.split("/");
-        is_file_type && path_split.pop(); // remove filename
-        const dir = path_split.join("/");
-
-        // get change in same directory
-        if (isChangeTypes(this.previousResource)) {
-            const new_change_index = changes.findIndex((c) => c.originalUri.path.startsWith(dir));
-            if (new_change_index !== -1) {
-                const prev = this.previousResource;
-                new_line = this.uiModel.findIndex(
-                    ([res]) => res.type === prev.type && res.changeIndex === new_change_index
-                );
-                this.line = new_line;
-                return;
-            }
-        }
-        // get closest parent
-        for (let i = path_split.length - 1; i >= 0; i--) {
-            const sub_path = path_split.slice(0, i + 1).join("/");
-            new_line = this.uiModel.findIndex(
-                ([res]) => res.type === "DirectoryHeader" && res.changeType === change_type && res.path === sub_path
-            );
-            if (new_line !== -1) {
-                break;
-            }
-        }
-
-        if (new_line !== -1) {
-            this.line = new_line;
-            return;
-        }
-
-        this.line = this.uiModel.getCategoryOffset(header_type) + 1;
-        return;
+        return this.cursor.getResourceUnderCursor(this.uiModel);
     }
 }

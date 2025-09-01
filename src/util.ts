@@ -38,13 +38,3 @@ export function mapStatustoString(status: number): string {
             return status.toString();
     }
 }
-
-export function setCursorWithView(line: number): void {
-    const position = new vscode.Position(line, 0);
-    const range = new vscode.Range(position, position);
-    const window_contains_cursor = vscode.window.activeTextEditor?.visibleRanges[0].contains(position);
-    if (!window_contains_cursor) {
-        vscode.window.activeTextEditor!.revealRange(range);
-    }
-    vscode.window.activeTextEditor!.selection = new vscode.Selection(position, position);
-}

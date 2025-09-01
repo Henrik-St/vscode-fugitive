@@ -5,6 +5,13 @@ test/**
 src/**
 **/*.map
 .gitignore
+.gitmodules
 tsconfig.json
 vsc-extension-quickstart.md
 **/*.js.map
+.github
+git-test
+.vscode-test.mjs
+.tool-versions
+.prettierignore
+TODO.md
