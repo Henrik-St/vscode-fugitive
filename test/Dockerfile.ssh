@@ -1,0 +1,30 @@
+FROM linuxserver/openssh-server:latest as SECOND
+FROM ubuntu:20.04 as BASE
+
+# Set environment variables to non-interactive (to prevent prompts)
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Update and install git
+RUN apt-get update && \
+    apt-get install -y git && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install openssh-server and sudo
+RUN apt-get update && \
+    apt-get install -y openssh-server sudo && \
+    mkdir /var/run/sshd
+
+# Create user "docker" with password "docker"
+RUN useradd -m -s /bin/bash docker && \
+    echo "docker:docker" | chpasswd && \
+    adduser docker sudo
+
+# Allow password authentication
+RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config && \
+    sed -i 's/PermitRootLogin prohibit-password/PermitRootLogin yes/' /etc/ssh/sshd_config
+
+# Expose SSH port
+EXPOSE 22
+
+# Start the SSH service
+CMD ["/usr/sbin/sshd", "-D"]
