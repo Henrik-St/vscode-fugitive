@@ -40,7 +40,7 @@ export class DiffViewProvider implements vscode.TextDocumentContentProvider {
     generateUIModel(): void {
         LOGGER.debug("DiffViewProvider.generateUIModel");
 
-        let ui_model: UIModelItem[] = [];
+        const ui_model: UIModelItem[] = [];
 
         const branch = this.git.repo.state.HEAD?.name || "DETACHED_HEAD: " + this.git.repo.state.rebaseCommit;
         ui_model.push([{ type: "BlankUI" }, `DiffView - Changes of ${branch} compared to ${this.ref}`]);
