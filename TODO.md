@@ -10,7 +10,7 @@
 - add hover over info (medium)
 - add file mode changes to diffs (medium)
 - impl own git client (way too large)
-  * with distinct events
+    - with distinct events
 
 # Bug fixes:
 
