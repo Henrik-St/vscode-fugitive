@@ -4,6 +4,7 @@ import { Provider } from "./provider";
 import { GitExtension } from "./vscode-git";
 import { DiffProvider } from "./diff-provider";
 import { GitWrapper } from "./git-wrapper";
+import { DiffViewProvider } from "./diffview-provider";
 
 //GLOBAL DEPENDENCIES
 // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -38,10 +39,13 @@ export function activate({ subscriptions }: vscode.ExtensionContext): void {
     LOGGER.debug("fugitive.activate");
     let provider: Provider | null = null;
     let diff_provider: DiffProvider | null = null;
+    let diffview_provider: DiffViewProvider | null = null;
     const dependencies = getDependencies();
     if (dependencies) {
         diff_provider = new DiffProvider();
         provider = new Provider();
+        diffview_provider = new DiffViewProvider();
+        subscriptions.push(workspace.registerTextDocumentContentProvider(DiffViewProvider.scheme, diffview_provider));
         subscriptions.push(workspace.registerTextDocumentContentProvider(DiffProvider.scheme, diff_provider));
         subscriptions.push(workspace.registerTextDocumentContentProvider(Provider.myScheme, provider));
     }
@@ -114,6 +118,36 @@ export function activate({ subscriptions }: vscode.ExtensionContext): void {
         () => thenable_to_promise(vscode.commands.executeCommand("git.checkout")),
         "fugitive.checkoutBranch"
     );
+    add_subscription(async () => {
+        if (!diffview_provider) {
+            const dependencies = getDependencies();
+            if (!dependencies) {
+                return;
+            }
+            diffview_provider = new DiffViewProvider();
+            subscriptions.push(
+                workspace.registerTextDocumentContentProvider(DiffViewProvider.scheme, diffview_provider)
+            );
+        }
+        await diffview_provider?.getDiffView();
+    }, "fugitive.diffview");
+
+    add_subscription(async () => {
+        if (!diffview_provider) {
+            const dependencies = getDependencies();
+            if (!dependencies) {
+                return;
+            }
+            diffview_provider = new DiffViewProvider();
+            subscriptions.push(
+                workspace.registerTextDocumentContentProvider(DiffViewProvider.scheme, diffview_provider)
+            );
+        }
+        await diffview_provider?.getDiffViewChooseBranch();
+    }, "fugitive.diffviewChooseBranch");
+    add_subscription(async () => {
+        diffview_provider?.openFile();
+    }, "fugitive.diffviewOpenFile");
 
     // Register toggleView command
     {

@@ -2,7 +2,7 @@
     "name": "vscode-fugitive",
     "displayName": "Fugitive for VS Code",
     "description": "This is a simple extension that adds a subset of the fugitive plugin to VS Code",
-    "version": "0.3.2",
+    "version": "0.4.2",
     "publisher": "hnrk-str",
     "private": true,
     "license": "MIT",
@@ -80,7 +80,7 @@
             {
                 "command": "fugitive.refresh",
                 "title": "Fugitive: refresh",
-                "when": "resourceScheme == fugitive"
+                "when": "resourceScheme == fugitive || resourceScheme == Fugitive-DiffView"
             },
             {
                 "command": "fugitive.goUntracked",
@@ -120,6 +120,16 @@
             {
                 "command": "fugitive.goTop",
                 "title": "Fugitive: Go To Top",
+                "when": "resourceScheme == fugitive"
+            },
+            {
+                "command": "fugitive.diffview",
+                "title": "Fugitive: Open DiffView",
+                "when": "resourceScheme == fugitive"
+            },
+            {
+                "command": "fugitive.diffviewChooseBranch",
+                "title": "Fugitive: DiffView and choose Branch",
                 "when": "resourceScheme == fugitive"
             }
         ],
@@ -267,7 +277,7 @@
             {
                 "command": "fugitive.refresh",
                 "key": "g r",
-                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+                "when": "(vim.mode == 'Normal' || !vim.mode) && (resourceScheme == fugitive || resourceScheme == Fugitive-DiffView) && editorTextFocus"
             },
             {
                 "command": "fugitive.toggleView",
@@ -288,13 +298,24 @@
                 "command": "fugitive.goTop",
                 "key": "g g",
                 "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+            },
+            {
+                "command": "fugitive.diffviewOpenFile",
+                "key": "o",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == Fugitive-DiffView && editorTextFocus"
+            },
+            {
+                "command": "fugitive.diffviewOpenFile",
+                "key": "enter",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == Fugitive-DiffView && editorTextFocus"
             }
         ],
         "languages": [
             {
                 "id": "fugitive",
                 "filenames": [
-                    "fugitive"
+                    "fugitive",
+                    "DiffView"
                 ],
                 "icon": {
                     "light": "resources/icons/git.png",
@@ -328,6 +349,11 @@
                     ],
                     "default": "list",
                     "description": "Determines the view style"
+                },
+                "fugitive.mainBranchName": {
+                    "type": "string",
+                    "default": "origin/main",
+                    "description": "Set the default branch to compare to in DiffView"
                 }
             }
         }
