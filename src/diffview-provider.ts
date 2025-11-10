@@ -18,8 +18,8 @@ export class DiffViewProvider implements vscode.TextDocumentContentProvider {
 
     private onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri>();
     private subscriptions: vscode.Disposable[] = [];
-    private merge_base_commit: string = "";
-    private ref_name: string = "";
+    private mergeBaseCommit: string = "";
+    private refName: string = "";
     private changes: Change[] = [];
     private uiModel: readonly UIModelItem[] = [];
 
@@ -37,7 +37,7 @@ export class DiffViewProvider implements vscode.TextDocumentContentProvider {
             return repo.state.onDidChange(async () => {
                 LOGGER.debug("onGitChanged: ", repo.rootUri.toString());
                 await this.git.updateBranchInfo();
-                this.changes = await this.git.repo.diffWith(this.merge_base_commit);
+                this.changes = await this.git.repo.diffWith(this.mergeBaseCommit);
 
                 const doc = vscode.workspace.textDocuments.find((doc) => doc.uri.scheme === DiffViewProvider.scheme);
                 if (doc) {
@@ -73,7 +73,7 @@ export class DiffViewProvider implements vscode.TextDocumentContentProvider {
         const branch = this.git.repo.state.HEAD?.name || "DETACHED_HEAD: " + this.git.repo.state.rebaseCommit;
         ui_model.push([
             { type: "BlankUI" },
-            `DiffView - Changes of ${branch} compared to ${this.ref_name || this.merge_base_commit}`,
+            `DiffView - Changes of ${branch} compared to ${this.refName || this.mergeBaseCommit}`,
         ]);
         ui_model.push([{ type: "BlankUI" }, ""]);
 
@@ -136,7 +136,7 @@ export class DiffViewProvider implements vscode.TextDocumentContentProvider {
         const conf = vscode.workspace.getConfiguration("fugitive").get<string>("mainBranchName");
 
         const refs = (await this.git.repo.getRefs({})).map((i) => i.name);
-        ref = ref || this.ref_name;
+        ref = ref || this.refName;
         let branch = "";
         if (ref && refs.includes(ref)) {
             branch = ref;
@@ -170,8 +170,8 @@ export class DiffViewProvider implements vscode.TextDocumentContentProvider {
         }
 
         this.changes = await this.git.repo.diffWith(merge_base);
-        this.ref_name = branch;
-        this.merge_base_commit = merge_base;
+        this.refName = branch;
+        this.mergeBaseCommit = merge_base;
 
         let doc = vscode.workspace.textDocuments.find((doc) => doc.uri === DiffViewProvider.uri);
         if (!doc) {
@@ -201,7 +201,7 @@ export class DiffViewProvider implements vscode.TextDocumentContentProvider {
         }
 
         const uri_right = change.uri;
-        const uri_left = this.git.api.toGitUri(change.uri, this.merge_base_commit);
+        const uri_left = this.git.api.toGitUri(change.uri, this.mergeBaseCommit);
 
         if (!uri_left || !uri_right) {
             return;
