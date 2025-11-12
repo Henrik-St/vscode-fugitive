@@ -3,11 +3,11 @@
     "patterns": [
         {
             "name": "keyword.control.titles",
-            "match": "^Head|^Merge|^Help|(?<=^Merge )Changes|^Untracked|^Unstaged|^Staged|^Unpushed|^Unpublished|^Changed.Files|^DiffView"
+            "match": "^Head|^Merge|^Help|(?<=^Merge )Changes|^Untracked|^Unstaged|^Staged|^Unpushed|^Unpublished"
         },
         {
             "name": "variable.parameter",
-            "match": "(?<=Head:) .*\n|(?<=Merge:) .*\n|(?<=Unpushed to) .*(?=\\(\\w\\):\n)|(?<=Changes of) .*(?=compared)|(?<=compared to) .*(?=\n)"
+            "match": "(?<=Head:) .*\n|(?<=Merge:) .*\n|(?<=Unpushed to) .*(?=\\(\\w\\):\n)"
         },
         {
             "name": "constant.language",

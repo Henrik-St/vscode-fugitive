@@ -1,4 +1,3 @@
-export type BlankUI = { type: "BlankUI" };
 export type ChangePayload = {
     changeIndex: number; // the array index of the git change
     listIndex: number; // the index of the change in a list i.e. directory for list view changeIndex = listIndex
@@ -24,7 +23,7 @@ export type ResourceType =
     | { type: "HelpUI" }
     | { type: HeaderType }
     | UnpushedType
-    | BlankUI
+    | { type: "BlankUI" }
     | ({ type: "DirectoryHeader" } & { path: string; changeType: ChangeType["type"] })
     | ChangeType
     | DiffType;

@@ -121,16 +121,6 @@
                 "command": "fugitive.goTop",
                 "title": "Fugitive: Go To Top",
                 "when": "resourceScheme == fugitive"
-            },
-            {
-                "command": "fugitive.diffview",
-                "title": "Fugitive: Open DiffView",
-                "when": "resourceScheme == fugitive"
-            },
-            {
-                "command": "fugitive.diffviewChooseBranch",
-                "title": "Fugitive: DiffView and choose Branch",
-                "when": "resourceScheme == fugitive"
             }
         ],
         "keybindings": [
@@ -298,24 +288,13 @@
                 "command": "fugitive.goTop",
                 "key": "g g",
                 "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
-            },
-            {
-                "command": "fugitive.diffviewOpenFile",
-                "key": "o",
-                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == Fugitive-DiffView && editorTextFocus"
-            },
-            {
-                "command": "fugitive.diffviewOpenFile",
-                "key": "enter",
-                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == Fugitive-DiffView && editorTextFocus"
             }
         ],
         "languages": [
             {
                 "id": "fugitive",
                 "filenames": [
-                    "fugitive",
-                    "DiffView"
+                    "fugitive"
                 ],
                 "icon": {
                     "light": "resources/icons/git.png",
