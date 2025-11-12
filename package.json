@@ -80,7 +80,7 @@
             {
                 "command": "fugitive.refresh",
                 "title": "Fugitive: refresh",
-                "when": "resourceScheme == fugitive || resourceScheme == Fugitive-DiffView"
+                "when": "resourceScheme == fugitive"
             },
             {
                 "command": "fugitive.goUntracked",
@@ -267,7 +267,7 @@
             {
                 "command": "fugitive.refresh",
                 "key": "g r",
-                "when": "(vim.mode == 'Normal' || !vim.mode) && (resourceScheme == fugitive || resourceScheme == Fugitive-DiffView) && editorTextFocus"
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
             },
             {
                 "command": "fugitive.toggleView",
@@ -328,11 +328,6 @@
                     ],
                     "default": "list",
                     "description": "Determines the view style"
-                },
-                "fugitive.mainBranchName": {
-                    "type": "string",
-                    "default": "origin/main",
-                    "description": "Set the default branch to compare to in DiffView"
                 }
             }
         }
