@@ -123,7 +123,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 .filter((r) => filepath.includes(r[0]))
                 .sort((r1, r2) => r1[0].length - r2[0].length);
         }
-        await this.git.setRepository(repo_list[0][1]);
+        repo_list.length > 0 && (await this.git.setRepository(repo_list[0][1]));
         await this.git.updateBranchInfo();
         await this.updateDiffs();
 
