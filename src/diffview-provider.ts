@@ -1,16 +1,10 @@
 import * as vscode from "vscode";
 import { GitWrapper } from "./git-wrapper";
 import { GIT, LOGGER } from "./extension";
-import { Change } from "./vscode-git";
-import { mapStatustoString } from "./util";
-import { BlankUI } from "./resource";
-
-type DiffViewChangePayload = {
-    type: "DiffViewChange";
-    changeIndex: number;
-};
-
-type UIModelItem = [BlankUI | DiffViewChangePayload, string]; // Using number for ResourceType for simplicity
+import { ResourceType } from "./resource";
+import { UIModel } from "./ui-model";
+import { getViewStyle } from "./configurations";
+import { Cursor } from "./cursor";
 
 export class DiffViewProvider implements vscode.TextDocumentContentProvider {
     static scheme = "Fugitive-DiffView";
@@ -18,10 +12,9 @@ export class DiffViewProvider implements vscode.TextDocumentContentProvider {
 
     private onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri>();
     private subscriptions: vscode.Disposable[] = [];
-    private mergeBaseCommit: string = "";
     private refName: string = "";
-    private changes: Change[] = [];
-    private uiModel: readonly UIModelItem[] = [];
+    private uiModel: UIModel;
+    private cursor: Cursor;
 
     onDidChange = this.onDidChangeEmitter.event; // triggers before provideTextDocumentContent
 
@@ -32,15 +25,16 @@ export class DiffViewProvider implements vscode.TextDocumentContentProvider {
             throw Error("Git API not found!");
         }
         this.git = GIT;
+        this.uiModel = new UIModel();
+        this.cursor = new Cursor();
 
         const git_disposables = this.git.api.repositories.map((repo) => {
             return repo.state.onDidChange(async () => {
                 LOGGER.debug("onGitChanged: ", repo.rootUri.toString());
-                await this.git.updateBranchInfo();
-                this.changes = await this.git.repo.diffWith(this.mergeBaseCommit);
-
                 const doc = vscode.workspace.textDocuments.find((doc) => doc.uri.scheme === DiffViewProvider.scheme);
                 if (doc) {
+                    await this.git.updateBranchInfo();
+                    await this.git.updateDiffView(this.refName);
                     this.onDidChangeEmitter.fire(doc.uri);
                 }
             });
@@ -65,28 +59,6 @@ export class DiffViewProvider implements vscode.TextDocumentContentProvider {
         this.subscriptions.forEach((e) => e.dispose());
     }
 
-    generateUIModel(): void {
-        LOGGER.debug("DiffViewProvider.generateUIModel");
-
-        const ui_model: UIModelItem[] = [];
-
-        const branch = this.git.repo.state.HEAD?.name || "DETACHED_HEAD: " + this.git.repo.state.rebaseCommit;
-        ui_model.push([
-            { type: "BlankUI" },
-            `DiffView - Changes of ${branch} compared to ${this.refName || this.mergeBaseCommit}`,
-        ]);
-        ui_model.push([{ type: "BlankUI" }, ""]);
-
-        const len = this.changes.length;
-
-        ui_model.push([{ type: "BlankUI" }, `Changed Files (${len}):`]);
-        this.changes.forEach((change, index) => {
-            const str = `${mapStatustoString(change.status)} ${change.uri.fsPath.replace(this.git.rootUri + "/", "")}`;
-            ui_model.push([{ type: "DiffViewChange", changeIndex: index }, str]);
-        });
-        this.uiModel = ui_model;
-    }
-
     refresh(): void {
         vscode.commands.executeCommand("git.refresh", this.git.rootUri).then(
             (succ) => {
@@ -101,8 +73,15 @@ export class DiffViewProvider implements vscode.TextDocumentContentProvider {
     provideTextDocumentContent(_uri: vscode.Uri): string {
         LOGGER.debug("DiffViewProvider.provideTextDocumentContent");
 
-        this.generateUIModel();
-        return this.uiModel.map((item) => item[1]).join("\n");
+        const view_style = getViewStyle();
+        this.uiModel.updateDiffview(view_style);
+        if (view_style === "tree") {
+            this.cursor.updateCursorTreeView(this.uiModel);
+        } else {
+            this.cursor.updateCursor(this.uiModel);
+        }
+
+        return this.uiModel.toString();
     }
 
     async getDiffViewChooseBranch(): Promise<void> {
@@ -160,18 +139,8 @@ export class DiffViewProvider implements vscode.TextDocumentContentProvider {
             return Promise.reject("Cannot create diff view from detached HEAD state.");
         }
 
-        const merge_base = await this.git.repo.getMergeBase(this.git.repo.state.HEAD.name, branch);
-
-        if (!merge_base) {
-            vscode.window.showErrorMessage(
-                `Cannot find merge base between ${this.git.repo.state.HEAD.name} and ${branch}.`
-            );
-            return Promise.reject(`Cannot find merge base between ${this.git.repo.state.HEAD.name} and ${branch}.`);
-        }
-
-        this.changes = await this.git.repo.diffWith(merge_base);
+        this.git.updateDiffView(branch);
         this.refName = branch;
-        this.mergeBaseCommit = merge_base;
 
         let doc = vscode.workspace.textDocuments.find((doc) => doc.uri === DiffViewProvider.uri);
         if (!doc) {
@@ -182,42 +151,59 @@ export class DiffViewProvider implements vscode.TextDocumentContentProvider {
         await vscode.window.showTextDocument(doc, { preview: false });
     }
 
-    openFile(): void {
+    async openFile(): Promise<void> {
         LOGGER.debug("DiffViewProvider.openFile");
         const editor = vscode.window.activeTextEditor;
         if (!editor) {
             return;
         }
-        const file_line = editor.selection.active.line;
-        const resource = this.getResourceAtLine(file_line);
+        const resource = this.getResourceUnderCursor();
 
-        if (!resource) {
+        if (!resource || resource.type !== "DiffViewChange") {
             return;
         }
 
-        const change = this.changes[resource.changeIndex];
-        if (!change) {
+        const change = this.git.changeFromResource(resource);
+        if (!change || !this.git.diffViewMergeBaseCommit) {
             return;
         }
 
         const uri_right = change.uri;
-        const uri_left = this.git.api.toGitUri(change.uri, this.mergeBaseCommit);
+        const uri_left = this.git.api.toGitUri(change.uri, this.git.diffViewMergeBaseCommit);
 
-        if (!uri_left || !uri_right) {
+        if (!uri_right) {
+            return;
+        }
+        const doc_left_exists = await vscode.workspace.openTextDocument(uri_left).then(
+            (_) => true,
+            () => false
+        );
+        if (!doc_left_exists) {
+            const doc = await vscode.workspace.openTextDocument(uri_right);
+            await vscode.window.showTextDocument(doc, { preview: false });
             return;
         }
         vscode.commands.executeCommand("vscode.diff", uri_left, uri_right, `${change.uri.fsPath} (Diff)`);
     }
 
-    getResourceAtLine(line: number): DiffViewChangePayload | null {
-        LOGGER.debug("DiffViewProvider.getResourceAtLine");
-        if (line < 0 || line >= this.uiModel.length) {
-            return null;
+    toggleDirectory(): void {
+        const resource = this.getResourceUnderCursor();
+        if (!resource) {
+            return;
         }
-        const item = this.uiModel[line];
-        if (item[0].type === "DiffViewChange") {
-            return item[0];
+        if (resource.type === "DirectoryHeader") {
+            const path = resource.path;
+            this.cursor.setLine(vscode.window.activeTextEditor!.selection.active.line);
+            this.uiModel.treeModel.toggleDirectory(path, resource.changeType);
+            this.onDidChangeEmitter.fire(DiffViewProvider.uri);
         }
-        return null;
+    }
+
+    /**
+     * @throws if no buffer is open
+     * @returns the information for the current set line
+     */
+    private getResourceUnderCursor(): ResourceType {
+        return this.cursor.getResourceUnderCursor(this.uiModel);
     }
 }

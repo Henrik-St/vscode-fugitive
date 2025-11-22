@@ -5,7 +5,7 @@ export type ChangePayload = {
 };
 export type DiffPayload = ChangePayload & { diffIndex: number; diffLineIndex: number };
 
-const change_types = ["Unstaged", "Staged", "Untracked", "MergeChange"] as const;
+const change_types = ["Unstaged", "Staged", "Untracked", "MergeChange", "DiffViewChange"] as const;
 export type ChangeCategory = (typeof change_types)[number];
 export type ChangeType = { type: ChangeCategory } & ChangePayload;
 
@@ -13,10 +13,19 @@ const diff_types = ["UnstagedDiff", "StagedDiff"] as const;
 export type DiffCategory = (typeof diff_types)[number];
 export type DiffType = { type: DiffCategory } & DiffPayload;
 
-const header_types = ["UntrackedHeader", "UnstagedHeader", "StagedHeader", "MergeHeader", "UnpushedHeader"] as const;
+const header_types = [
+    "UntrackedHeader",
+    "UnstagedHeader",
+    "StagedHeader",
+    "MergeHeader",
+    "UnpushedHeader",
+    "DiffViewHeader",
+] as const;
 export type HeaderType = (typeof header_types)[number];
 
 export type UnpushedType = { type: "Unpushed" } & ChangePayload;
+
+export type DirectoryType = { type: "DirectoryHeader" } & { path: string; changeType: ChangeType["type"] };
 
 export type ResourceType =
     | { type: "HeadUI" }
@@ -25,7 +34,7 @@ export type ResourceType =
     | { type: HeaderType }
     | UnpushedType
     | BlankUI
-    | ({ type: "DirectoryHeader" } & { path: string; changeType: ChangeType["type"] })
+    | DirectoryType
     | ChangeType
     | DiffType;
 
@@ -55,8 +64,10 @@ export function changeTypeToHeaderType(type: ChangeType["type"]): HeaderType {
             return "StagedHeader";
         case "MergeChange":
             return "MergeHeader";
+        case "DiffViewChange":
+            return "DiffViewHeader";
         default:
-            throw new Error("Invalid Change Type");
+            throw new Error("Invalid Change Type: " + type);
     }
 }
 
@@ -74,6 +85,8 @@ export function diffTypeToHeaderType(type: ResourceType["type"]): HeaderType {
             return "UntrackedHeader";
         case "MergeChange":
             return "MergeHeader";
+        case "DiffViewChange":
+            return "DiffViewHeader";
         default:
             throw new Error("Invalid Diff Type");
     }

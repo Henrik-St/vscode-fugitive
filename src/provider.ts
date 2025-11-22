@@ -5,7 +5,7 @@ import { encodeCommit } from "./diff-provider";
 import { ResourceType } from "./resource";
 import { UIModel } from "./ui-model";
 import { GIT, LOGGER } from "./extension";
-import { Cursor } from "./cursor";
+import { Cursor, syncCursorWithView } from "./cursor";
 
 export class Provider implements vscode.TextDocumentContentProvider {
     static myScheme = "fugitive";
@@ -163,10 +163,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
     }
 
-    goTop(): void {
-        this.cursor.syncCursorWithView(0);
-    }
-
     goUnstaged(go_unstaged: boolean): void {
         const untracked_index = this.uiModel.findHeader("UntrackedHeader");
         if (!go_unstaged && untracked_index >= 0) {
@@ -214,10 +210,10 @@ export class Provider implements vscode.TextDocumentContentProvider {
             }
 
             if (type === "MergeChange" || type === "Untracked" || type === "Unstaged" || type === "Staged") {
-                this.cursor.syncCursorWithView(i);
+                syncCursorWithView(i);
                 return;
             } else if ((type === "UnstagedDiff" || type === "StagedDiff") && res.diffLineIndex === 0) {
-                this.cursor.syncCursorWithView(i);
+                syncCursorWithView(i);
                 return;
             }
         }
@@ -249,10 +245,10 @@ export class Provider implements vscode.TextDocumentContentProvider {
             }
 
             if (type === "MergeChange" || type === "Untracked" || type === "Unstaged" || type === "Staged") {
-                this.cursor.syncCursorWithView(i);
+                syncCursorWithView(i);
                 return;
             } else if ((type === "UnstagedDiff" || type === "StagedDiff") && res.diffLineIndex === 0) {
-                this.cursor.syncCursorWithView(i);
+                syncCursorWithView(i);
                 return;
             }
         }
@@ -286,17 +282,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
         if (doc) {
             this.fireOnDidChange();
         }
-    }
-
-    refresh(): void {
-        vscode.commands.executeCommand("git.refresh", this.git.rootUri).then(
-            (succ) => {
-                LOGGER.debug("git.refresh success", succ);
-            },
-            (err) => {
-                LOGGER.debug("git.refresh error", err);
-            }
-        );
     }
 
     async toggleView(view_style?: "list" | "tree"): Promise<void> {

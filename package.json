@@ -124,13 +124,11 @@
             },
             {
                 "command": "fugitive.diffview",
-                "title": "Fugitive: Open DiffView",
-                "when": "resourceScheme == fugitive"
+                "title": "Fugitive: Open DiffView"
             },
             {
                 "command": "fugitive.diffviewChooseBranch",
-                "title": "Fugitive: DiffView and choose Branch",
-                "when": "resourceScheme == fugitive"
+                "title": "Fugitive: DiffView and choose Branch"
             }
         ],
         "keybindings": [
@@ -290,6 +288,11 @@
                 "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
             },
             {
+                "command": "fugitive.toggleDirectoryDiffView",
+                "key": "g f",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == Fugitive-DiffView && editorTextFocus"
+            },
+            {
                 "command": "fugitive.help",
                 "key": "g h",
                 "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
@@ -297,7 +300,7 @@
             {
                 "command": "fugitive.goTop",
                 "key": "g g",
-                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+                "when": "(vim.mode == 'Normal' || !vim.mode) && (resourceScheme == fugitive || resourceScheme == Fugitive-DiffView) && editorTextFocus"
             },
             {
                 "command": "fugitive.diffviewOpenFile",

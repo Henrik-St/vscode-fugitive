@@ -5,6 +5,7 @@ import { GitExtension } from "./vscode-git";
 import { DiffProvider } from "./diff-provider";
 import { GitWrapper } from "./git-wrapper";
 import { DiffViewProvider } from "./diffview-provider";
+import { syncCursorWithView } from "./cursor";
 
 //GLOBAL DEPENDENCIES
 // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -85,8 +86,19 @@ export function activate({ subscriptions }: vscode.ExtensionContext): void {
     add_subscription(() => provider!.git.repo.commit("", { amend: true }), "fugitive.amendNoEdit");
     add_subscription(() => provider!.gitExclude(false), "fugitive.gitExclude");
     add_subscription(() => provider!.gitExclude(true), "fugitive.gitIgnore");
-    add_subscription(async () => provider!.refresh(), "fugitive.refresh");
+    add_subscription(async () => {
+        if (!GIT) return;
+        vscode.commands.executeCommand("git.refresh", GIT.rootUri).then(
+            (succ) => {
+                LOGGER.debug("git.refresh success", succ);
+            },
+            (err) => {
+                LOGGER.debug("git.refresh error", err);
+            }
+        );
+    }, "fugitive.refresh");
     add_subscription(async () => provider!.toggleDirectory(), "fugitive.toggleDirectory");
+    add_subscription(async () => diffview_provider!.toggleDirectory(), "fugitive.toggleDirectoryDiffView");
     add_subscription(async () => provider!.goUp(), "fugitive.goUp");
     add_subscription(async () => provider!.goDown(), "fugitive.goDown");
     add_subscription(async () => provider!.goPreviousHunk(), "fugitive.previousHunk");
@@ -95,7 +107,7 @@ export function activate({ subscriptions }: vscode.ExtensionContext): void {
     add_subscription(async () => provider!.goUnstaged(true), "fugitive.goUnstaged");
     add_subscription(async () => provider!.goUnpushed(), "fugitive.goUnpushed");
     add_subscription(async () => provider!.goStaged(), "fugitive.goStaged");
-    add_subscription(async () => provider!.goTop(), "fugitive.goTop");
+    add_subscription(async () => syncCursorWithView(0), "fugitive.goTop");
     add_subscription(
         () => thenable_to_promise(vscode.commands.executeCommand("extension.open", "hnrk-str.vscode-fugitive")),
         "fugitive.help"
@@ -145,9 +157,7 @@ export function activate({ subscriptions }: vscode.ExtensionContext): void {
         }
         await diffview_provider?.getDiffViewChooseBranch();
     }, "fugitive.diffviewChooseBranch");
-    add_subscription(async () => {
-        diffview_provider?.openFile();
-    }, "fugitive.diffviewOpenFile");
+    add_subscription(async () => diffview_provider?.openFile(), "fugitive.diffviewOpenFile");
 
     // Register toggleView command
     {

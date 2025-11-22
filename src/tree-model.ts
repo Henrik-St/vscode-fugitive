@@ -29,6 +29,7 @@ export class TreeModel {
         Unstaged: { children: new Map(), name: "/", parentDir: "" },
         Staged: { children: new Map(), name: "/", parentDir: "" },
         MergeChange: { children: new Map(), name: "/", parentDir: "" },
+        DiffViewChange: { children: new Map(), name: "/", parentDir: "" },
     };
 
     constructor() {
@@ -37,6 +38,7 @@ export class TreeModel {
             Untracked: new Set<string>(),
             Unstaged: new Set<string>(),
             Staged: new Set<string>(),
+            DiffViewChange: new Set<string>(),
         };
     }
 

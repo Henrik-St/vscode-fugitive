@@ -62,19 +62,6 @@ export class Cursor {
         );
     }
 
-    /**
-     * Use after syncCursorLine
-     */
-    public syncCursorWithView(line: number): void {
-        const position = new vscode.Position(line, 0);
-        const range = new vscode.Range(position, position);
-        const window_contains_cursor = vscode.window.activeTextEditor?.visibleRanges[0].contains(position);
-        if (!window_contains_cursor) {
-            vscode.window.activeTextEditor!.revealRange(range);
-        }
-        vscode.window.activeTextEditor!.selection = new vscode.Selection(position, position);
-    }
-
     public getLine(): number {
         return this.line;
     }
@@ -149,6 +136,7 @@ export class Cursor {
             case "Unstaged":
             case "UnstagedDiff":
             case "Staged":
+            case "DiffViewChange":
             case "StagedDiff": {
                 change_type = diffTypeToChangeType(this.previousResource.type);
                 changes = this.git.getChanges(change_type);
@@ -289,4 +277,17 @@ export class Cursor {
         }
         return null;
     }
+}
+
+/**
+ * Use after syncCursorLine
+ */
+export function syncCursorWithView(line: number): void {
+    const position = new vscode.Position(line, 0);
+    const range = new vscode.Range(position, position);
+    const window_contains_cursor = vscode.window.activeTextEditor?.visibleRanges[0].contains(position);
+    if (!window_contains_cursor) {
+        vscode.window.activeTextEditor!.revealRange(range);
+    }
+    vscode.window.activeTextEditor!.selection = new vscode.Selection(position, position);
 }
