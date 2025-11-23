@@ -6,6 +6,7 @@ import { ResourceType } from "./resource";
 import { UIModel } from "./ui-model";
 import { GIT, LOGGER } from "./extension";
 import { Cursor, syncCursorWithView } from "./cursor";
+import { getViewStyle, toggleViewStyle, ViewStyle } from "./configurations";
 
 export class Provider implements vscode.TextDocumentContentProvider {
     static myScheme = "fugitive";
@@ -19,8 +20,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
     private cursor: Cursor;
 
     //status data
-    private viewStyle: "list" | "tree" = "list"; // current view mode, list or tree
-
     private onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri>();
     onDidChange = this.onDidChangeEmitter.event; // triggers before provideTextDocumentContent
     private subscriptions: vscode.Disposable[];
@@ -33,7 +32,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
         this.actionLock = false;
 
         this.uiModel = new UIModel();
-        this.viewStyle = vscode.workspace.getConfiguration("fugitive").get("viewStyle", "list");
         this.cursor = new Cursor();
 
         // on Git Changed on all repositories
@@ -97,8 +95,9 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     provideTextDocumentContent(_uri: vscode.Uri): string {
         LOGGER.debug("Provider.provideTextDocumentContent");
-        this.uiModel.update(this.viewStyle);
-        if (this.viewStyle === "tree") {
+        const view_style = getViewStyle();
+        this.uiModel.update(view_style);
+        if (view_style === "tree") {
             this.cursor.updateCursorTreeView(this.uiModel);
         } else {
             this.cursor.updateCursor(this.uiModel);
@@ -284,22 +283,9 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
     }
 
-    async toggleView(view_style?: "list" | "tree"): Promise<void> {
-        this.getResourceUnderCursor();
-        this.viewStyle = view_style ?? (this.viewStyle === "list" ? "tree" : "list");
-        const conf_name = "viewStyle";
-
-        const conf = vscode.workspace.getConfiguration("fugitive");
-        const insp = conf.inspect(conf_name);
-
-        let conf_scope = vscode.ConfigurationTarget.Global;
-        if (insp?.workspaceFolderValue) {
-            conf_scope = vscode.ConfigurationTarget.WorkspaceFolder;
-        } else if (insp?.workspaceValue) {
-            conf_scope = vscode.ConfigurationTarget.Workspace;
-        }
-        await conf.update(conf_name, this.viewStyle, conf_scope);
-
+    async toggleView(view_style?: ViewStyle): Promise<void> {
+        this.getResourceUnderCursor(); // updates previouse resource
+        await toggleViewStyle(view_style);
         this.fireOnDidChange();
     }
 

@@ -4,7 +4,7 @@ import { GitWrapper } from "./git-wrapper";
 import { GIT, LOGGER } from "./extension";
 import { ResourceType } from "./resource";
 import { UIModel } from "./ui-model";
-import { getViewStyle } from "./configurations";
+import { getViewStyle, toggleViewStyle, ViewStyle } from "./configurations";
 import { Cursor } from "./cursor";
 import { Status } from "./vscode-git";
 
@@ -211,6 +211,12 @@ export class DiffViewProvider implements vscode.TextDocumentContentProvider {
             this.uiModel.treeModel.toggleDirectory(path, resource.changeType);
             this.onDidChangeEmitter.fire(DiffViewProvider.uri);
         }
+    }
+
+    async toggleView(view_style?: ViewStyle): Promise<void> {
+        this.getResourceUnderCursor(); // updates previouse resource
+        await toggleViewStyle(view_style);
+        this.onDidChangeEmitter.fire(DiffViewProvider.uri);
     }
 
     /**

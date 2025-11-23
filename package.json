@@ -280,7 +280,7 @@
             {
                 "command": "fugitive.toggleView",
                 "key": "g t",
-                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+                "when": "(vim.mode == 'Normal' || !vim.mode) && (resourceScheme == fugitive || resourceScheme == Fugitive-DiffView) && editorTextFocus"
             },
             {
                 "command": "fugitive.toggleDirectory",

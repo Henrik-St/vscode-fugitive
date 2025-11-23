@@ -6,6 +6,7 @@ import { DiffProvider } from "./diff-provider";
 import { GitWrapper } from "./git-wrapper";
 import { DiffViewProvider } from "./diffview-provider";
 import { syncCursorWithView } from "./cursor";
+import { ViewStyle } from "./configurations";
 
 //GLOBAL DEPENDENCIES
 // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -21,7 +22,7 @@ export function activate({ subscriptions }: vscode.ExtensionContext): void {
                 try {
                     await command();
                 } catch (error) {
-                    LOGGER.debug("Error on ", name, ":", error);
+                    LOGGER.error("Error on ", name, ":", error);
                     vscode.window.showErrorMessage("Fugitive: Error on " + name);
                 }
             })
@@ -163,12 +164,21 @@ export function activate({ subscriptions }: vscode.ExtensionContext): void {
     {
         const name = "fugitive.toggleView";
         subscriptions.push(
-            commands.registerCommand(name, async (view_style?: "list" | "tree") => {
+            commands.registerCommand(name, async (view_style?: ViewStyle) => {
                 LOGGER.debug(name);
                 try {
-                    await provider!.toggleView(view_style);
+                    const doc_scheme = window.activeTextEditor?.document.uri.scheme;
+                    if (doc_scheme == DiffViewProvider.scheme) {
+                        LOGGER.trace("Toggling DiffViewProvider view style");
+                        await diffview_provider!.toggleView(view_style);
+                        return;
+                    } else if (doc_scheme == Provider.myScheme) {
+                        LOGGER.trace("Toggling Provider view style");
+                        await provider!.toggleView(view_style);
+                        return;
+                    }
                 } catch (error) {
-                    LOGGER.debug("Error on ", name, ":", error);
+                    LOGGER.error("Error on ", name, ":", error);
                     vscode.window.showErrorMessage("Fugitive: Error on " + name);
                 }
             })

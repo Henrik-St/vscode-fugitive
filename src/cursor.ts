@@ -94,6 +94,7 @@ export class Cursor {
             case "Untracked":
             case "UnstagedDiff":
             case "Unstaged":
+            case "DiffViewChange":
             case "StagedDiff":
             case "Staged": {
                 const type = diffTypeToChangeType(this.previousResource.type);
