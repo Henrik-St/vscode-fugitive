@@ -1,10 +1,12 @@
 import * as vscode from "vscode";
+import * as path from "path";
 import { GitWrapper } from "./git-wrapper";
 import { GIT, LOGGER } from "./extension";
 import { ResourceType } from "./resource";
 import { UIModel } from "./ui-model";
 import { getViewStyle } from "./configurations";
 import { Cursor } from "./cursor";
+import { Status } from "./vscode-git";
 
 export class DiffViewProvider implements vscode.TextDocumentContentProvider {
     static scheme = "Fugitive-DiffView";
@@ -171,16 +173,28 @@ export class DiffViewProvider implements vscode.TextDocumentContentProvider {
         const uri_right = change.uri;
         const uri_left = this.git.api.toGitUri(change.uri, this.git.diffViewMergeBaseCommit);
 
-        if (!uri_right) {
+        const doc_right = await vscode.workspace.openTextDocument(uri_right).then(
+            (doc) => doc,
+            () => undefined
+        );
+
+        const doc_left = await vscode.workspace.openTextDocument(uri_left).then(
+            (doc) => doc,
+            () => undefined
+        );
+        if (!doc_right) {
+            const doc_name = path.basename(change.uri.fsPath);
+            vscode.commands.executeCommand(
+                "vscode.open",
+                uri_left,
+                { override: change.status === Status.BOTH_MODIFIED ? false : undefined },
+                `${doc_name} (Deleted)`
+            );
             return;
         }
-        const doc_left_exists = await vscode.workspace.openTextDocument(uri_left).then(
-            (_) => true,
-            () => false
-        );
-        if (!doc_left_exists) {
-            const doc = await vscode.workspace.openTextDocument(uri_right);
-            await vscode.window.showTextDocument(doc, { preview: false });
+        if (!doc_left) {
+            const doc_name = path.basename(change.uri.fsPath);
+            vscode.commands.executeCommand("git.openFile", uri_right, `${doc_name} (Added)`);
             return;
         }
         vscode.commands.executeCommand("vscode.diff", uri_left, uri_right, `${change.uri.fsPath} (Diff)`);
