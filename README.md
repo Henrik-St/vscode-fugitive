@@ -94,8 +94,8 @@ To change the keymapping to i.e. QUERTY the following entry needs to be added to
 2. The vscode git api does not have first-class support for interactive rebasing.
    Therefore, functionality relying on rebasing is not provided in this extension.
 
-
 ## Issues and Feature Requests
+
 Did you encounter issues or errors?
 Please file an issue on this repository and add the stacktrace from the Fugitive Output Channel.
 Are there features you would like to see?
