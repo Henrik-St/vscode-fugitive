@@ -93,3 +93,10 @@ To change the keymapping to i.e. QUERTY the following entry needs to be added to
    If you are interested in this functionality, i have opened an issue on the vim extension github [here](https://github.com/VSCodeVim/Vim/issues/9103).
 2. The vscode git api does not have first-class support for interactive rebasing.
    Therefore, functionality relying on rebasing is not provided in this extension.
+
+
+## Issues and Feature Requests
+Did you encounter issues or errors?
+Please file an issue on this repository and add the stacktrace from the Fugitive Output Channel.
+Are there features you would like to see?
+Feel free to file an issue or provide a pull request.
