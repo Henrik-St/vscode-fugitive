@@ -34,18 +34,28 @@ export class Provider implements vscode.TextDocumentContentProvider {
         this.uiModel = new UIModel();
         this.cursor = new Cursor();
 
-        // on Git Changed on all repositories
-        const git_disposables = this.git.api.repositories.map((repo) => {
-            return repo.state.onDidChange(async () => {
-                LOGGER.debug("onGitChanged: ", repo.rootUri.toString());
-                await this.git.updateBranchInfo();
-                await this.updateDiffs();
+        this.subscriptions = [];
 
-                const doc = vscode.workspace.textDocuments.find((doc) => doc.uri.scheme === Provider.myScheme);
-                if (doc) {
-                    this.fireOnDidChange();
-                }
-            });
+        const on_repo_changed = async (root_uri: vscode.Uri) => {
+            LOGGER.debug("onGitChanged: ", root_uri.path);
+            await this.git.updateBranchInfo();
+            await this.updateDiffs();
+
+            const doc = vscode.workspace.textDocuments.find((doc) => doc.uri.scheme === Provider.myScheme);
+            if (doc) {
+                this.fireOnDidChange();
+            }
+        };
+
+        this.git.api.repositories
+            .map((repo) => {
+                return repo.state.onDidChange(() => on_repo_changed(repo.rootUri));
+            })
+            .forEach((disposable) => this.subscriptions.push(disposable));
+
+        this.git.api.onDidOpenRepository((repo) => {
+            const disposable = repo.state.onDidChange(() => on_repo_changed(repo.rootUri));
+            this.subscriptions.push(disposable);
         });
 
         // triggers after provideTextDocumentContent
@@ -61,10 +71,11 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 LOGGER.debug("release lock");
             }
         });
-        this.subscriptions = [...git_disposables, doc_dispose];
+        this.subscriptions.push(doc_dispose);
     }
 
     private fireOnDidChange(): void {
+        LOGGER.debug("fireOnDidChange");
         this.onDidChangeEmitter.fire(Provider.uri);
     }
 

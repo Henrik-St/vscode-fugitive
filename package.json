@@ -362,7 +362,7 @@
         }
     },
     "scripts": {
-        "vscode:prepublish": "npm run compile",
+        "vscode:prepublish": "rm ./out -r && npm run compile",
         "vscode:package": "vsce package",
         "vscode:publish": "vsce publish",
         "compile": "tsc -p ./",

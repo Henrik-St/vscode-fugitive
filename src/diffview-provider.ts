@@ -30,16 +30,27 @@ export class DiffViewProvider implements vscode.TextDocumentContentProvider {
         this.uiModel = new UIModel();
         this.cursor = new Cursor();
 
-        const git_disposables = this.git.api.repositories.map((repo) => {
-            return repo.state.onDidChange(async () => {
-                LOGGER.debug("onGitChanged: ", repo.rootUri.toString());
-                const doc = vscode.workspace.textDocuments.find((doc) => doc.uri.scheme === DiffViewProvider.scheme);
-                if (doc) {
-                    await this.git.updateBranchInfo();
-                    await this.git.updateDiffView(this.refName);
-                    this.onDidChangeEmitter.fire(doc.uri);
-                }
-            });
+        this.subscriptions = [];
+
+        const on_repo_changed = async (root_uri: vscode.Uri) => {
+            LOGGER.debug("onGitChanged: ", root_uri.toString());
+            const doc = vscode.workspace.textDocuments.find((doc) => doc.uri.scheme === DiffViewProvider.scheme);
+            if (doc) {
+                await this.git.updateBranchInfo();
+                await this.git.updateDiffView(this.refName);
+                this.onDidChangeEmitter.fire(doc.uri);
+            }
+        };
+
+        this.git.api.repositories
+            .map((repo) => {
+                return repo.state.onDidChange(() => on_repo_changed(repo.rootUri));
+            })
+            .forEach((disposable) => this.subscriptions.push(disposable));
+
+        this.git.api.onDidOpenRepository((repo) => {
+            const disposable = repo.state.onDidChange(() => on_repo_changed(repo.rootUri));
+            this.subscriptions.push(disposable);
         });
 
         const doc_dispose = vscode.workspace.onDidChangeTextDocument(async (e: vscode.TextDocumentChangeEvent) => {
@@ -51,7 +62,7 @@ export class DiffViewProvider implements vscode.TextDocumentContentProvider {
                 this.cursor.syncCursorLine(DiffViewProvider.uri.toString());
             }
         });
-        this.subscriptions = [...git_disposables, doc_dispose];
+        this.subscriptions.push(doc_dispose);
     }
 
     async updateInfo(): Promise<void> {

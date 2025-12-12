@@ -15,6 +15,8 @@ export let GIT: GitWrapper | null = null;
 export const LOGGER: vscode.LogOutputChannel = vscode.window.createOutputChannel("Fugitive", { log: true });
 
 export function activate({ subscriptions }: vscode.ExtensionContext): void {
+    // measure runtime of activate function
+    const start_time = Date.now();
     const add_subscription = (command: () => Promise<void>, name: string) => {
         subscriptions.push(
             commands.registerCommand(name, async () => {
@@ -24,11 +26,10 @@ export function activate({ subscriptions }: vscode.ExtensionContext): void {
                 } catch (error) {
                     if (error instanceof Error) {
                         LOGGER.error("Error on ", name, ":", error.stack);
-                        LOGGER.error("Please report this issue at https://github.com/Henrik-St/vscode-fugitive/issues");
                     } else {
                         LOGGER.error("Error on ", name, ":", error);
-                        LOGGER.error("Please report this issue at https://github.com/Henrik-St/vscode-fugitive/issues");
                     }
+                    LOGGER.error("Please report this issue at https://github.com/Henrik-St/vscode-fugitive/issues");
 
                     vscode.window.showErrorMessage("Fugitive: Error on " + name);
                 }
@@ -49,7 +50,7 @@ export function activate({ subscriptions }: vscode.ExtensionContext): void {
     let provider: Provider | null = null;
     let diff_provider: DiffProvider | null = null;
     let diffview_provider: DiffViewProvider | null = null;
-    const dependencies = getDependencies();
+    const dependencies = getDependenciesAsync();
     if (dependencies) {
         diff_provider = new DiffProvider();
         provider = new Provider();
@@ -64,10 +65,7 @@ export function activate({ subscriptions }: vscode.ExtensionContext): void {
             LOGGER.debug("fugitive.open");
 
             if (!provider) {
-                const dependencies = getDependencies();
-                if (!dependencies) {
-                    return;
-                }
+                await getDependenciesSync();
                 diff_provider = new DiffProvider();
                 provider = new Provider();
                 subscriptions.push(workspace.registerTextDocumentContentProvider(DiffProvider.scheme, diff_provider));
@@ -140,10 +138,7 @@ export function activate({ subscriptions }: vscode.ExtensionContext): void {
     );
     add_subscription(async () => {
         if (!diffview_provider) {
-            const dependencies = getDependencies();
-            if (!dependencies) {
-                return;
-            }
+            await getDependenciesSync();
             diffview_provider = new DiffViewProvider();
             subscriptions.push(
                 workspace.registerTextDocumentContentProvider(DiffViewProvider.scheme, diffview_provider)
@@ -154,10 +149,7 @@ export function activate({ subscriptions }: vscode.ExtensionContext): void {
 
     add_subscription(async () => {
         if (!diffview_provider) {
-            const dependencies = getDependencies();
-            if (!dependencies) {
-                return;
-            }
+            await getDependenciesSync();
             diffview_provider = new DiffViewProvider();
             subscriptions.push(
                 workspace.registerTextDocumentContentProvider(DiffViewProvider.scheme, diffview_provider)
@@ -191,22 +183,62 @@ export function activate({ subscriptions }: vscode.ExtensionContext): void {
             })
         );
     }
+    const end_time = Date.now();
+    LOGGER.debug(`Fugitive activated in ${end_time - start_time} ms`);
 }
 
-function getDependencies(): boolean {
+function getDependenciesAsync(): boolean {
     LOGGER.debug("checkForRepository");
     const git_extension: GitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
     if (!git_extension || !git_extension.enabled) {
-        window.showWarningMessage("Fugitive: No git extension found or not enabled.");
         return false;
     }
 
     // Handle by UI to for smooth experience
     const api = git_extension.getAPI(1);
     if (api.repositories.length === 0 && !api.repositories[0]?.state.HEAD?.name) {
-        window.showWarningMessage("Fugitive: No git repository initialized");
         return false;
     }
     GIT = new GitWrapper(api);
     return true;
+}
+
+function getDependenciesSync(): Thenable<void> {
+    LOGGER.debug("checkForRepository");
+    return vscode.window.withProgress(
+        {
+            location: vscode.ProgressLocation.Notification,
+            title: "Fugitive: Setting up Git",
+            cancellable: true,
+        },
+        async (progress) => {
+            const git_extension: GitExtension = vscode.extensions.getExtension("vscode.git")?.exports;
+            progress.report({ message: "Loading Git Extension..." });
+            if (!git_extension || !git_extension.enabled) {
+                return Promise.reject();
+            }
+            progress.report({ message: "Initializing Git API..." });
+
+            // poll while git extension is not initialized
+            let api = git_extension.getAPI(1);
+            LOGGER.debug("Waiting for Git Extension...");
+            while (!api) {
+                await new Promise((resolve) => setTimeout(resolve, 50));
+                api = git_extension.getAPI(1);
+            }
+
+            LOGGER.debug("Waiting for Git API to initialize...");
+            progress.report({ message: "Waiting Git API..." });
+            while (api.state !== "initialized") {
+                await new Promise((resolve) => setTimeout(resolve, 50));
+            }
+
+            progress.report({ message: "Waiting for repositories..." });
+            while (api.repositories.length < 1) {
+                await new Promise((resolve) => setTimeout(resolve, 50));
+            }
+            GIT = new GitWrapper(api);
+            return Promise.resolve();
+        }
+    );
 }
