@@ -48,6 +48,7 @@ export class DiffViewProvider implements vscode.TextDocumentContentProvider {
                 e.document.uri.toString() === DiffViewProvider.uri.toString()
             ) {
                 LOGGER.debug("DiffView.onDidChangeTextDocument");
+                this.cursor.syncCursorLine(DiffViewProvider.uri.toString());
             }
         });
         this.subscriptions = [...git_disposables, doc_dispose];

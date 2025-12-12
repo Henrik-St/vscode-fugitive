@@ -56,7 +56,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
             ) {
                 LOGGER.debug("onDidChangeTextDocument");
                 // overrides cursor behaviour
-                this.cursor.syncCursorLine();
+                this.cursor.syncCursorLine(Provider.uri.toString());
                 this.actionLock = false; // reset action lock
                 LOGGER.debug("release lock");
             }
@@ -142,7 +142,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
         const line = vscode.window.activeTextEditor!.selection.active.line;
         const new_line = Math.max(line - 1, 0);
-        this.cursor.syncCursorLine(new_line);
+        this.cursor.syncCursorLine(Provider.uri.toString(), new_line);
     }
 
     goDown(): void {
@@ -152,25 +152,25 @@ export class Provider implements vscode.TextDocumentContentProvider {
         const line_count = vscode.window.activeTextEditor.document.lineCount;
         const line = vscode.window.activeTextEditor!.selection.active.line;
         const new_line = Math.min(line + 1, line_count - 1);
-        this.cursor.syncCursorLine(new_line);
+        this.cursor.syncCursorLine(Provider.uri.toString(), new_line);
     }
 
     goStaged(): void {
         const index = this.uiModel.findHeader("StagedHeader");
         if (index >= 0) {
-            this.cursor.syncCursorLine(index);
+            this.cursor.syncCursorLine(Provider.uri.toString(), index);
         }
     }
 
     goUnstaged(go_unstaged: boolean): void {
         const untracked_index = this.uiModel.findHeader("UntrackedHeader");
         if (!go_unstaged && untracked_index >= 0) {
-            this.cursor.syncCursorLine(untracked_index);
+            this.cursor.syncCursorLine(Provider.uri.toString(), untracked_index);
             return;
         }
         const unstaged_index = this.uiModel.findHeader("UnstagedHeader");
         if (unstaged_index >= 0) {
-            this.cursor.syncCursorLine(unstaged_index);
+            this.cursor.syncCursorLine(Provider.uri.toString(), unstaged_index);
             return;
         }
     }
@@ -178,7 +178,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
     goUnpushed(): void {
         const index = this.uiModel.findHeader("UnpushedHeader");
         if (index >= 0) {
-            this.cursor.syncCursorLine(index);
+            this.cursor.syncCursorLine(Provider.uri.toString(), index);
         }
     }
 

@@ -22,7 +22,14 @@ export function activate({ subscriptions }: vscode.ExtensionContext): void {
                 try {
                     await command();
                 } catch (error) {
-                    LOGGER.error("Error on ", name, ":", error);
+                    if (error instanceof Error) {
+                        LOGGER.error("Error on ", name, ":", error.stack);
+                        LOGGER.error("Please report this issue at https://github.com/Henrik-St/vscode-fugitive/issues");
+                    } else {
+                        LOGGER.error("Error on ", name, ":", error);
+                        LOGGER.error("Please report this issue at https://github.com/Henrik-St/vscode-fugitive/issues");
+                    }
+
                     vscode.window.showErrorMessage("Fugitive: Error on " + name);
                 }
             })

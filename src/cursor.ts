@@ -11,7 +11,6 @@ import {
     ResourceType,
 } from "./resource";
 import { Change } from "./vscode-git";
-import { Provider } from "./provider";
 import { UIModel } from "./ui-model";
 import { dirname } from "path";
 
@@ -51,8 +50,8 @@ export class Cursor {
         return ui_model.index(line)[0];
     }
 
-    public syncCursorLine(line?: number): void {
-        if (vscode.window.activeTextEditor?.document.uri.toString() !== Provider.uri.toString()) {
+    public syncCursorLine(uri: string, line?: number): void {
+        if (vscode.window.activeTextEditor?.document.uri.toString() !== uri) {
             return;
         }
         const new_line = line || this.line;
