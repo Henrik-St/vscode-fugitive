@@ -4,6 +4,9 @@ import { Provider } from "./provider";
 import { GitExtension } from "./vscode-git";
 import { DiffProvider } from "./diff-provider";
 import { GitWrapper } from "./git-wrapper";
+import { DiffViewProvider } from "./diffview-provider";
+import { syncCursorWithView } from "./cursor";
+import { ViewStyle } from "./configurations";
 
 //GLOBAL DEPENDENCIES
 // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -19,7 +22,14 @@ export function activate({ subscriptions }: vscode.ExtensionContext): void {
                 try {
                     await command();
                 } catch (error) {
-                    LOGGER.debug("Error on ", name, ":", error);
+                    if (error instanceof Error) {
+                        LOGGER.error("Error on ", name, ":", error.stack);
+                        LOGGER.error("Please report this issue at https://github.com/Henrik-St/vscode-fugitive/issues");
+                    } else {
+                        LOGGER.error("Error on ", name, ":", error);
+                        LOGGER.error("Please report this issue at https://github.com/Henrik-St/vscode-fugitive/issues");
+                    }
+
                     vscode.window.showErrorMessage("Fugitive: Error on " + name);
                 }
             })
@@ -38,10 +48,13 @@ export function activate({ subscriptions }: vscode.ExtensionContext): void {
     LOGGER.debug("fugitive.activate");
     let provider: Provider | null = null;
     let diff_provider: DiffProvider | null = null;
+    let diffview_provider: DiffViewProvider | null = null;
     const dependencies = getDependencies();
     if (dependencies) {
         diff_provider = new DiffProvider();
         provider = new Provider();
+        diffview_provider = new DiffViewProvider();
+        subscriptions.push(workspace.registerTextDocumentContentProvider(DiffViewProvider.scheme, diffview_provider));
         subscriptions.push(workspace.registerTextDocumentContentProvider(DiffProvider.scheme, diff_provider));
         subscriptions.push(workspace.registerTextDocumentContentProvider(Provider.myScheme, provider));
     }
@@ -81,8 +94,19 @@ export function activate({ subscriptions }: vscode.ExtensionContext): void {
     add_subscription(() => provider!.git.repo.commit("", { amend: true }), "fugitive.amendNoEdit");
     add_subscription(() => provider!.gitExclude(false), "fugitive.gitExclude");
     add_subscription(() => provider!.gitExclude(true), "fugitive.gitIgnore");
-    add_subscription(async () => provider!.refresh(), "fugitive.refresh");
+    add_subscription(async () => {
+        if (!GIT) return;
+        vscode.commands.executeCommand("git.refresh", GIT.rootUri).then(
+            (succ) => {
+                LOGGER.debug("git.refresh success", succ);
+            },
+            (err) => {
+                LOGGER.debug("git.refresh error", err);
+            }
+        );
+    }, "fugitive.refresh");
     add_subscription(async () => provider!.toggleDirectory(), "fugitive.toggleDirectory");
+    add_subscription(async () => diffview_provider!.toggleDirectory(), "fugitive.toggleDirectoryDiffView");
     add_subscription(async () => provider!.goUp(), "fugitive.goUp");
     add_subscription(async () => provider!.goDown(), "fugitive.goDown");
     add_subscription(async () => provider!.goPreviousHunk(), "fugitive.previousHunk");
@@ -91,7 +115,7 @@ export function activate({ subscriptions }: vscode.ExtensionContext): void {
     add_subscription(async () => provider!.goUnstaged(true), "fugitive.goUnstaged");
     add_subscription(async () => provider!.goUnpushed(), "fugitive.goUnpushed");
     add_subscription(async () => provider!.goStaged(), "fugitive.goStaged");
-    add_subscription(async () => provider!.goTop(), "fugitive.goTop");
+    add_subscription(async () => syncCursorWithView(0), "fugitive.goTop");
     add_subscription(
         () => thenable_to_promise(vscode.commands.executeCommand("extension.open", "hnrk-str.vscode-fugitive")),
         "fugitive.help"
@@ -114,17 +138,54 @@ export function activate({ subscriptions }: vscode.ExtensionContext): void {
         () => thenable_to_promise(vscode.commands.executeCommand("git.checkout")),
         "fugitive.checkoutBranch"
     );
+    add_subscription(async () => {
+        if (!diffview_provider) {
+            const dependencies = getDependencies();
+            if (!dependencies) {
+                return;
+            }
+            diffview_provider = new DiffViewProvider();
+            subscriptions.push(
+                workspace.registerTextDocumentContentProvider(DiffViewProvider.scheme, diffview_provider)
+            );
+        }
+        await diffview_provider?.getDiffView();
+    }, "fugitive.diffview");
+
+    add_subscription(async () => {
+        if (!diffview_provider) {
+            const dependencies = getDependencies();
+            if (!dependencies) {
+                return;
+            }
+            diffview_provider = new DiffViewProvider();
+            subscriptions.push(
+                workspace.registerTextDocumentContentProvider(DiffViewProvider.scheme, diffview_provider)
+            );
+        }
+        await diffview_provider?.getDiffViewChooseBranch();
+    }, "fugitive.diffviewChooseBranch");
+    add_subscription(async () => diffview_provider?.openFile(), "fugitive.diffviewOpenFile");
 
     // Register toggleView command
     {
         const name = "fugitive.toggleView";
         subscriptions.push(
-            commands.registerCommand(name, async (view_style?: "list" | "tree") => {
+            commands.registerCommand(name, async (view_style?: ViewStyle) => {
                 LOGGER.debug(name);
                 try {
-                    await provider!.toggleView(view_style);
+                    const doc_scheme = window.activeTextEditor?.document.uri.scheme;
+                    if (doc_scheme == DiffViewProvider.scheme) {
+                        LOGGER.trace("Toggling DiffViewProvider view style");
+                        await diffview_provider!.toggleView(view_style);
+                        return;
+                    } else if (doc_scheme == Provider.myScheme) {
+                        LOGGER.trace("Toggling Provider view style");
+                        await provider!.toggleView(view_style);
+                        return;
+                    }
                 } catch (error) {
-                    LOGGER.debug("Error on ", name, ":", error);
+                    LOGGER.error("Error on ", name, ":", error);
                     vscode.window.showErrorMessage("Fugitive: Error on " + name);
                 }
             })

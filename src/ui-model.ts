@@ -81,6 +81,26 @@ export class UIModel {
         this.uiModel = new_ui_model;
     }
 
+    public updateDiffview(view: "list" | "tree"): void {
+        LOGGER.debug("ui-model.update_diffview");
+
+        // render header
+        let new_ui_model: UIModelItem[] = [];
+        const branch = this.git.repo.state.HEAD?.name || "DETACHED_HEAD: " + this.git.repo.state.rebaseCommit;
+        new_ui_model.push([
+            { type: "BlankUI" },
+            `DiffView - Changes of ${branch} compared to ${this.git.diffViewRefName || this.git.diffViewMergeBaseCommit}`,
+        ]);
+        new_ui_model.push([{ type: "BlankUI" }, ""]);
+
+        this.renderSection("DiffViewChange", view, new_ui_model, "Changed Files");
+
+        new_ui_model = this.diffModel.injectDiffs(new_ui_model);
+
+        this.previousUIModel = this.uiModel;
+        this.uiModel = new_ui_model;
+    }
+
     public get(): readonly UIModelItem[] {
         return this.uiModel;
     }

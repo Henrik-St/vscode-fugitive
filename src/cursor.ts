@@ -11,7 +11,6 @@ import {
     ResourceType,
 } from "./resource";
 import { Change } from "./vscode-git";
-import { Provider } from "./provider";
 import { UIModel } from "./ui-model";
 import { dirname } from "path";
 
@@ -51,8 +50,8 @@ export class Cursor {
         return ui_model.index(line)[0];
     }
 
-    public syncCursorLine(line?: number): void {
-        if (vscode.window.activeTextEditor?.document.uri.toString() !== Provider.uri.toString()) {
+    public syncCursorLine(uri: string, line?: number): void {
+        if (vscode.window.activeTextEditor?.document.uri.toString() !== uri) {
             return;
         }
         const new_line = line || this.line;
@@ -60,19 +59,6 @@ export class Cursor {
             new vscode.Position(new_line, 0),
             new vscode.Position(new_line, 0)
         );
-    }
-
-    /**
-     * Use after syncCursorLine
-     */
-    public syncCursorWithView(line: number): void {
-        const position = new vscode.Position(line, 0);
-        const range = new vscode.Range(position, position);
-        const window_contains_cursor = vscode.window.activeTextEditor?.visibleRanges[0].contains(position);
-        if (!window_contains_cursor) {
-            vscode.window.activeTextEditor!.revealRange(range);
-        }
-        vscode.window.activeTextEditor!.selection = new vscode.Selection(position, position);
     }
 
     public getLine(): number {
@@ -107,6 +93,7 @@ export class Cursor {
             case "Untracked":
             case "UnstagedDiff":
             case "Unstaged":
+            case "DiffViewChange":
             case "StagedDiff":
             case "Staged": {
                 const type = diffTypeToChangeType(this.previousResource.type);
@@ -149,6 +136,7 @@ export class Cursor {
             case "Unstaged":
             case "UnstagedDiff":
             case "Staged":
+            case "DiffViewChange":
             case "StagedDiff": {
                 change_type = diffTypeToChangeType(this.previousResource.type);
                 changes = this.git.getChanges(change_type);
@@ -289,4 +277,17 @@ export class Cursor {
         }
         return null;
     }
+}
+
+/**
+ * Use after syncCursorLine
+ */
+export function syncCursorWithView(line: number): void {
+    const position = new vscode.Position(line, 0);
+    const range = new vscode.Range(position, position);
+    const window_contains_cursor = vscode.window.activeTextEditor?.visibleRanges[0].contains(position);
+    if (!window_contains_cursor) {
+        vscode.window.activeTextEditor!.revealRange(range);
+    }
+    vscode.window.activeTextEditor!.selection = new vscode.Selection(position, position);
 }

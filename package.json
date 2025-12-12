@@ -2,7 +2,7 @@
     "name": "vscode-fugitive",
     "displayName": "Fugitive for VS Code",
     "description": "This is a simple extension that adds a subset of the fugitive plugin to VS Code",
-    "version": "0.4.4",
+    "version": "0.4.5",
     "publisher": "hnrk-str",
     "private": true,
     "license": "MIT",
@@ -80,7 +80,7 @@
             {
                 "command": "fugitive.refresh",
                 "title": "Fugitive: refresh",
-                "when": "resourceScheme == fugitive"
+                "when": "resourceScheme == fugitive || resourceScheme == Fugitive-DiffView"
             },
             {
                 "command": "fugitive.goUntracked",
@@ -121,6 +121,14 @@
                 "command": "fugitive.goTop",
                 "title": "Fugitive: Go To Top",
                 "when": "resourceScheme == fugitive"
+            },
+            {
+                "command": "fugitive.diffview",
+                "title": "Fugitive: Open DiffView"
+            },
+            {
+                "command": "fugitive.diffviewChooseBranch",
+                "title": "Fugitive: DiffView and choose Branch"
             }
         ],
         "keybindings": [
@@ -267,17 +275,22 @@
             {
                 "command": "fugitive.refresh",
                 "key": "g r",
-                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+                "when": "(vim.mode == 'Normal' || !vim.mode) && (resourceScheme == fugitive || resourceScheme == Fugitive-DiffView) && editorTextFocus"
             },
             {
                 "command": "fugitive.toggleView",
                 "key": "g t",
-                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+                "when": "(vim.mode == 'Normal' || !vim.mode) && (resourceScheme == fugitive || resourceScheme == Fugitive-DiffView) && editorTextFocus"
             },
             {
                 "command": "fugitive.toggleDirectory",
                 "key": "g f",
                 "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+            },
+            {
+                "command": "fugitive.toggleDirectoryDiffView",
+                "key": "g f",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == Fugitive-DiffView && editorTextFocus"
             },
             {
                 "command": "fugitive.help",
@@ -287,14 +300,25 @@
             {
                 "command": "fugitive.goTop",
                 "key": "g g",
-                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+                "when": "(vim.mode == 'Normal' || !vim.mode) && (resourceScheme == fugitive || resourceScheme == Fugitive-DiffView) && editorTextFocus"
+            },
+            {
+                "command": "fugitive.diffviewOpenFile",
+                "key": "o",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == Fugitive-DiffView && editorTextFocus"
+            },
+            {
+                "command": "fugitive.diffviewOpenFile",
+                "key": "enter",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == Fugitive-DiffView && editorTextFocus"
             }
         ],
         "languages": [
             {
                 "id": "fugitive",
                 "filenames": [
-                    "fugitive"
+                    "fugitive",
+                    "DiffView"
                 ],
                 "icon": {
                     "light": "resources/icons/git.png",
@@ -328,6 +352,11 @@
                     ],
                     "default": "list",
                     "description": "Determines the view style"
+                },
+                "fugitive.mainBranchName": {
+                    "type": "string",
+                    "default": "origin/main",
+                    "description": "Set the default branch to compare to in DiffView"
                 }
             }
         }

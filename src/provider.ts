@@ -5,7 +5,8 @@ import { encodeCommit } from "./diff-provider";
 import { ResourceType } from "./resource";
 import { UIModel } from "./ui-model";
 import { GIT, LOGGER } from "./extension";
-import { Cursor } from "./cursor";
+import { Cursor, syncCursorWithView } from "./cursor";
+import { getViewStyle, toggleViewStyle, ViewStyle } from "./configurations";
 
 export class Provider implements vscode.TextDocumentContentProvider {
     static myScheme = "fugitive";
@@ -19,8 +20,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
     private cursor: Cursor;
 
     //status data
-    private viewStyle: "list" | "tree" = "list"; // current view mode, list or tree
-
     private onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri>();
     onDidChange = this.onDidChangeEmitter.event; // triggers before provideTextDocumentContent
     private subscriptions: vscode.Disposable[];
@@ -33,7 +32,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
         this.actionLock = false;
 
         this.uiModel = new UIModel();
-        this.viewStyle = vscode.workspace.getConfiguration("fugitive").get("viewStyle", "list");
         this.cursor = new Cursor();
 
         // on Git Changed on all repositories
@@ -58,7 +56,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
             ) {
                 LOGGER.debug("onDidChangeTextDocument");
                 // overrides cursor behaviour
-                this.cursor.syncCursorLine();
+                this.cursor.syncCursorLine(Provider.uri.toString());
                 this.actionLock = false; // reset action lock
                 LOGGER.debug("release lock");
             }
@@ -97,8 +95,9 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     provideTextDocumentContent(_uri: vscode.Uri): string {
         LOGGER.debug("Provider.provideTextDocumentContent");
-        this.uiModel.update(this.viewStyle);
-        if (this.viewStyle === "tree") {
+        const view_style = getViewStyle();
+        this.uiModel.update(view_style);
+        if (view_style === "tree") {
             this.cursor.updateCursorTreeView(this.uiModel);
         } else {
             this.cursor.updateCursor(this.uiModel);
@@ -123,7 +122,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 .filter((r) => filepath.includes(r[0]))
                 .sort((r1, r2) => r1[0].length - r2[0].length);
         }
-        await this.git.setRepository(repo_list[0][1]);
+        repo_list.length > 0 && (await this.git.setRepository(repo_list[0][1]));
         await this.git.updateBranchInfo();
         await this.updateDiffs();
 
@@ -143,7 +142,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
         const line = vscode.window.activeTextEditor!.selection.active.line;
         const new_line = Math.max(line - 1, 0);
-        this.cursor.syncCursorLine(new_line);
+        this.cursor.syncCursorLine(Provider.uri.toString(), new_line);
     }
 
     goDown(): void {
@@ -153,29 +152,25 @@ export class Provider implements vscode.TextDocumentContentProvider {
         const line_count = vscode.window.activeTextEditor.document.lineCount;
         const line = vscode.window.activeTextEditor!.selection.active.line;
         const new_line = Math.min(line + 1, line_count - 1);
-        this.cursor.syncCursorLine(new_line);
+        this.cursor.syncCursorLine(Provider.uri.toString(), new_line);
     }
 
     goStaged(): void {
         const index = this.uiModel.findHeader("StagedHeader");
         if (index >= 0) {
-            this.cursor.syncCursorLine(index);
+            this.cursor.syncCursorLine(Provider.uri.toString(), index);
         }
-    }
-
-    goTop(): void {
-        this.cursor.syncCursorWithView(0);
     }
 
     goUnstaged(go_unstaged: boolean): void {
         const untracked_index = this.uiModel.findHeader("UntrackedHeader");
         if (!go_unstaged && untracked_index >= 0) {
-            this.cursor.syncCursorLine(untracked_index);
+            this.cursor.syncCursorLine(Provider.uri.toString(), untracked_index);
             return;
         }
         const unstaged_index = this.uiModel.findHeader("UnstagedHeader");
         if (unstaged_index >= 0) {
-            this.cursor.syncCursorLine(unstaged_index);
+            this.cursor.syncCursorLine(Provider.uri.toString(), unstaged_index);
             return;
         }
     }
@@ -183,7 +178,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
     goUnpushed(): void {
         const index = this.uiModel.findHeader("UnpushedHeader");
         if (index >= 0) {
-            this.cursor.syncCursorLine(index);
+            this.cursor.syncCursorLine(Provider.uri.toString(), index);
         }
     }
 
@@ -214,10 +209,10 @@ export class Provider implements vscode.TextDocumentContentProvider {
             }
 
             if (type === "MergeChange" || type === "Untracked" || type === "Unstaged" || type === "Staged") {
-                this.cursor.syncCursorWithView(i);
+                syncCursorWithView(i);
                 return;
             } else if ((type === "UnstagedDiff" || type === "StagedDiff") && res.diffLineIndex === 0) {
-                this.cursor.syncCursorWithView(i);
+                syncCursorWithView(i);
                 return;
             }
         }
@@ -249,10 +244,10 @@ export class Provider implements vscode.TextDocumentContentProvider {
             }
 
             if (type === "MergeChange" || type === "Untracked" || type === "Unstaged" || type === "Staged") {
-                this.cursor.syncCursorWithView(i);
+                syncCursorWithView(i);
                 return;
             } else if ((type === "UnstagedDiff" || type === "StagedDiff") && res.diffLineIndex === 0) {
-                this.cursor.syncCursorWithView(i);
+                syncCursorWithView(i);
                 return;
             }
         }
@@ -288,33 +283,9 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
     }
 
-    refresh(): void {
-        vscode.commands.executeCommand("git.refresh", this.git.rootUri).then(
-            (succ) => {
-                LOGGER.debug("git.refresh success", succ);
-            },
-            (err) => {
-                LOGGER.debug("git.refresh error", err);
-            }
-        );
-    }
-
-    async toggleView(view_style?: "list" | "tree"): Promise<void> {
-        this.getResourceUnderCursor();
-        this.viewStyle = view_style ?? (this.viewStyle === "list" ? "tree" : "list");
-        const conf_name = "viewStyle";
-
-        const conf = vscode.workspace.getConfiguration("fugitive");
-        const insp = conf.inspect(conf_name);
-
-        let conf_scope = vscode.ConfigurationTarget.Global;
-        if (insp?.workspaceFolderValue) {
-            conf_scope = vscode.ConfigurationTarget.WorkspaceFolder;
-        } else if (insp?.workspaceValue) {
-            conf_scope = vscode.ConfigurationTarget.Workspace;
-        }
-        await conf.update(conf_name, this.viewStyle, conf_scope);
-
+    async toggleView(view_style?: ViewStyle): Promise<void> {
+        this.getResourceUnderCursor(); // updates previouse resource
+        await toggleViewStyle(view_style);
         this.fireOnDidChange();
     }
 

@@ -17,10 +17,14 @@ export class GitWrapper {
     repo: Repository;
     rootUri: string;
 
+    diffViewRefName: string | null = null;
+    diffViewMergeBaseCommit: string | null = null;
+
     cachedRefs: Ref[];
     cachedUnpushedCommits: Commit[];
     cachedUnstagedDiffs: Map<string, string[]>;
     cachedStagedDiffs: Map<string, string[]>;
+    cachedDiffViewChanges: Change[];
 
     constructor(git_api: GitAPI) {
         this.api = git_api;
@@ -30,6 +34,7 @@ export class GitWrapper {
         this.cachedUnpushedCommits = [];
         this.cachedUnstagedDiffs = new Map<string, string[]>();
         this.cachedStagedDiffs = new Map<string, string[]>();
+        this.cachedDiffViewChanges = [];
     }
 
     async getRefs(): Promise<Ref[]> {
@@ -82,6 +87,23 @@ export class GitWrapper {
                 (branch) => branch.name === this.repo.state.remotes[0].name + "/" + this.repo.state.HEAD?.name
             )
         ); //e.g. origin/branchname
+    }
+
+    async updateDiffView(branch: string): Promise<void> {
+        if (!this.repo.state.HEAD?.name) {
+            vscode.window.showErrorMessage("Cannot create diff view from detached HEAD state.");
+            return Promise.reject("Cannot create diff view from detached HEAD state.");
+        }
+        const merge_base = await this.repo.getMergeBase(this.repo.state.HEAD.name, branch);
+        if (!merge_base) {
+            vscode.window.showErrorMessage(
+                `Cannot find merge base between ${this.repo.state.HEAD.name} and ${branch}.`
+            );
+            return Promise.reject(`Cannot find merge base between ${this.repo.state.HEAD.name} and ${branch}.`);
+        }
+        this.diffViewRefName = branch;
+        this.diffViewMergeBaseCommit = merge_base;
+        this.cachedDiffViewChanges = await this.repo.diffWith(merge_base);
     }
 
     untracked(): Change[] {
@@ -230,6 +252,8 @@ export class GitWrapper {
                 return this.staged();
             case "MergeChange":
                 return this.mergeChanges();
+            case "DiffViewChange":
+                return this.cachedDiffViewChanges;
             default:
                 throw new Error("Invalid Change Type: " + type);
         }
