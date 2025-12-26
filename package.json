@@ -364,7 +364,7 @@
     "scripts": {
         "vscode:prepublish": "rm ./out -r && npm run compile",
         "vscode:package": "vsce package",
-        "vscode:publish": "vsce publish",
+        "vscode:publish": "vsce publish && npm run tag",
         "compile": "tsc -p ./",
         "lint": "eslint \"src/**/*.ts\"",
         "format": "prettier . --write",
