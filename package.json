@@ -2,7 +2,7 @@
     "name": "vscode-fugitive",
     "displayName": "Fugitive for VS Code",
     "description": "This is a simple extension that adds a subset of the fugitive plugin to VS Code",
-    "version": "0.4.5",
+    "version": "0.4.6",
     "publisher": "hnrk-str",
     "private": true,
     "license": "MIT",
@@ -364,7 +364,7 @@
     "scripts": {
         "vscode:prepublish": "npm run compile",
         "vscode:package": "vsce package",
-        "vscode:publish": "vsce publish",
+        "vscode:publish": "vsce publish && npm run tag",
         "compile": "tsc -p ./",
         "lint": "eslint \"src/**/*.ts\"",
         "format": "prettier . --write",
