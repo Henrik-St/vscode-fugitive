@@ -5,17 +5,17 @@ jobs:
         if: "${{ github.event.pull_request.head.repo.full_name == github.repository }}"
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v3
+            - uses: actions/checkout@v6
             - run: npm install && npm run compile && npm run lint && npm run test:format
 
     check_version:
         if: "${{ github.event.pull_request.head.repo.full_name == github.repository }}"
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v6
               with:
                   ref: main
-            - uses: actions/checkout@v4
+            - uses: actions/checkout@v6
             - run: |
                   current="$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' package.json)"
                   main="$(git show origin/main:package.json | sed -n 's/.*"version": *"\([^"]*\)".*/\1/p')"

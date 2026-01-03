@@ -7,7 +7,7 @@ jobs:
     build_and_lint:
         runs-on: ubuntu-latest
         steps:
-            - uses: actions/checkout@v3
+            - uses: actions/checkout@v6
             - name: "Package"
               run: |
                   npm install && npm run compile && npm run lint && npm run vscode:package
