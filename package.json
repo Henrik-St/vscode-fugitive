@@ -379,7 +379,7 @@
         "test-install": "npm run vscode:package && code --install-extension $(ls ./*.vsix) && rm $(ls ./*.vsix)"
     },
     "devDependencies": {
-        "@types/node": "^18",
+        "@types/node": "^25",
         "@types/vscode": "^1.107.0",
         "@typescript-eslint/eslint-plugin": "^6.21.0",
         "@typescript-eslint/parser": "^6.7.0",
