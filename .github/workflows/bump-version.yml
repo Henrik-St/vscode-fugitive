@@ -25,7 +25,6 @@ jobs:
               with:
                   tag-prefix: ""
                   default: patch
-                  conventional-commits: true
                   commit-message: "ci: bump version to {{version}}"
-                  release-branches: |
+                  target-branch: |
                       main
