@@ -319,7 +319,12 @@ export class Provider implements vscode.TextDocumentContentProvider {
             return;
         }
         if (resource.type === "MergeChange") {
-            const change = this.git.mergeChanges()[resource.changeIndex];
+            const change = this.git.changeFromResource(resource);
+            if (!change) {
+                LOGGER.warn("stageFile: No MergeChange found for index " + resource.changeIndex);
+                this.actionLock = false;
+                return;
+            }
             LOGGER.debug("merge add ", change.uri.path);
             const uri = vscode.Uri.parse(change.uri.path);
             if (await this.checkForConflictMarker(uri)) {
@@ -329,7 +334,12 @@ export class Provider implements vscode.TextDocumentContentProvider {
             this.actionLock = false;
         }
         if (resource.type === "Untracked") {
-            const change = this.git.untracked()[resource.changeIndex];
+            const change = this.git.changeFromResource(resource);
+            if (!change) {
+                LOGGER.warn("stageFile: No Untracked change found for index " + resource.changeIndex);
+                this.actionLock = false;
+                return;
+            }
             LOGGER.debug("track ", change.uri.path);
             await this.git.repo.add([change.uri.path]);
             return;
@@ -341,7 +351,12 @@ export class Provider implements vscode.TextDocumentContentProvider {
             return;
         }
         if (resource.type === "Unstaged") {
-            const change = this.git.unstaged()[resource.changeIndex];
+            const change = this.git.changeFromResource(resource);
+            if (!change) {
+                LOGGER.warn("stageFile: No Unstaged change found for index " + resource.changeIndex);
+                this.actionLock = false;
+                return;
+            }
             LOGGER.debug("stage ", change.uri.path);
             await this.git.repo.add([change.uri.path]);
             this.uiModel.diffModel.getOpenedChanges().delete(change.uri.path);
@@ -357,7 +372,12 @@ export class Provider implements vscode.TextDocumentContentProvider {
             return;
         }
         if (resource.type === "UnstagedDiff") {
-            const change = this.git.unstaged()[resource.changeIndex];
+            const change = this.git.changeFromResource(resource);
+            if (!change) {
+                LOGGER.warn("stageFile: No UnstagedDiff change found for index " + resource.changeIndex);
+                this.actionLock = false;
+                return Promise.reject("No change for UnstagedDiff index: " + resource.changeIndex);
+            }
             if (resource.diffIndex === undefined) {
                 this.actionLock = false;
                 return Promise.reject("No diff index: " + resource.diffIndex);
@@ -443,14 +463,24 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 return;
             }
             case "Staged": {
-                const change = this.git.staged()[resource.changeIndex];
+                const change = this.git.changeFromResource(resource);
+                if (!change) {
+                    LOGGER.warn("unstageFile: No Staged change found for index " + resource.changeIndex);
+                    this.actionLock = false;
+                    return;
+                }
                 LOGGER.debug("unstage ", change.uri.path);
                 await this.git.repo.revert([change.uri.path]);
                 this.uiModel.diffModel.getOpenedIndexChanges().delete(change.uri.path);
                 return;
             }
             case "StagedDiff": {
-                const change = this.git.staged()[resource.changeIndex];
+                const change = this.git.changeFromResource(resource);
+                if (!change) {
+                    LOGGER.warn("unstageFile: No StagedDiff change found for index " + resource.changeIndex);
+                    this.actionLock = false;
+                    return Promise.reject("No change for StagedDiff index: " + resource.changeIndex);
+                }
                 if (resource.diffIndex === undefined) {
                     this.actionLock = false;
                     return Promise.reject("No diff index: " + resource.diffIndex);
@@ -522,21 +552,36 @@ export class Provider implements vscode.TextDocumentContentProvider {
         }
         switch (resource.type) {
             case "Untracked": {
-                const change = this.git.untracked()[resource.changeIndex];
+                const change = this.git.changeFromResource(resource);
+                if (!change) {
+                    LOGGER.warn("cleanFile: No Untracked change found for index " + resource.changeIndex);
+                    this.actionLock = false;
+                    return;
+                }
                 LOGGER.debug("clean ", resource);
                 await this.git.repo.clean([change.uri.path]);
                 this.uiModel.diffModel.getOpenedChanges().delete(change.uri.path);
                 return;
             }
             case "Unstaged": {
-                const change = this.git.unstaged()[resource.changeIndex];
+                const change = this.git.changeFromResource(resource);
+                if (!change) {
+                    LOGGER.warn("cleanFile: No Unstaged change found for index " + resource.changeIndex);
+                    this.actionLock = false;
+                    return;
+                }
                 LOGGER.debug("clean ", resource);
                 await this.git.repo.clean([change.uri.path]);
                 this.uiModel.diffModel.getOpenedChanges().delete(change.uri.path);
                 return;
             }
             case "Staged": {
-                const change = this.git.staged()[resource.changeIndex];
+                const change = this.git.changeFromResource(resource);
+                if (!change) {
+                    LOGGER.warn("cleanFile: No Staged change found for index " + resource.changeIndex);
+                    this.actionLock = false;
+                    return;
+                }
                 LOGGER.debug("clean ", resource);
                 await this.git.repo.revert([change.uri.path]);
                 await this.git.repo.clean([change.uri.path]);
@@ -586,11 +631,15 @@ export class Provider implements vscode.TextDocumentContentProvider {
             return;
         }
         const resource = this.getResourceUnderCursor();
-        const res = resource;
 
-        switch (res.type) {
+        switch (resource.type) {
             case "Unstaged": {
-                const change = this.git.unstaged()[res.changeIndex];
+                const change = this.git.changeFromResource(resource);
+                if (!change) {
+                    LOGGER.warn("toggleInlineDiff: No Unstaged change found for index " + resource.changeIndex);
+                    this.actionLock = false;
+                    return;
+                }
                 if (this.uiModel.diffModel.getOpenedChanges().has(change.uri.path)) {
                     this.uiModel.diffModel.getOpenedChanges().delete(change.uri.path);
                 } else {
@@ -599,7 +648,12 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 break;
             }
             case "Staged": {
-                const change = this.git.staged()[res.changeIndex];
+                const change = this.git.changeFromResource(resource);
+                if (!change) {
+                    LOGGER.warn("toggleInlineDiff: No Staged change found for index " + resource.changeIndex);
+                    this.actionLock = false;
+                    return;
+                }
                 if (this.uiModel.diffModel.getOpenedIndexChanges().has(change.uri.path)) {
                     this.uiModel.diffModel.getOpenedIndexChanges().delete(change.uri.path);
                 } else {
@@ -608,12 +662,22 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 break;
             }
             case "StagedDiff": {
-                const change = this.git.staged()[res.changeIndex];
+                const change = this.git.changeFromResource(resource);
+                if (!change) {
+                    LOGGER.warn("toggleInlineDiff: No StagedDiff change found for index " + resource.changeIndex);
+                    this.actionLock = false;
+                    return;
+                }
                 this.uiModel.diffModel.getOpenedIndexChanges().delete(change.uri.path);
                 break;
             }
             case "UnstagedDiff": {
-                const change = this.git.unstaged()[res.changeIndex];
+                const change = this.git.changeFromResource(resource);
+                if (!change) {
+                    LOGGER.warn("toggleInlineDiff: No UnstagedDiff change found for index " + resource.changeIndex);
+                    this.actionLock = false;
+                    return;
+                }
                 this.uiModel.diffModel.getOpenedChanges().delete(change.uri.path);
                 break;
             }
@@ -654,14 +718,22 @@ export class Provider implements vscode.TextDocumentContentProvider {
         let title_type = "(Working Tree)";
         switch (ressource.type) {
             case "Unstaged": {
-                const change = this.git.unstaged()[ressource.changeIndex];
+                const change = this.git.changeFromResource(ressource);
+                if (!change) {
+                    LOGGER.warn("openDiff: No Unstaged change found for index " + ressource.changeIndex);
+                    return;
+                }
                 uri_left = this.git.api.toGitUri(change.uri, "~"); // index
                 uri_right = change.uri; // local file
                 title_type = "(Working Tree)";
                 break;
             }
             case "Staged": {
-                const change = this.git.staged()[ressource.changeIndex];
+                const change = this.git.changeFromResource(ressource);
+                if (!change) {
+                    LOGGER.warn("openDiff: No Staged change found for index " + ressource.changeIndex);
+                    return;
+                }
                 uri_left = this.git.api.toGitUri(change.uri, "HEAD"); // last commit
                 uri_right = this.git.api.toGitUri(change.uri, "~"); //index
                 title_type = "(Index)";

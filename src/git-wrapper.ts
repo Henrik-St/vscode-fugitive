@@ -264,13 +264,57 @@ export class GitWrapper {
             return null;
         }
         const resource_type = diffTypeToChangeType(resource.type);
-        const change = this.getChanges(resource_type)[resource.changeIndex];
-        return change;
+        const changes = this.getChanges(resource_type);
+
+        // First, try to use the stored index if it is still valid
+        if (resource.changeIndex >= 0 && resource.changeIndex < changes.length) {
+            const by_index = changes[resource.changeIndex];
+            if (!resource.path || by_index.uri.path === resource.path) {
+                return by_index;
+            }
+        }
+
+        // Fallback: resolve by path if available
+        if (resource.path) {
+            const index = this.findChangeIndexByPath(resource.path, resource_type);
+            if (index !== null) {
+                LOGGER.debug(
+                    "changeFromResource: resolved change by path fallback",
+                    resource_type,
+                    resource.path
+                );
+                return changes[index];
+            }
+            LOGGER.warn("changeFromResource: could not resolve change for path", resource_type, resource.path);
+        }
+
+        return null;
     }
 
-    public changeFromChangeType(resource: ChangeType): Change {
-        const change = this.getChanges(resource.type)[resource.changeIndex];
-        return change;
+    public changeFromChangeType(resource: ChangeType): Change | null {
+        const changes = this.getChanges(resource.type);
+
+        if (resource.changeIndex >= 0 && resource.changeIndex < changes.length) {
+            const by_index = changes[resource.changeIndex];
+            if (!resource.path || by_index.uri.path === resource.path) {
+                return by_index;
+            }
+        }
+
+        if (resource.path) {
+            const index = this.findChangeIndexByPath(resource.path, resource.type);
+            if (index !== null) {
+                LOGGER.debug(
+                    "changeFromChangeType: resolved change by path fallback",
+                    resource.type,
+                    resource.path
+                );
+                return changes[index];
+            }
+            LOGGER.warn("changeFromChangeType: could not resolve change for path", resource.type, resource.path);
+        }
+
+        return null;
     }
 
     public commitFromResource(resource: ResourceType): Commit | null {

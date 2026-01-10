@@ -60,6 +60,7 @@ export class DiffModel {
                         type: diff_type,
                         changeIndex: change_index,
                         listIndex: list_index,
+                        path: c.uri.path,
                         diffIndex: i,
                         diffLineIndex: line,
                     },
