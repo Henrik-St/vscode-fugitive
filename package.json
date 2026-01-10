@@ -379,6 +379,7 @@
         "test-install": "pnpm run vscode:package && code --install-extension $(ls ./*.vsix) && rm $(ls ./*.vsix)"
     },
     "devDependencies": {
+        "@types/mocha": "^10.0.10",
         "@types/node": "^25",
         "@types/vscode": "^1.107.0",
         "@typescript-eslint/eslint-plugin": "^6.21.0",
