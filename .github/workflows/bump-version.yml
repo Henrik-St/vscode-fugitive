@@ -23,6 +23,6 @@ jobs:
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               with:
-                  tag-prefix: ""
                   default: patch
                   commit-message: "ci: bump version to {{version}}"
+                  skip-tag: true
