@@ -14,7 +14,7 @@
         "url": "https://github.com/Henrik-St/vscode-fugitive/issues"
     },
     "engines": {
-        "vscode": "^1.74.0"
+        "vscode": "^1.107.0"
     },
     "categories": [
         "SCM Providers"
