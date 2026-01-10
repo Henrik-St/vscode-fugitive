@@ -5,8 +5,8 @@ jobs:
         if: "${{ github.event.pull_request.head.repo.full_name == github.repository }}"
         runs-on: ubuntu-latest
         steps:
-        - uses: actions/checkout@v6
-        - name: Install pnpm
-          run: npm install -g pnpm@latest-10
-        - name: Install and build
-          run: pnpm install && pnpm run compile && pnpm run lint && pnpm run test:format
+            - uses: actions/checkout@v6
+            - name: Install pnpm
+              run: npm install -g pnpm@latest-10
+            - name: Install and build
+              run: pnpm install && pnpm run compile && pnpm run lint && pnpm run test:format
