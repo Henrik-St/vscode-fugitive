@@ -278,11 +278,9 @@ export class GitWrapper {
         if (resource.path) {
             const index = this.findChangeIndexByPath(resource.path, resource_type);
             if (index !== null) {
-                LOGGER.debug(
-                    "changeFromResource: resolved change by path fallback",
-                    resource_type,
-                    resource.path
-                );
+                LOGGER.warn("changeFromResource: resolved change by path fallback", resource_type, resource.path);
+                LOGGER.warn("changeFromResource: resource:", resource);
+                LOGGER.warn("changeFromResource: repo:", this.repo.rootUri);
                 return changes[index];
             }
             LOGGER.warn("changeFromResource: could not resolve change for path", resource_type, resource.path);
@@ -304,11 +302,7 @@ export class GitWrapper {
         if (resource.path) {
             const index = this.findChangeIndexByPath(resource.path, resource.type);
             if (index !== null) {
-                LOGGER.debug(
-                    "changeFromChangeType: resolved change by path fallback",
-                    resource.type,
-                    resource.path
-                );
+                LOGGER.debug("changeFromChangeType: resolved change by path fallback", resource.type, resource.path);
                 return changes[index];
             }
             LOGGER.warn("changeFromChangeType: could not resolve change for path", resource.type, resource.path);
