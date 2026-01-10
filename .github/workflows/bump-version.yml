@@ -1,11 +1,9 @@
 name: Bump Extension Version
-
 on:
     push:
         branches:
             - main
     workflow_dispatch:
-
 jobs:
     bump-version:
         runs-on: ubuntu-latest
