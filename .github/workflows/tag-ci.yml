@@ -8,9 +8,11 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v6
-            - name: "Package"
+            - name: Install pnpm
+              run: npm install -g pnpm@latest-10
+            - name: Package
               run: |
-                  npm install && npm run compile && npm run lint && npm run vscode:package
+                  pnpm install && pnpm run compile && pnpm run lint && pnpm run vscode:package
             - name: Create Release
               id: create_release
               uses: actions/create-release@v1

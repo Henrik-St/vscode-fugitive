@@ -2,7 +2,7 @@
     "name": "vscode-fugitive",
     "displayName": "Fugitive for VS Code",
     "description": "This is a simple extension that adds a subset of the fugitive plugin to VS Code",
-    "version": "0.4.8",
+    "version": "0.4.13",
     "publisher": "hnrk-str",
     "private": true,
     "license": "MIT",
@@ -14,7 +14,7 @@
         "url": "https://github.com/Henrik-St/vscode-fugitive/issues"
     },
     "engines": {
-        "vscode": "^1.74.0"
+        "vscode": "^1.107.0"
     },
     "categories": [
         "SCM Providers"
@@ -362,23 +362,24 @@
         }
     },
     "scripts": {
-        "vscode:prepublish": "npm run compile",
+        "vscode:prepublish": "pnpm run compile",
         "vscode:package": "vsce package",
-        "vscode:publish": "vsce publish && npm run tag",
+        "vscode:publish": "vsce publish && pnpm run tag",
         "compile": "tsc -p ./",
         "lint": "eslint \"src/**/*.ts\"",
         "format": "prettier . --write",
         "test:format": "prettier . --check",
         "watch": "tsc -watch -p ./",
         "tag": "git tag $npm_package_version",
-        "patch": "npm version patch --no-git-tag-version",
-        "minor": "npm version minor --no-git-tag-version",
-        "major": "npm version major --no-git-tag-version",
-        "pretest": "npm run compile",
+        "patch": "pnpm version patch --no-git-tag-version",
+        "minor": "pnpm version minor --no-git-tag-version",
+        "major": "pnpm version major --no-git-tag-version",
+        "pretest": "pnpm run compile",
         "test": "vscode-test",
-        "test-install": "npm run vscode:package && code --install-extension $(ls ./*.vsix) && rm $(ls ./*.vsix)"
+        "test-install": "pnpm run vscode:package && code --install-extension $(ls ./*.vsix) && rm $(ls ./*.vsix)"
     },
     "devDependencies": {
+        "@types/mocha": "^10.0.10",
         "@types/node": "^25",
         "@types/vscode": "^1.107.0",
         "@typescript-eslint/eslint-plugin": "^6.21.0",

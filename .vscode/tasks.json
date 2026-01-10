@@ -4,8 +4,9 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "type": "npm",
-            "script": "watch",
+            "type": "shell",
+            "command": "pnpm",
+            "args": ["watch"],
             "problemMatcher": "$tsc-watch",
             "isBackground": true,
             "presentation": {
