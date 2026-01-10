@@ -160,12 +160,16 @@ export class Cursor {
                 }
                 path = this.previousChange.originalUri.path;
                 const dir = dirname(path).replace(this.git.rootUri, "");
-                const first_dir_entry_offset = ui_model.findIndex(
-                    ([type]) =>
-                        type.type === change_type &&
-                        dirname(this.git.changeFromChangeType(type).originalUri.path).replace(this.git.rootUri, "") ===
-                            dir
-                );
+                const first_dir_entry_offset = ui_model.findIndex(([type]) => {
+                    if (type.type !== change_type) {
+                        return false;
+                    }
+                    const change = this.git.changeFromChangeType(type);
+                    if (!change) {
+                        return false;
+                    }
+                    return dirname(change.originalUri.path).replace(this.git.rootUri, "") === dir;
+                });
                 if (first_dir_entry_offset !== -1) {
                     const num_changes_in_dir = changes.filter(
                         (c) => dirname(c.originalUri.path).replace(this.git.rootUri, "") === dir

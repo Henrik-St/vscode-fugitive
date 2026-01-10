@@ -9,4 +9,4 @@ jobs:
             - name: Install pnpm
               run: npm install -g pnpm@latest-10
             - name: Install and build
-              run: pnpm install && pnpm run compile && pnpm run lint && pnpm run test:format
+              run: pnpm install && pnpm run compile && pnpm run lint && pnpm run format

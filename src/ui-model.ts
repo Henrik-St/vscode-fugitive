@@ -70,7 +70,7 @@ export class UIModel {
             }
             const commits = this.git.cachedUnpushedCommits.map(
                 (c, i): UIModelItem => [
-                    { type: "Unpushed", changeIndex: i, listIndex: i },
+                    { type: "Unpushed", changeIndex: i, listIndex: i, path: "" },
                     c.hash.slice(0, 8) + " " + c.message.split("\n")[0].slice(0, 80),
                 ]
             );
@@ -142,7 +142,12 @@ export class UIModel {
     }
 
     private changesToListModel(changes: Change[], type: ChangeType["type"]): UIModelItem[] {
-        return changes.map((c, i): UIModelItem => [{ type: type, changeIndex: i, listIndex: i }, this.renderChange(c)]);
+        return changes.map(
+            (c, i): UIModelItem => [
+                { type: type, changeIndex: i, listIndex: i, path: c.uri.path },
+                this.renderChange(c),
+            ]
+        );
     }
 
     public toString(): string {

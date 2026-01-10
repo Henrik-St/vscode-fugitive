@@ -125,6 +125,7 @@ export class TreeModel {
                     changeIndex: i,
                     type: type,
                     listIndex: current_tree.children.size, // assumes the list is sorted lexicographically
+                    path: c.uri.path,
                 });
         }
         return tree;
