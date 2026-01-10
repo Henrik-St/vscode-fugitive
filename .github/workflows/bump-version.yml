@@ -26,5 +26,3 @@ jobs:
                   tag-prefix: ""
                   default: patch
                   commit-message: "ci: bump version to {{version}}"
-                  target-branch: |
-                      main
