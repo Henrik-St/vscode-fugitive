@@ -1,6 +1,6 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
-import { execSync } from "child_process";
+import { exec, execSync } from "child_process";
 import { cmdAtLine } from "./utils.test";
 import {
     close,
@@ -18,13 +18,31 @@ import {
 import { cursorStage, cursorUnstage } from "./cursor.test";
 import { gitIgnore, openDiff, openFile } from "./open_files.test";
 
-const test_repo_path = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
+const test_repo_path =
+    vscode.workspace.workspaceFolders?.[0].uri.fsPath ?? `${execSync(`pwd`).toString().trim()}/git-test`;
+const test_repo_remote_path =
+    vscode.workspace.workspaceFolders?.[0].uri.fsPath ?? `${execSync(`pwd`).toString().trim()}/git-test`;
 
 suite("Extension Test Suite", () => {
     suiteSetup(async function () {
         console.info("Running suiteSetup");
-        execSync(`cd ${test_repo_path} && git reset && git checkout -- . && git clean -fd && git clean -f`); // two cleans to account for gitignore
+        console.info(`Setting up test repo at ${test_repo_path}`);
+        execSync(
+            `rm -rf ${test_repo_remote_path} && mkdir -p ${test_repo_remote_path} && cd ${test_repo_remote_path} && git init --initial-branch=egal`
+        );
+        execSync(
+            `rm -rf ${test_repo_path} && mkdir -p ${test_repo_path} && cd ${test_repo_path} && git init && git remote add rem ${test_repo_remote_path} && git commit --allow-empty -m "m" && git push --set-upstream rem main`
+        );
         this.timeout(5000);
+        execSync(`yes change | head -n 10 >> ${test_repo_path}/unstaged.txt`);
+        execSync(`yes change | head -n 10 >> ${test_repo_path}/staged.txt`);
+        execSync(`cd ${test_repo_path} && git add --all`);
+        try {
+            const stdout = execSync(`cd ${test_repo_path} && git commit -m 'Initial_commit'`, { encoding: "utf-8" });
+            console.info(stdout);
+        } catch (error) {
+            console.error("Error during initial commit:", error);
+        }
         execSync(`cd ${test_repo_path} && touch untracked1.txt untracked2.txt untracked3.txt`);
         execSync(`echo change >> ${test_repo_path}/unstaged.txt`);
         execSync(`echo change >> ${test_repo_path}/staged.txt`);
@@ -33,7 +51,8 @@ suite("Extension Test Suite", () => {
     });
     suiteTeardown(function () {
         console.info("Running suiteTeardown");
-        execSync(`cd ${test_repo_path} && git reset && git checkout -- . && git clean -fd && git clean -f`); // two cleans to account for gitignore
+        execSync(`rm -rf ${test_repo_path}`);
+        execSync(`rm -rf ${test_repo_remote_path}`);
         console.info("All tests done!");
     });
 
