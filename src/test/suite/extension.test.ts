@@ -1,7 +1,7 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
-import { exec, execSync } from "child_process";
-import { cmdAtLine } from "./utils.test";
+import { execSync } from "child_process";
+import { cmdAtLine, wait } from "./utils.test";
 import {
     close,
     goDown,
@@ -18,41 +18,48 @@ import {
 import { cursorStage, cursorUnstage } from "./cursor.test";
 import { gitIgnore, openDiff, openFile } from "./open_files.test";
 
-const test_repo_path =
-    vscode.workspace.workspaceFolders?.[0].uri.fsPath ?? `${execSync(`pwd`).toString().trim()}/git-test`;
-const test_repo_remote_path =
-    vscode.workspace.workspaceFolders?.[0].uri.fsPath ?? `${execSync(`pwd`).toString().trim()}/git-test`;
+function exec(command: string) {
+    try {
+        const stdout = execSync(command, { encoding: "utf-8" });
+        stdout && console.info(stdout);
+    } catch (error) {
+        console.error(error);
+    }
+}
+const test_repo_path = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
+const test_repo_remote_path = vscode.workspace.workspaceFolders?.[0].uri.fsPath + "../git-remote-test";
 
 suite("Extension Test Suite", () => {
     suiteSetup(async function () {
         console.info("Running suiteSetup");
         console.info(`Setting up test repo at ${test_repo_path}`);
-        execSync(
-            `rm -rf ${test_repo_remote_path} && mkdir -p ${test_repo_remote_path} && cd ${test_repo_remote_path} && git init --initial-branch=egal`
+        exec(`rm -rf ${test_repo_remote_path}`);
+        exec(`mkdir -p ${test_repo_remote_path}`);
+        exec(`cd ${test_repo_remote_path} && git init --initial-branch=egal`);
+        exec(`find ${test_repo_path} -mindepth 1 -delete`);
+        exec(`mkdir -p ${test_repo_path}`);
+        exec(`touch ${test_repo_path}/.gitkeep`);
+        exec(
+            `cd ${test_repo_path} && git init && git remote add rem ${test_repo_remote_path} && git commit --allow-empty -m "m" && git push --set-upstream rem main`
         );
-        execSync(
-            `rm -rf ${test_repo_path} && mkdir -p ${test_repo_path} && cd ${test_repo_path} && git init && git remote add rem ${test_repo_remote_path} && git commit --allow-empty -m "m" && git push --set-upstream rem main`
-        );
-        this.timeout(5000);
-        execSync(`yes change | head -n 10 >> ${test_repo_path}/unstaged.txt`);
-        execSync(`yes change | head -n 10 >> ${test_repo_path}/staged.txt`);
-        execSync(`cd ${test_repo_path} && git add --all`);
-        try {
-            const stdout = execSync(`cd ${test_repo_path} && git commit -m 'Initial_commit'`, { encoding: "utf-8" });
-            console.info(stdout);
-        } catch (error) {
-            console.error("Error during initial commit:", error);
-        }
-        execSync(`cd ${test_repo_path} && touch untracked1.txt untracked2.txt untracked3.txt`);
-        execSync(`echo change >> ${test_repo_path}/unstaged.txt`);
-        execSync(`echo change >> ${test_repo_path}/staged.txt`);
-        execSync(`cd ${test_repo_path} && git add staged.txt`);
+        await wait(500);
+        exec(`yes change | head -n 10 >> ${test_repo_path}/unstaged.txt`);
+        exec(`yes change | head -n 10 >> ${test_repo_path}/staged.txt`);
+        exec(`cd ${test_repo_path} && git add --all`);
+        exec(`cd ${test_repo_path} && git commit -m 'Initial_commit'`);
+        exec(`cd ${test_repo_path} && touch untracked1.txt untracked2.txt untracked3.txt`);
+        exec(`echo change >> ${test_repo_path}/unstaged.txt`);
+        exec(`echo change >> ${test_repo_path}/staged.txt`);
+        exec(`cd ${test_repo_path} && git add staged.txt`);
+        await wait(500);
         await vscode.commands.executeCommand("fugitive.open");
+        await wait(500);
     });
     suiteTeardown(function () {
         console.info("Running suiteTeardown");
-        execSync(`rm -rf ${test_repo_path}`);
         execSync(`rm -rf ${test_repo_remote_path}`);
+        execSync(`cd ${test_repo_path} && find . -mindepth 1 -delete`);
+        execSync(`touch ${test_repo_path}/.gitkeep`);
         console.info("All tests done!");
     });
 
