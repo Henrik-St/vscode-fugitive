@@ -107,6 +107,7 @@ export function activate({ subscriptions }: vscode.ExtensionContext): void {
     }, "fugitive.refresh");
     add_subscription(async () => provider!.toggleDirectory(), "fugitive.toggleDirectory");
     add_subscription(async () => diffview_provider!.toggleDirectory(), "fugitive.toggleDirectoryDiffView");
+    add_subscription(async () => diffview_provider!.toggleInlineDiff(), "fugitive.toggleInlineDiffDiffView");
     add_subscription(async () => provider!.goUp(), "fugitive.goUp");
     add_subscription(async () => provider!.goDown(), "fugitive.goDown");
     add_subscription(async () => provider!.goPreviousHunk(), "fugitive.previousHunk");

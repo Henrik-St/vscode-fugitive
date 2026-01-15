@@ -58,6 +58,11 @@
                 "when": "resourceScheme == fugitive"
             },
             {
+                "command": "fugitive.toggleInlineDiffDiffView",
+                "title": "Fugitive: Toggle inline diff",
+                "when": "resourceScheme == Fugitive-DiffView"
+            },
+            {
                 "command": "fugitive.commit",
                 "title": "Fugitive: commit",
                 "when": "resourceScheme == fugitive"
@@ -161,6 +166,11 @@
                 "command": "fugitive.toggleInlineDiff",
                 "key": "shift+0",
                 "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
+            },
+            {
+                "command": "fugitive.toggleInlineDiffDiffView",
+                "key": "shift+0",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == Fugitive-DiffView && editorTextFocus"
             },
             {
                 "command": "fugitive.openDiff",
@@ -310,6 +320,11 @@
             {
                 "command": "fugitive.diffviewOpenFile",
                 "key": "enter",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == Fugitive-DiffView && editorTextFocus"
+            },
+            {
+                "command": "fugitive.diffviewOpenFile",
+                "key": "d v",
                 "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == Fugitive-DiffView && editorTextFocus"
             }
         ],

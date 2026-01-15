@@ -37,6 +37,16 @@ export class DiffViewProvider implements vscode.TextDocumentContentProvider {
                 if (doc) {
                     await this.git.updateBranchInfo();
                     await this.git.updateDiffView(this.refName);
+                    await this.git.updateDiffMap("DiffViewChange");
+
+                    // Clean up opened diffs that are no longer in the diff view
+                    const delete_opened_diffview_diffs = Array.from(
+                        this.uiModel.diffModel.getOpenedDiffViewChanges().keys()
+                    ).filter((k) => !this.git.cachedDiffViewDiffs.has(k));
+                    for (const key of delete_opened_diffview_diffs) {
+                        this.uiModel.diffModel.getOpenedDiffViewChanges().delete(key);
+                    }
+
                     this.onDidChangeEmitter.fire(doc.uri);
                 }
             });
@@ -142,11 +152,22 @@ export class DiffViewProvider implements vscode.TextDocumentContentProvider {
             return Promise.reject("Cannot create diff view from detached HEAD state.");
         }
 
-        this.git.updateDiffView(branch);
+        await this.git.updateDiffView(branch);
         this.refName = branch;
+
+        await this.git.updateDiffMap("DiffViewChange");
+
+        // Clean up opened diffs that are no longer in the diff view
+        const delete_opened_diffview_diffs = Array.from(
+            this.uiModel.diffModel.getOpenedDiffViewChanges().keys()
+        ).filter((k) => !this.git.cachedDiffViewDiffs.has(k));
+        for (const key of delete_opened_diffview_diffs) {
+            this.uiModel.diffModel.getOpenedDiffViewChanges().delete(key);
+        }
 
         let doc = vscode.workspace.textDocuments.find((doc) => doc.uri === DiffViewProvider.uri);
         if (!doc) {
+            this.uiModel.diffModel.clearOpenedDiffViewChanges();
             doc = await vscode.workspace.openTextDocument(DiffViewProvider.uri);
         }
 
@@ -217,6 +238,37 @@ export class DiffViewProvider implements vscode.TextDocumentContentProvider {
     async toggleView(view_style?: ViewStyle): Promise<void> {
         this.getResourceUnderCursor(); // updates previouse resource
         await toggleViewStyle(view_style);
+        this.onDidChangeEmitter.fire(DiffViewProvider.uri);
+    }
+
+    async toggleInlineDiff(): Promise<void> {
+        LOGGER.debug("DiffViewProvider.toggleInlineDiff");
+        const resource = this.getResourceUnderCursor();
+
+        switch (resource.type) {
+            case "DiffViewChange": {
+                const change = this.git.changeFromResource(resource);
+                if (!change) {
+                    LOGGER.warn("toggleInlineDiff: No DiffViewChange found for index " + resource.changeIndex);
+                    return;
+                }
+                if (this.uiModel.diffModel.getOpenedDiffViewChanges().has(change.uri.path)) {
+                    this.uiModel.diffModel.getOpenedDiffViewChanges().delete(change.uri.path);
+                } else {
+                    this.uiModel.diffModel.getOpenedDiffViewChanges().add(change.uri.path);
+                }
+                break;
+            }
+            case "DiffViewDiff": {
+                const change = this.git.changeFromResource(resource);
+                if (!change) {
+                    LOGGER.warn("toggleInlineDiff: No DiffViewDiff found for index " + resource.changeIndex);
+                    return;
+                }
+                this.uiModel.diffModel.getOpenedDiffViewChanges().delete(change.uri.path);
+                break;
+            }
+        }
         this.onDidChangeEmitter.fire(DiffViewProvider.uri);
     }
 

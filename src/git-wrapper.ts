@@ -24,6 +24,7 @@ export class GitWrapper {
     cachedUnpushedCommits: Commit[];
     cachedUnstagedDiffs: Map<string, string[]>;
     cachedStagedDiffs: Map<string, string[]>;
+    cachedDiffViewDiffs: Map<string, string[]>;
     cachedDiffViewChanges: Change[];
 
     constructor(git_api: GitAPI) {
@@ -34,6 +35,7 @@ export class GitWrapper {
         this.cachedUnpushedCommits = [];
         this.cachedUnstagedDiffs = new Map<string, string[]>();
         this.cachedStagedDiffs = new Map<string, string[]>();
+        this.cachedDiffViewDiffs = new Map<string, string[]>();
         this.cachedDiffViewChanges = [];
     }
 
@@ -122,14 +124,29 @@ export class GitWrapper {
         return this.repo.state.mergeChanges;
     }
 
-    public async updateDiffMap(type: "Unstaged" | "Staged"): Promise<void> {
+    public async updateDiffMap(type: "Unstaged" | "Staged" | "DiffViewChange"): Promise<void> {
         const index = type === "Staged";
         let current_path = "";
-        const diffs = (await this.repo.diff(index)).split("\n");
-        diffs.pop(); // last line is always empty
+        let diffs: string;
+
+        if (type === "DiffViewChange") {
+            if (!this.diffViewMergeBaseCommit) {
+                return Promise.reject("No DiffView merge base commit");
+            }
+            const changes = await this.repo.diffBetween(this.diffViewMergeBaseCommit, "HEAD");
+            const diffTexts = await Promise.all(
+                changes.map((change) => this.repo.diffBetween(this.diffViewMergeBaseCommit!, "HEAD", change.uri.path))
+            );
+            diffs = diffTexts.join("\n");
+        } else {
+            diffs = await this.repo.diff(index);
+        }
+
+        const diffLines = diffs.split("\n");
+        diffLines.pop(); // last line is always empty
         const result_map = new Map<string, string[]>();
         let diff_count = -1;
-        for (const line of diffs) {
+        for (const line of diffLines) {
             if (line.startsWith("diff --git")) {
                 const match = line.match(/diff --git \w\/(.*) \w\/(.*)/);
                 current_path = match ? this.rootUri + "/" + match[1] : "";
@@ -154,7 +171,9 @@ export class GitWrapper {
                 }
             }
         }
-        if (index) {
+        if (type === "DiffViewChange") {
+            this.cachedDiffViewDiffs = result_map;
+        } else if (index) {
             this.cachedStagedDiffs = result_map;
         } else {
             this.cachedUnstagedDiffs = result_map;

@@ -4,16 +4,17 @@ import { DiffType } from "./resource";
 import { UIModelItem } from "./ui-model";
 import { Change } from "./vscode-git";
 
-type DiffChangeTypes = "Unstaged" | "Staged";
+type DiffChangeTypes = "Unstaged" | "Staged" | "DiffViewChange";
 
 function changeTypeToDiffType(type: DiffChangeTypes): DiffType["type"] {
-    return type === "Unstaged" ? "UnstagedDiff" : "StagedDiff";
+    return type === "Unstaged" ? "UnstagedDiff" : type === "Staged" ? "StagedDiff" : "DiffViewDiff";
 }
 
 export class DiffModel {
     private readonly git: GitWrapper;
     private openedChanges: Set<string>;
     private openedIndexChanges: Set<string>;
+    private openedDiffViewChanges: Set<string>;
 
     constructor() {
         if (!GIT) {
@@ -23,6 +24,7 @@ export class DiffModel {
 
         this.openedChanges = new Set();
         this.openedIndexChanges = new Set();
+        this.openedDiffViewChanges = new Set();
     }
 
     public getOpenedChanges(): Set<string> {
@@ -33,6 +35,10 @@ export class DiffModel {
         return this.openedIndexChanges;
     }
 
+    public getOpenedDiffViewChanges(): Set<string> {
+        return this.openedDiffViewChanges;
+    }
+
     public clearOpenedChanges(): void {
         return this.openedChanges.clear();
     }
@@ -41,12 +47,16 @@ export class DiffModel {
         return this.openedIndexChanges.clear();
     }
 
+    public clearOpenedDiffViewChanges(): void {
+        return this.openedDiffViewChanges.clear();
+    }
+
     private getDiffModel(
         c: Change,
         change_index: number,
         list_index: number,
-        change_type: "Staged" | "Unstaged",
-        diff_type: "StagedDiff" | "UnstagedDiff"
+        change_type: "Staged" | "Unstaged" | "DiffViewChange",
+        diff_type: "StagedDiff" | "UnstagedDiff" | "DiffViewDiff"
     ): UIModelItem[] {
         const has_diff = this.getOpenedDiffMap(change_type).has(c.uri.path);
         if (!has_diff) {
@@ -72,8 +82,18 @@ export class DiffModel {
     }
 
     private getOpenedDiffMap(type: DiffChangeTypes): Map<string, string[]> {
-        const opened_map = type === "Staged" ? this.openedIndexChanges : this.openedChanges;
-        const diff_map = type === "Staged" ? this.git.cachedStagedDiffs : this.git.cachedUnstagedDiffs;
+        const opened_map =
+            type === "Staged"
+                ? this.openedIndexChanges
+                : type === "Unstaged"
+                  ? this.openedChanges
+                  : this.openedDiffViewChanges;
+        const diff_map =
+            type === "Staged"
+                ? this.git.cachedStagedDiffs
+                : type === "Unstaged"
+                  ? this.git.cachedUnstagedDiffs
+                  : this.git.cachedDiffViewDiffs;
         const map = new Map<string, string[]>();
         for (const m of diff_map) {
             opened_map.has(m[0]) && map.set(m[0], m[1]);
@@ -112,6 +132,7 @@ export class DiffModel {
         const new_model: UIModelItem[] = [...ui_model];
         this._injectDiffs(new_model, "Unstaged");
         this._injectDiffs(new_model, "Staged");
+        this._injectDiffs(new_model, "DiffViewChange");
         return new_model;
     }
 }
