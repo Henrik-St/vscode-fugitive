@@ -118,7 +118,7 @@ export class DiffModel {
             const change = this.git.getChanges(type)[change_index];
             const ui_item = new_model[insert_index][0];
             if (ui_item.type !== type) {
-                LOGGER.error("Could not find change of diff: " + diff[0]);
+                LOGGER.error("This can never happen:" + diff[0]);
                 continue;
             }
             const list_index = ui_item.listIndex;

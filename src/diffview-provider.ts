@@ -281,4 +281,22 @@ export class DiffViewProvider implements vscode.TextDocumentContentProvider {
     private getResourceUnderCursor(): ResourceType {
         return this.cursor.getResourceUnderCursor(this.uiModel);
     }
+
+    goPreviousHunk(): void {
+        const current_line = vscode.window.activeTextEditor?.selection.active.line;
+        if (!current_line && current_line !== 0) {
+            LOGGER.info("no current line");
+            return;
+        }
+        this.uiModel.goPreviousHunk(current_line!);
+    }
+
+    goNextHunk(): void {
+        const current_line = vscode.window.activeTextEditor?.selection.active.line;
+        if (!current_line && current_line !== 0) {
+            LOGGER.info("no current line");
+            return;
+        }
+        this.uiModel.goNextHunk(current_line!);
+    }
 }

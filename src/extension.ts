@@ -110,6 +110,8 @@ export function activate({ subscriptions }: vscode.ExtensionContext): void {
     add_subscription(async () => provider!.goDown(), "fugitive.goDown");
     add_subscription(async () => provider!.goPreviousHunk(), "fugitive.previousHunk");
     add_subscription(async () => provider!.goNextHunk(), "fugitive.nextHunk");
+    add_subscription(async () => diffview_provider!.goPreviousHunk(), "fugitive.previousHunkDiffView");
+    add_subscription(async () => diffview_provider!.goNextHunk(), "fugitive.nextHunkDiffView");
     add_subscription(async () => provider!.goUnstaged(false), "fugitive.goUntracked");
     add_subscription(async () => provider!.goUnstaged(true), "fugitive.goUnstaged");
     add_subscription(async () => provider!.goUnpushed(), "fugitive.goUnpushed");

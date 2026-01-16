@@ -263,6 +263,16 @@
                 "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
             },
             {
+                "command": "fugitive.previousHunkDiffView",
+                "key": "shift+8",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == Fugitive-DiffView && editorTextFocus"
+            },
+            {
+                "command": "fugitive.nextHunkDiffView",
+                "key": "shift+9",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == Fugitive-DiffView && editorTextFocus"
+            },
+            {
                 "command": "fugitive.checkoutBranch",
                 "key": "c o b",
                 "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"

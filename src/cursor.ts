@@ -137,6 +137,7 @@ export class Cursor {
             case "UnstagedDiff":
             case "Staged":
             case "DiffViewChange":
+            case "DiffViewDiff":
             case "StagedDiff": {
                 change_type = diffTypeToChangeType(this.previousResource.type);
                 changes = this.git.getChanges(change_type);
@@ -192,6 +193,7 @@ export class Cursor {
                 path = this.previousResource.path;
                 break;
             }
+            case "DiffViewHeader":
             case "UntrackedHeader":
             case "UnstagedHeader":
             case "StagedHeader": {
