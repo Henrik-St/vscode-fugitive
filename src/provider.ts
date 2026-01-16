@@ -5,7 +5,7 @@ import { encodeCommit } from "./diff-provider";
 import { ResourceType } from "./resource";
 import { UIModel } from "./ui-model";
 import { GIT, LOGGER } from "./extension";
-import { Cursor } from "./cursor";
+import { Cursor, syncCursorWithView } from "./cursor";
 import { getViewStyle, toggleViewStyle, ViewStyle } from "./configurations";
 
 export class Provider implements vscode.TextDocumentContentProvider {
@@ -61,7 +61,14 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 LOGGER.debug("release lock");
             }
         });
-        this.subscriptions = [...git_disposables, doc_dispose];
+
+        const dispo = vscode.workspace.onDidOpenTextDocument(async (doc) => {
+            if (doc.uri.path.endsWith("/COMMIT_EDITMSG")) {
+                LOGGER.debug("Override COMMIT_EDITMSG cursor");
+                syncCursorWithView(0);
+            }
+        });
+        this.subscriptions = [...git_disposables, doc_dispose, dispo];
     }
 
     private fireOnDidChange(): void {
