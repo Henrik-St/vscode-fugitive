@@ -96,7 +96,7 @@ export class DiffModel {
                   : this.git.cachedDiffViewDiffs;
         const map = new Map<string, string[]>();
         for (const m of diff_map) {
-            opened_map.has(m[0]) && map.set(m[0], m[1]);
+            if (opened_map.has(m[0])) map.set(m[0], m[1]);
         }
         return map;
     }

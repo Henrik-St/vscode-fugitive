@@ -9,9 +9,7 @@ import { syncCursorWithView } from "./cursor";
 import { ViewStyle } from "./configurations";
 
 //GLOBAL DEPENDENCIES
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export let GIT: GitWrapper | null = null;
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const LOGGER: vscode.LogOutputChannel = vscode.window.createOutputChannel("Fugitive", { log: true });
 
 export function activate({ subscriptions }: vscode.ExtensionContext): void {

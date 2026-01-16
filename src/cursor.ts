@@ -209,7 +209,7 @@ export class Cursor {
         }
         let new_line = -1;
         const path_split = path.split("/");
-        is_file_type && path_split.pop(); // remove filename
+        if (is_file_type) path_split.pop(); // remove filename
         const dir = path_split.join("/");
 
         // get change in same directory
