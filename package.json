@@ -58,6 +58,11 @@
                 "when": "resourceScheme == fugitive"
             },
             {
+                "command": "fugitive.toggleInlineDiffDiffView",
+                "title": "Fugitive: Toggle inline diff",
+                "when": "resourceScheme == Fugitive-DiffView"
+            },
+            {
                 "command": "fugitive.commit",
                 "title": "Fugitive: commit",
                 "when": "resourceScheme == fugitive"
@@ -163,6 +168,11 @@
                 "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
             },
             {
+                "command": "fugitive.toggleInlineDiffDiffView",
+                "key": "shift+0",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == Fugitive-DiffView && editorTextFocus"
+            },
+            {
                 "command": "fugitive.openDiff",
                 "key": "d v",
                 "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
@@ -253,6 +263,16 @@
                 "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
             },
             {
+                "command": "fugitive.previousHunkDiffView",
+                "key": "shift+8",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == Fugitive-DiffView && editorTextFocus"
+            },
+            {
+                "command": "fugitive.nextHunkDiffView",
+                "key": "shift+9",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == Fugitive-DiffView && editorTextFocus"
+            },
+            {
                 "command": "fugitive.checkoutBranch",
                 "key": "c o b",
                 "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == fugitive && editorTextFocus"
@@ -310,6 +330,11 @@
             {
                 "command": "fugitive.diffviewOpenFile",
                 "key": "enter",
+                "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == Fugitive-DiffView && editorTextFocus"
+            },
+            {
+                "command": "fugitive.diffviewOpenFile",
+                "key": "d v",
                 "when": "(vim.mode == 'Normal' || !vim.mode) && resourceScheme == Fugitive-DiffView && editorTextFocus"
             }
         ],
@@ -376,16 +401,19 @@
         "test-install": "pnpm run vscode:package && code --install-extension $(ls ./*.vsix) && rm $(ls ./*.vsix)"
     },
     "devDependencies": {
+        "@eslint/eslintrc": "^3.3.3",
+        "@eslint/js": "^9.39.2",
         "@types/mocha": "^10.0.10",
         "@types/node": "^25",
         "@types/vscode": "^1.107.0",
         "@typescript-eslint/eslint-plugin": "^6.21.0",
-        "@typescript-eslint/parser": "^6.7.0",
+        "@typescript-eslint/parser": "^6.21.0",
         "@vscode/test-cli": "^0.0.12",
         "@vscode/test-electron": "^2.5.2",
         "@vscode/vsce": "^3.6.0",
-        "eslint": "^8.57.1",
+        "eslint": "^9.39.2",
         "prettier": "^3.7.4",
-        "typescript": "^5.9.3"
+        "typescript": "^5.9.3",
+        "typescript-eslint": "^8.53.0"
     }
 }

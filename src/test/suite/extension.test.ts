@@ -21,7 +21,7 @@ import { gitIgnore, openDiff, openFile } from "./open_files.test";
 function exec(command: string) {
     try {
         const stdout = execSync(command, { encoding: "utf-8" });
-        stdout && console.info(stdout);
+        if (stdout) console.info(stdout);
     } catch (error) {
         console.error(error);
     }

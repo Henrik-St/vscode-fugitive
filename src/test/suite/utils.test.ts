@@ -1,4 +1,4 @@
-import assert = require("assert");
+import * as assert from "assert";
 import * as vscode from "vscode";
 
 export function wait(ms: number): Promise<void> {

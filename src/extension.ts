@@ -9,9 +9,7 @@ import { syncCursorWithView } from "./cursor";
 import { ViewStyle } from "./configurations";
 
 //GLOBAL DEPENDENCIES
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export let GIT: GitWrapper | null = null;
-// eslint-disable-next-line @typescript-eslint/naming-convention
 export const LOGGER: vscode.LogOutputChannel = vscode.window.createOutputChannel("Fugitive", { log: true });
 
 export function activate({ subscriptions }: vscode.ExtensionContext): void {
@@ -107,10 +105,13 @@ export function activate({ subscriptions }: vscode.ExtensionContext): void {
     }, "fugitive.refresh");
     add_subscription(async () => provider!.toggleDirectory(), "fugitive.toggleDirectory");
     add_subscription(async () => diffview_provider!.toggleDirectory(), "fugitive.toggleDirectoryDiffView");
+    add_subscription(async () => diffview_provider!.toggleInlineDiff(), "fugitive.toggleInlineDiffDiffView");
     add_subscription(async () => provider!.goUp(), "fugitive.goUp");
     add_subscription(async () => provider!.goDown(), "fugitive.goDown");
     add_subscription(async () => provider!.goPreviousHunk(), "fugitive.previousHunk");
     add_subscription(async () => provider!.goNextHunk(), "fugitive.nextHunk");
+    add_subscription(async () => diffview_provider!.goPreviousHunk(), "fugitive.previousHunkDiffView");
+    add_subscription(async () => diffview_provider!.goNextHunk(), "fugitive.nextHunkDiffView");
     add_subscription(async () => provider!.goUnstaged(false), "fugitive.goUntracked");
     add_subscription(async () => provider!.goUnstaged(true), "fugitive.goUnstaged");
     add_subscription(async () => provider!.goUnpushed(), "fugitive.goUnpushed");

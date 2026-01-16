@@ -5,6 +5,7 @@ import { ChangeType, HeaderType, ResourceType, changeTypeToHeaderType } from "./
 import { mapStatustoString } from "./util";
 import { Change } from "./vscode-git";
 import { DiffModel } from "./diff-model";
+import { syncCursorWithView } from "./cursor";
 
 export type UIModelItem = [ResourceType, string];
 
@@ -213,5 +214,92 @@ export class UIModel {
 
     public length(): number {
         return this.uiModel.length;
+    }
+
+    goPreviousHunk(current_line: number): void {
+        if (current_line <= 0) {
+            LOGGER.debug("no current line");
+            return;
+        }
+
+        for (let i = current_line - 1; i >= 0; i--) {
+            const res = this.index(i)[0];
+            const type = res.type;
+            if (
+                type === "HeadUI" ||
+                type === "MergeUI" ||
+                type === "HelpUI" ||
+                type === "BlankUI" ||
+                type === "MergeHeader" ||
+                type === "UntrackedHeader" ||
+                type === "UnstagedHeader" ||
+                type === "StagedHeader" ||
+                type === "UnpushedHeader" ||
+                type === "Unpushed"
+            ) {
+                continue;
+            }
+
+            if (
+                type === "MergeChange" ||
+                type === "Untracked" ||
+                type === "Unstaged" ||
+                type === "Staged" ||
+                type === "DiffViewChange"
+            ) {
+                syncCursorWithView(i);
+                return;
+            } else if (
+                (type === "UnstagedDiff" || type === "StagedDiff" || type === "DiffViewDiff") &&
+                res.diffLineIndex === 0
+            ) {
+                syncCursorWithView(i);
+                return;
+            }
+        }
+    }
+
+    goNextHunk(current_line: number): void {
+        if (!current_line && current_line !== 0) {
+            LOGGER.debug("no current line");
+            return;
+        }
+
+        for (let i = current_line + 1; i < this.length(); i++) {
+            const res = this.index(i)[0];
+            const type = res.type;
+            if (
+                type === "HeadUI" ||
+                type === "MergeUI" ||
+                type === "HelpUI" ||
+                type === "BlankUI" ||
+                type === "MergeHeader" ||
+                type === "UntrackedHeader" ||
+                type === "UnstagedHeader" ||
+                type === "StagedHeader" ||
+                type === "UnpushedHeader" ||
+                type === "Unpushed" ||
+                type === "DiffViewHeader"
+            ) {
+                continue;
+            }
+
+            if (
+                type === "MergeChange" ||
+                type === "Untracked" ||
+                type === "Unstaged" ||
+                type === "Staged" ||
+                type === "DiffViewChange"
+            ) {
+                syncCursorWithView(i);
+                return;
+            } else if (
+                (type === "UnstagedDiff" || type === "StagedDiff" || type === "DiffViewDiff") &&
+                res.diffLineIndex === 0
+            ) {
+                syncCursorWithView(i);
+                return;
+            }
+        }
     }
 }

@@ -10,7 +10,7 @@ const change_types = ["Unstaged", "Staged", "Untracked", "MergeChange", "DiffVie
 export type ChangeCategory = (typeof change_types)[number];
 export type ChangeType = { type: ChangeCategory } & ChangePayload;
 
-const diff_types = ["UnstagedDiff", "StagedDiff"] as const;
+const diff_types = ["UnstagedDiff", "StagedDiff", "DiffViewDiff"] as const;
 export type DiffCategory = (typeof diff_types)[number];
 export type DiffType = { type: DiffCategory } & DiffPayload;
 
@@ -78,6 +78,8 @@ export function diffTypeToHeaderType(type: ResourceType["type"]): HeaderType {
             return "UnstagedHeader";
         case "StagedDiff":
             return "StagedHeader";
+        case "DiffViewDiff":
+            return "DiffViewHeader";
         case "Unstaged":
             return "UnstagedHeader";
         case "Staged":
@@ -102,6 +104,8 @@ export function diffTypeToChangeType(type: ResourceType["type"]): ChangeType["ty
             return "Unstaged";
         case "StagedDiff":
             return "Staged";
+        case "DiffViewDiff":
+            return "DiffViewChange";
         default:
             throw new Error("Invalid Diff Type");
     }

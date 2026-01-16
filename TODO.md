@@ -2,7 +2,6 @@
 
 - Deleting hunks with X (medium)
 - Provide help (g?) as text document (small)
-- collapse untracked files into folders (small)
 - release to openvsx (small)
 - provide older commit msgs in editor (medium)
 - allow actions with selected ranges (medium)
@@ -11,14 +10,12 @@
 - add file mode changes to diffs (medium)
 - impl own git client (way too large)
     - with distinct events
-- Diffview: show submodule ref change
 
 # Bug fixes:
 
 - Add move between directories changes
 - increase performance of tree view and long list of changes
 - vscode.vim bindings with conflicting first letter (g*, c*) do not work anymore (large)
-- cursor moves after opening commit message buffer (small)
 - optimistic changes, dont wait for git refresh -> soften lock (large)
 
 # Test Additions

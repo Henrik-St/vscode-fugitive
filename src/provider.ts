@@ -61,7 +61,14 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 LOGGER.debug("release lock");
             }
         });
-        this.subscriptions = [...git_disposables, doc_dispose];
+
+        const dispo = vscode.workspace.onDidOpenTextDocument(async (doc) => {
+            if (doc.uri.path.endsWith("/COMMIT_EDITMSG")) {
+                LOGGER.debug("Override COMMIT_EDITMSG cursor");
+                syncCursorWithView(0);
+            }
+        });
+        this.subscriptions = [...git_disposables, doc_dispose, dispo];
     }
 
     private fireOnDidChange(): void {
@@ -122,7 +129,9 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 .filter((r) => filepath.includes(r[0]))
                 .sort((r1, r2) => r1[0].length - r2[0].length);
         }
-        repo_list.length > 0 && (await this.git.setRepository(repo_list[0][1]));
+        if (repo_list.length > 0) {
+            await this.git.setRepository(repo_list[0][1]);
+        }
         await this.git.updateBranchInfo();
         await this.updateDiffs();
 
@@ -184,73 +193,20 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     goPreviousHunk(): void {
         const current_line = vscode.window.activeTextEditor?.selection.active.line;
-
-        if (!current_line) {
-            LOGGER.debug("no current line");
+        if (!current_line && current_line !== 0) {
+            LOGGER.info("no current line");
             return;
         }
-
-        for (let i = current_line - 1; i >= 0; i--) {
-            const res = this.uiModel.index(i)[0];
-            const type = res.type;
-            if (
-                type === "HeadUI" ||
-                type === "MergeUI" ||
-                type === "HelpUI" ||
-                type === "BlankUI" ||
-                type === "MergeHeader" ||
-                type === "UntrackedHeader" ||
-                type === "UnstagedHeader" ||
-                type === "StagedHeader" ||
-                type === "UnpushedHeader" ||
-                type === "Unpushed"
-            ) {
-                continue;
-            }
-
-            if (type === "MergeChange" || type === "Untracked" || type === "Unstaged" || type === "Staged") {
-                syncCursorWithView(i);
-                return;
-            } else if ((type === "UnstagedDiff" || type === "StagedDiff") && res.diffLineIndex === 0) {
-                syncCursorWithView(i);
-                return;
-            }
-        }
+        this.uiModel.goPreviousHunk(current_line!);
     }
 
     goNextHunk(): void {
         const current_line = vscode.window.activeTextEditor?.selection.active.line;
         if (!current_line && current_line !== 0) {
-            LOGGER.debug("no current line");
+            LOGGER.info("no current line");
             return;
         }
-
-        for (let i = current_line + 1; i < this.uiModel.length(); i++) {
-            const res = this.uiModel.index(i)[0];
-            const type = res.type;
-            if (
-                type === "HeadUI" ||
-                type === "MergeUI" ||
-                type === "HelpUI" ||
-                type === "BlankUI" ||
-                type === "MergeHeader" ||
-                type === "UntrackedHeader" ||
-                type === "UnstagedHeader" ||
-                type === "StagedHeader" ||
-                type === "UnpushedHeader" ||
-                type === "Unpushed"
-            ) {
-                continue;
-            }
-
-            if (type === "MergeChange" || type === "Untracked" || type === "Unstaged" || type === "Staged") {
-                syncCursorWithView(i);
-                return;
-            } else if ((type === "UnstagedDiff" || type === "StagedDiff") && res.diffLineIndex === 0) {
-                syncCursorWithView(i);
-                return;
-            }
-        }
+        this.uiModel.goNextHunk(current_line!);
     }
 
     async setRepository(): Promise<void> {
