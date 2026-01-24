@@ -2,3 +2,4 @@ package-lock.json
 LICENSE.md
 pnpm-lock.yaml
 eslint.config.mjs
+.vscode/*
