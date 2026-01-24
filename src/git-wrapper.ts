@@ -164,6 +164,21 @@ export class GitWrapper {
                 diff_count = -1;
                 continue;
             } else {
+                // Handle file mode changes before hunks
+                if (
+                    (line.startsWith("new mode") || line.startsWith("old mode") || line.startsWith("mode change")) &&
+                    current_path
+                ) {
+                    // diff_count += 1;
+                    diff_count += 1;
+                    const change = result_map.get(current_path);
+                    if (change) {
+                        change.push(line);
+                    } else {
+                        result_map.set(current_path, [line]);
+                    }
+                    continue;
+                }
                 if (line.startsWith("@@")) {
                     diff_count += 1;
                 }

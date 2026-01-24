@@ -7,7 +7,6 @@
 - allow actions with selected ranges (medium)
 - merge changes: use incoming use current (small)
 - add hover over info (medium)
-- add file mode changes to diffs (medium)
 - impl own git client (way too large)
     - with distinct events
 
@@ -17,6 +16,7 @@
 - increase performance of tree view and long list of changes
 - vscode.vim bindings with conflicting first letter (g*, c*) do not work anymore (large)
 - optimistic changes, dont wait for git refresh -> soften lock (large)
+- remove additional info on file mode changes
 
 # Test Additions
 
