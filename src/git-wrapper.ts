@@ -4,9 +4,10 @@ import {
     Repository,
     Commit,
     Status,
-    Ref,
     DiffEditorSelectionHunkToolbarContext,
     Change,
+    Branch,
+    UpstreamRef,
 } from "./vscode-git";
 import { readFile } from "./util";
 import { ChangeType, ResourceType, diffTypeToChangeType, isChangeType, isDiffType } from "./resource";
@@ -20,7 +21,7 @@ export class GitWrapper {
     diffViewRefName: string | null = null;
     diffViewMergeBaseCommit: string | null = null;
 
-    cachedRefs: Ref[];
+    cachedBranchInfo: Branch | null;
     cachedUnpushedCommits: Commit[];
     cachedUnstagedDiffs: Map<string, string[]>;
     cachedStagedDiffs: Map<string, string[]>;
@@ -31,7 +32,7 @@ export class GitWrapper {
         this.api = git_api;
         this.repo = this.api.repositories[0];
         this.rootUri = this.repo.rootUri.path;
-        this.cachedRefs = [];
+        this.cachedBranchInfo = null;
         this.cachedUnpushedCommits = [];
         this.cachedUnstagedDiffs = new Map<string, string[]>();
         this.cachedStagedDiffs = new Map<string, string[]>();
@@ -39,59 +40,68 @@ export class GitWrapper {
         this.cachedDiffViewChanges = [];
     }
 
-    async getRefs(): Promise<Ref[]> {
-        this.cachedRefs = await this.repo.getRefs({});
-        return this.cachedRefs;
-    }
-
     getRepositories(): [string, Repository][] {
         return this.api.repositories.map((i): [string, Repository] => [i.rootUri.path, i]); // name, repository pairs
     }
 
     async setRepository(new_repo: Repository): Promise<void> {
+        LOGGER.trace("setRepository:", new_repo.rootUri.path);
         this.repo = new_repo;
         this.rootUri = this.repo.rootUri.path;
     }
 
-    getCachedRefs(): Ref[] {
-        return this.cachedRefs;
-    }
-
     async updateBranchInfo(): Promise<void> {
         LOGGER.trace("updateBranchInfo");
-        this.cachedRefs = await this.repo.getRefs({});
-        if (this.getCachedHasRemoteBranch()) {
+        if (!this.repo.state.HEAD?.name) {
+            LOGGER.debug("updateBranchInfo: detached HEAD");
+            this.cachedUnpushedCommits = [];
+            return;
+        }
+        this.cachedBranchInfo = await this.repo.getBranch(this.repo.state.HEAD.name).catch(() => null);
+        if (!this.cachedBranchInfo) {
+            this.cachedUnpushedCommits = [];
+            return;
+        }
+        if (this.cachedBranchInfo.upstream) {
             this.cachedUnpushedCommits = await this.repo.log({
-                range: this.repo.state.remotes[0].name + "/" + this.repo.state.HEAD?.name + "..HEAD",
+                range: getUpstreamBranchName(this.cachedBranchInfo.upstream) + "..HEAD",
+                maxEntries: 50,
             });
         } else {
-            if (!this.repo.state.HEAD?.name) {
-                this.cachedUnpushedCommits = [];
-                return;
-            }
+            LOGGER.debug("updateBranchInfo: no upstream for branch", this.repo.state.HEAD.name);
             const branchbase = await this.repo
-                .getBranchBase(this.repo.state.HEAD?.name)
+                .getBranchBase(this.repo.state.HEAD.name)
                 .then((branch) => branch?.commit)
                 .catch(() => undefined);
             if (!branchbase) {
+                LOGGER.debug("updateBranchInfo: no branch base found");
                 this.cachedUnpushedCommits = [];
                 return;
             }
 
-            this.cachedUnpushedCommits = await this.repo.log({ range: branchbase + "..HEAD" });
+            this.cachedUnpushedCommits = await this.repo.log({ range: branchbase + "..HEAD", maxEntries: 50 });
         }
     }
 
+    getCachedBranchInfo(): Branch | null {
+        LOGGER.trace("getCachedBranchInfo");
+        return this.cachedBranchInfo;
+    }
+
+    getCachedUpstreamBranchName(): string | null {
+        LOGGER.trace("getCachedBranchName");
+        if (!this.cachedBranchInfo?.upstream) {
+            return null;
+        }
+        return getUpstreamBranchName(this.cachedBranchInfo.upstream);
+    }
     getCachedHasRemoteBranch(): boolean {
-        return (
-            this.repo.state.remotes[0] &&
-            this.cachedRefs.some(
-                (branch) => branch.name === this.repo.state.remotes[0].name + "/" + this.repo.state.HEAD?.name
-            )
-        ); //e.g. origin/branchname
+        LOGGER.trace("getCachedHasRemoteBranch");
+        return this.cachedBranchInfo?.upstream ? true : false;
     }
 
     async updateDiffView(branch: string): Promise<void> {
+        LOGGER.trace("updateDiffView:", branch);
         if (!this.repo.state.HEAD?.name) {
             vscode.window.showErrorMessage("Cannot create diff view from detached HEAD state.");
             return Promise.reject("Cannot create diff view from detached HEAD state.");
@@ -125,6 +135,7 @@ export class GitWrapper {
     }
 
     public async updateDiffMap(type: "Unstaged" | "Staged" | "DiffViewChange"): Promise<void> {
+        LOGGER.trace("updateDiffMap:", type);
         const index = type === "Staged";
         let current_path = "";
         let diffs: string;
@@ -133,9 +144,9 @@ export class GitWrapper {
             if (!this.diffViewMergeBaseCommit) {
                 return Promise.reject("No DiffView merge base commit");
             }
-            const changes = await this.repo.diffBetween(this.diffViewMergeBaseCommit, "HEAD");
+            const changes = await this.repo.diffWith(this.diffViewMergeBaseCommit);
             const diffTexts = await Promise.all(
-                changes.map((change) => this.repo.diffBetween(this.diffViewMergeBaseCommit!, "HEAD", change.uri.path))
+                changes.map((change) => this.repo.diffWith(this.diffViewMergeBaseCommit!, change.uri.path))
             );
             diffs = diffTexts.join("\n");
         } else {
@@ -181,6 +192,7 @@ export class GitWrapper {
     }
 
     async applyPatchToFile(resource_uri: vscode.Uri, diff_index: number, action: "stage" | "unstage"): Promise<void> {
+        LOGGER.trace("applyPatchToFile:", resource_uri.path, diff_index, action);
         const diff =
             action === "stage"
                 ? this.cachedUnstagedDiffs.get(resource_uri.path)
@@ -239,6 +251,7 @@ export class GitWrapper {
     }
 
     async constructCommitDiff(commit: Commit): Promise<string> {
+        LOGGER.trace("constructCommitDiff:", commit.hash);
         const commit_changes = (await this.repo.diffBetween(commit.parents[0], commit.hash)).map(
             (diff) => diff.uri.path
         );
@@ -262,6 +275,7 @@ export class GitWrapper {
     }
 
     getChanges(type: ChangeType["type"]): Change[] {
+        LOGGER.trace("getChanges:", type);
         switch (type) {
             case "Untracked":
                 return this.untracked();
@@ -279,6 +293,7 @@ export class GitWrapper {
     }
 
     public changeFromResource(resource: ResourceType): Change | null {
+        LOGGER.trace("changeFromResource:", resource);
         if (!isChangeType(resource) && !isDiffType(resource)) {
             return null;
         }
@@ -309,6 +324,7 @@ export class GitWrapper {
     }
 
     public changeFromChangeType(resource: ChangeType): Change | null {
+        LOGGER.trace("changeFromChangeType:", resource);
         const changes = this.getChanges(resource.type);
 
         if (resource.changeIndex >= 0 && resource.changeIndex < changes.length) {
@@ -331,6 +347,7 @@ export class GitWrapper {
     }
 
     public commitFromResource(resource: ResourceType): Commit | null {
+        LOGGER.trace("commitFromResource:", resource);
         if (resource.type !== "Unpushed") {
             return null;
         }
@@ -339,6 +356,7 @@ export class GitWrapper {
     }
 
     findChangeIndexByPath(path: string, type: ChangeType["type"]): number | null {
+        LOGGER.trace("findChangeIndexByPath:", path, type);
         const changes = this.getChanges(type);
         const index = changes.findIndex((c) => c.uri.path === path);
         if (index !== -1) {
@@ -360,4 +378,8 @@ function patchedFileHasNewLine(patch_lines: string[], action: "stage" | "unstage
         return new_line_is_added && no_new_line_index === patch_lines.length - 1;
     }
     throw Error("Fugitive: Invalid action");
+}
+
+function getUpstreamBranchName(upstream: UpstreamRef): string {
+    return upstream.remote + "/" + upstream.name;
 }

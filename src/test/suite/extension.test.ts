@@ -40,7 +40,7 @@ suite("Extension Test Suite", () => {
         exec(`mkdir -p ${test_repo_path}`);
         exec(`touch ${test_repo_path}/.gitkeep`);
         exec(
-            `cd ${test_repo_path} && git init && git remote add rem ${test_repo_remote_path} && git commit --allow-empty -m "m" && git push --set-upstream rem main`
+            `cd ${test_repo_path} && git init --initial-branch=main && git remote add rem ${test_repo_remote_path} && git commit --allow-empty -m "m" && git push --set-upstream rem main`
         );
         await wait(500);
         exec(`yes change | head -n 10 >> ${test_repo_path}/unstaged.txt`);
