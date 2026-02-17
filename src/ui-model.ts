@@ -44,8 +44,9 @@ export class UIModel {
         }
         let merge = "Unpublished";
 
-        if (this.git.getCachedHasRemoteBranch()) {
-            merge = `Merge: ${this.git.repo.state.remotes[0].name}/${head}`;
+        const upstream_branch = this.git.getCachedUpstreamBranchName();
+        if (upstream_branch) {
+            merge = `Merge: ${upstream_branch}`;
         }
         new_ui_model.push([{ type: "MergeUI" }, merge]);
         new_ui_model.push([{ type: "HelpUI" }, "Help: g h"]);
@@ -57,19 +58,18 @@ export class UIModel {
 
         new_ui_model = this.diffModel.injectDiffs(new_ui_model);
 
-        const unpushed_len = this.git.cachedUnpushedCommits.length;
-        if (unpushed_len > 0) {
+        const cachedUnpushedCommits = this.git.cachedUnpushedCommits.slice(0, 50); // Limit to 50 commits
+        if (cachedUnpushedCommits.length > 0) {
             new_ui_model.push([{ type: "BlankUI" }, ""]);
-            const len = this.git.cachedUnpushedCommits.length;
+            const len = cachedUnpushedCommits.length;
             let to = "";
-            if (this.git.repo.state.remotes[0]?.name) {
-                if (this.git.getCachedHasRemoteBranch()) {
-                    to = `to ${this.git.repo.state.remotes[0].name}/${head} `;
-                } else {
-                    to = "to * ";
-                }
+            const upstream = this.git.getCachedUpstreamBranchName();
+            if (upstream) {
+                to = `to ${upstream} `;
+            } else {
+                to = "to * ";
             }
-            const commits = this.git.cachedUnpushedCommits.map(
+            const commits = cachedUnpushedCommits.map(
                 (c, i): UIModelItem => [
                     { type: "Unpushed", changeIndex: i, listIndex: i, path: "" },
                     c.hash.slice(0, 8) + " " + c.message.split("\n")[0].slice(0, 80),
