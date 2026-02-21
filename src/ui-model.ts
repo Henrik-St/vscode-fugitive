@@ -119,7 +119,13 @@ export class UIModel {
     }
 
     private renderChange(c: Change): string {
-        return mapStatustoString(c.status) + " " + c.originalUri.path.replace(this.git.rootUri + "/", "");
+        const status = mapStatustoString(c.status);
+        const newPath = (c.renameUri ?? c.uri).path.replace(this.git.rootUri + "/", "");
+        if (status === "R" && c.renameUri) {
+            const oldPath = c.originalUri.path.replace(this.git.rootUri + "/", "");
+            return `${status} ${oldPath} → ${newPath}`;
+        }
+        return `${status} ${newPath}`;
     }
 
     private renderSection(

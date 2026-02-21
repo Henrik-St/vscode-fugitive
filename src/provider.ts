@@ -346,7 +346,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
             const affected_changes = this.git
                 .getChanges(type)
                 .filter((c) => {
-                    return c.originalUri.path.replace(this.git.rootUri, "").startsWith(resource.path + "/");
+                    return c.uri.path.replace(this.git.rootUri, "").startsWith(resource.path + "/");
                 })
                 .map((c) => c.uri.path);
 
@@ -449,7 +449,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 const affected_changes = this.git
                     .getChanges(type)
                     .filter((c) => {
-                        return c.originalUri.path.replace(this.git.rootUri, "").startsWith(resource.path + "/");
+                        return c.uri.path.replace(this.git.rootUri, "").startsWith(resource.path + "/");
                     })
                     .map((c) => c.uri.path);
 
@@ -680,7 +680,12 @@ export class Provider implements vscode.TextDocumentContentProvider {
                     return;
                 }
                 uri_left = this.git.api.toGitUri(change.uri, "~"); // index
-                uri_right = change.uri; // local file
+                // For deleted files, show diff against empty URI
+                if (change.status === Status.DELETED) {
+                    uri_right = change.uri.with({ scheme: "data", path: change.uri.path });
+                } else {
+                    uri_right = change.uri; // local file
+                }
                 title_type = "(Working Tree)";
                 break;
             }
@@ -691,7 +696,12 @@ export class Provider implements vscode.TextDocumentContentProvider {
                     return;
                 }
                 uri_left = this.git.api.toGitUri(change.uri, "HEAD"); // last commit
-                uri_right = this.git.api.toGitUri(change.uri, "~"); //index
+                // For deleted files, show diff against empty URI
+                if (change.status === Status.INDEX_DELETED) {
+                    uri_right = change.uri.with({ scheme: "data", path: change.uri.path });
+                } else {
+                    uri_right = this.git.api.toGitUri(change.uri, "~"); //index
+                }
                 title_type = "(Index)";
                 break;
             }
@@ -749,11 +759,18 @@ export class Provider implements vscode.TextDocumentContentProvider {
         if (!change) {
             return;
         }
-        if ([Status.INDEX_DELETED, Status.DELETED].includes(change.status)) {
-            vscode.window.showWarningMessage("File was deleted");
-            return;
+        let file: vscode.Uri;
+        // For deleted files, open the last known version from git
+        if (change.status === Status.DELETED) {
+            // File deleted in working tree, show version from index
+            file = this.git.api.toGitUri(change.uri, "~");
+        } else if (change.status === Status.INDEX_DELETED) {
+            // File deleted in index, show version from HEAD
+            file = this.git.api.toGitUri(change.uri, "HEAD");
+        } else {
+            // Normal file, open from working tree
+            file = vscode.Uri.parse(change.uri.path);
         }
-        const file = vscode.Uri.parse(change.uri.path);
         const doc = await vscode.workspace.openTextDocument(file);
         if (split) {
             await vscode.window.showTextDocument(doc, { preview: false, viewColumn: vscode.ViewColumn.Beside });

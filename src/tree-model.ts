@@ -98,10 +98,29 @@ export class TreeModel {
         const tree: FileTree = { children: new Map(), name: "/", parentDir: "" };
         for (let i = 0; i < changes.length; i++) {
             const c = changes[i];
-            const status = mapStatustoString(c.status) + " ";
+            const status = mapStatustoString(c.status);
 
-            const path_list = c.originalUri.path.replace(root_uri + "/", "").split("/");
-            const file_name = status + path_list.pop(); // remove filename
+            const newRelPath = (c.renameUri ?? c.uri).path.replace(root_uri + "/", "");
+            const oldRelPath = c.originalUri.path.replace(root_uri + "/", "");
+            const path_list = newRelPath.split("/");
+            const newBaseName = path_list.pop(); // remove filename
+            if (!newBaseName) {
+                continue;
+            }
+
+            let fileLabel = `${status} ${newBaseName}`;
+            if (status === "R" && c.renameUri) {
+                const oldParts = oldRelPath.split("/");
+                const oldBaseName = oldParts.pop() ?? oldRelPath;
+                const oldDir = oldParts.join("/");
+                const newDir = path_list.join("/");
+                fileLabel =
+                    oldDir === newDir
+                        ? `${status} ${oldBaseName} → ${newBaseName}`
+                        : `${status} ${oldRelPath} → ${newRelPath}`;
+            }
+
+            const file_name = fileLabel;
             if (!file_name) {
                 continue;
             }
