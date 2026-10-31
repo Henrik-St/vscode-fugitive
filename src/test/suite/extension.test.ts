@@ -17,6 +17,8 @@ import {
 } from "./movement.test";
 import { cursorStage, cursorUnstage } from "./cursor.test";
 import { gitIgnore, openDiff, openFile } from "./open_files.test";
+import { GitWrapper } from "../../git-wrapper";
+import { API as GitAPI, Repository } from "../../vscode-git";
 
 function exec(command: string) {
     try {
@@ -51,7 +53,7 @@ suite("Extension Test Suite", () => {
         exec(`echo change >> ${test_repo_path}/unstaged.txt`);
         exec(`echo change >> ${test_repo_path}/staged.txt`);
         exec(`cd ${test_repo_path} && git add staged.txt`);
-        await wait(500);
+        await vscode.commands.executeCommand("git.refresh", vscode.Uri.file(test_repo_path!));
         await vscode.commands.executeCommand("fugitive.open");
         await wait(500);
     });
@@ -66,6 +68,50 @@ suite("Extension Test Suite", () => {
     const extension = vscode.extensions.getExtension("hnrk-str.vscode-fugitive");
     test("Extension is loaded", () => {
         assert.ok(extension, "Extension hnrk-str.vscode-fugitive is not loaded");
+    });
+
+    test("Latest diff refresh wins", async () => {
+        let resolve_stale!: (diff: string) => void;
+        let resolve_latest!: (diff: string) => void;
+        let diff_call = 0;
+        const stale_diff = new Promise<string>((resolve) => (resolve_stale = resolve));
+        const latest_diff = new Promise<string>((resolve) => (resolve_latest = resolve));
+        const repo = {
+            rootUri: vscode.Uri.file("/repo"),
+            diff: () => (diff_call++ === 0 ? stale_diff : latest_diff),
+        } as unknown as Repository;
+        const git = new GitWrapper({ repositories: [repo] } as unknown as GitAPI);
+
+        const stale_refresh = git.updateDiffMap("Unstaged");
+        const latest_refresh = git.updateDiffMap("Unstaged");
+        resolve_latest("diff --git a/latest.txt b/latest.txt\n@@ -1 +1 @@\n-old\n+new\n");
+        await latest_refresh;
+        resolve_stale("diff --git a/stale.txt b/stale.txt\n@@ -1 +1 @@\n-old\n+new\n");
+        await stale_refresh;
+
+        assert.deepStrictEqual([...git.cachedUnstagedDiffs.keys()], ["/repo/latest.txt"]);
+    });
+
+    test("Old repository diff refresh is ignored", async () => {
+        let resolve_old!: (diff: string) => void;
+        const old_diff = new Promise<string>((resolve) => (resolve_old = resolve));
+        const old_repo = {
+            rootUri: vscode.Uri.file("/old-repo"),
+            diff: () => old_diff,
+        } as unknown as Repository;
+        const current_repo = {
+            rootUri: vscode.Uri.file("/current-repo"),
+            diff: async () => "diff --git a/current.txt b/current.txt\n@@ -1 +1 @@\n-old\n+new\n",
+        } as unknown as Repository;
+        const git = new GitWrapper({ repositories: [old_repo] } as unknown as GitAPI);
+
+        const old_refresh = git.updateDiffMap("Unstaged", old_repo);
+        await git.setRepository(current_repo);
+        await git.updateDiffMap("Unstaged", current_repo);
+        resolve_old("diff --git a/old.txt b/old.txt\n@@ -1 +1 @@\n-old\n+new\n");
+        await old_refresh;
+
+        assert.deepStrictEqual([...git.cachedUnstagedDiffs.keys()], ["/current-repo/current.txt"]);
     });
 
     test("Go to Untracked", goUntracked);

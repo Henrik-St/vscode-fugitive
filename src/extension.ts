@@ -34,6 +34,23 @@ export function activate({ subscriptions }: vscode.ExtensionContext): void {
         );
     };
 
+    const add_mutation_subscription = (command: () => Promise<unknown>, name: string) => {
+        add_subscription(async () => {
+            try {
+                await command();
+            } finally {
+                const repo = provider?.git.repo;
+                if (repo) {
+                    try {
+                        await vscode.commands.executeCommand("git.refresh", repo.rootUri);
+                    } finally {
+                        await provider?.refresh();
+                    }
+                }
+            }
+        }, name);
+    };
+
     const thenable_to_promise = async <T>(thenable: Thenable<T>): Promise<T> => {
         return new Promise<T>((resolve, reject) => {
             thenable.then(
@@ -77,31 +94,31 @@ export function activate({ subscriptions }: vscode.ExtensionContext): void {
         })
     );
 
-    add_subscription(() => provider!.stageFile(), "fugitive.stage");
-    add_subscription(() => provider!.unstageFile(), "fugitive.unstage");
-    add_subscription(() => provider!.toggle(), "fugitive.toggle");
-    add_subscription(() => provider!.unstageAll(), "fugitive.unstageAll");
-    add_subscription(() => provider!.cleanFile(), "fugitive.clean");
+    add_mutation_subscription(() => provider!.stageFile(), "fugitive.stage");
+    add_mutation_subscription(() => provider!.unstageFile(), "fugitive.unstage");
+    add_mutation_subscription(() => provider!.toggle(), "fugitive.toggle");
+    add_mutation_subscription(() => provider!.unstageAll(), "fugitive.unstageAll");
+    add_mutation_subscription(() => provider!.cleanFile(), "fugitive.clean");
     add_subscription(() => provider!.toggleInlineDiff(), "fugitive.toggleInlineDiff");
     add_subscription(() => provider!.openDiff(), "fugitive.openDiff");
     add_subscription(() => provider!.setRepository(), "fugitive.setRepo");
-    add_subscription(() => provider!.commit(), "fugitive.commit");
+    add_mutation_subscription(() => provider!.commit(), "fugitive.commit");
     add_subscription(() => provider!.open(true), "fugitive.openFileSplit");
     add_subscription(() => provider!.open(false), "fugitive.openFile");
-    add_subscription(() => provider!.git.repo.commit("", { useEditor: true, amend: true }), "fugitive.amend");
-    add_subscription(() => provider!.git.repo.commit("", { amend: true }), "fugitive.amendNoEdit");
-    add_subscription(() => provider!.gitExclude(false), "fugitive.gitExclude");
-    add_subscription(() => provider!.gitExclude(true), "fugitive.gitIgnore");
+    add_mutation_subscription(
+        () => provider!.git.repo.commit("", { useEditor: true, amend: true }),
+        "fugitive.amend"
+    );
+    add_mutation_subscription(() => provider!.git.repo.commit("", { amend: true }), "fugitive.amendNoEdit");
+    add_mutation_subscription(() => provider!.gitExclude(false), "fugitive.gitExclude");
+    add_mutation_subscription(() => provider!.gitExclude(true), "fugitive.gitIgnore");
     add_subscription(async () => {
-        if (!GIT) return;
-        vscode.commands.executeCommand("git.refresh", GIT.rootUri).then(
-            (succ) => {
-                LOGGER.debug("git.refresh success", succ);
-            },
-            (err) => {
-                LOGGER.debug("git.refresh error", err);
-            }
-        );
+        if (!provider) return;
+        try {
+            await vscode.commands.executeCommand("git.refresh", provider.git.repo.rootUri);
+        } finally {
+            await provider.refresh();
+        }
     }, "fugitive.refresh");
     add_subscription(async () => provider!.toggleDirectory(), "fugitive.toggleDirectory");
     add_subscription(async () => diffview_provider!.toggleDirectory(), "fugitive.toggleDirectoryDiffView");
@@ -125,17 +142,17 @@ export function activate({ subscriptions }: vscode.ExtensionContext): void {
         () => thenable_to_promise(vscode.commands.executeCommand("workbench.action.closeActiveEditor")),
         "fugitive.close"
     );
-    add_subscription(() => thenable_to_promise(vscode.commands.executeCommand("git.stash")), "fugitive.stash");
-    add_subscription(
+    add_mutation_subscription(() => thenable_to_promise(vscode.commands.executeCommand("git.stash")), "fugitive.stash");
+    add_mutation_subscription(
         () => thenable_to_promise(vscode.commands.executeCommand("git.stashStaged")),
         "fugitive.stashStaged"
     );
-    add_subscription(
+    add_mutation_subscription(
         () => thenable_to_promise(vscode.commands.executeCommand("git.stashPopLatest")),
         "fugitive.popLatestStash"
     );
-    add_subscription(() => thenable_to_promise(vscode.commands.executeCommand("git.stashPop")), "fugitive.popStash");
-    add_subscription(
+    add_mutation_subscription(() => thenable_to_promise(vscode.commands.executeCommand("git.stashPop")), "fugitive.popStash");
+    add_mutation_subscription(
         () => thenable_to_promise(vscode.commands.executeCommand("git.checkout")),
         "fugitive.checkoutBranch"
     );

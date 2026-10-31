@@ -7,6 +7,7 @@ type FileTree = {
     children: Map<string, (FileTree & { type: "Tree" }) | ChangeType>;
     name: string;
     parentDir: string;
+    path: string; // cached parentDir + name
 };
 
 enum MenuSymbol {
@@ -25,11 +26,11 @@ type TreePerChangeType = {
 export class TreeModel {
     private closedDirectories: ClosedDirectories;
     private tree: TreePerChangeType = {
-        Untracked: { children: new Map(), name: "/", parentDir: "" },
-        Unstaged: { children: new Map(), name: "/", parentDir: "" },
-        Staged: { children: new Map(), name: "/", parentDir: "" },
-        MergeChange: { children: new Map(), name: "/", parentDir: "" },
-        DiffViewChange: { children: new Map(), name: "/", parentDir: "" },
+        Untracked: { children: new Map(), name: "/", parentDir: "", path: "/" },
+        Unstaged: { children: new Map(), name: "/", parentDir: "", path: "/" },
+        Staged: { children: new Map(), name: "/", parentDir: "", path: "/" },
+        MergeChange: { children: new Map(), name: "/", parentDir: "", path: "/" },
+        DiffViewChange: { children: new Map(), name: "/", parentDir: "", path: "/" },
     };
 
     constructor() {
@@ -72,36 +73,40 @@ export class TreeModel {
     // }
 
     private treeToModel(tree: FileTree, type: ChangeType["type"]): UIModelItem[] {
-        return this._treeToModel(tree, 0, type);
+        const result: UIModelItem[] = [];
+        this._treeToModel(tree, 0, type, result);
+        return result;
     }
 
     private isClosedDirectory(tree: FileTree, type: ChangeType["type"]): boolean {
-        return this.closedDirectories[type].has(tree.parentDir + tree.name);
+        return this.closedDirectories[type].has(tree.path);
     }
 
-    private _treeToModel(tree: FileTree, depth: number, type: ChangeType["type"]): UIModelItem[] {
-        const model: UIModelItem[] = [];
-        for (const e of tree.children.values()) {
-            if (e.type == "Tree") {
+    private _treeToModel(tree: FileTree, depth: number, type: ChangeType["type"], result: UIModelItem[]): void {
+        for (const [label, e] of tree.children.entries()) {
+            if (e.type === "Tree") {
                 const open_symbol = this.isClosedDirectory(e, type) ? MenuSymbol.CLOSED : MenuSymbol.OPEN;
                 const ui_text = "  ".repeat(depth) + open_symbol + " " + e.name;
-                model.push([{ type: "DirectoryHeader", path: e.parentDir + e.name, changeType: type }, ui_text]);
-                model.push(...this._treeToModel(e as FileTree, depth + 1, type));
+                result.push([{ type: "DirectoryHeader", path: e.path, changeType: type }, ui_text]);
+                this._treeToModel(e as FileTree, depth + 1, type, result);
             }
         }
-        model.push(...listFiles(tree, depth));
-
-        return model;
+        for (const [label, e] of tree.children.entries()) {
+            if (e.type !== "Tree") {
+                result.push([e, "  ".repeat(depth) + label]);
+            }
+        }
     }
 
     private changesToTree(changes: Change[], root_uri: string, type: ChangeType["type"]): FileTree {
-        const tree: FileTree = { children: new Map(), name: "/", parentDir: "" };
+        const rootPrefix = root_uri + "/";
+        const tree: FileTree = { children: new Map(), name: "/", parentDir: "", path: "/" };
         for (let i = 0; i < changes.length; i++) {
             const c = changes[i];
             const status = mapStatustoString(c.status);
 
-            const newRelPath = (c.renameUri ?? c.uri).path.replace(root_uri + "/", "");
-            const oldRelPath = c.originalUri.path.replace(root_uri + "/", "");
+            const newRelPath = (c.renameUri ?? c.uri).path.replace(rootPrefix, "");
+            const oldRelPath = c.originalUri.path.replace(rootPrefix, "");
             const path_list = newRelPath.split("/");
             const newBaseName = path_list.pop(); // remove filename
             if (!newBaseName) {
@@ -126,18 +131,15 @@ export class TreeModel {
             }
             let current_tree = tree;
             let is_closed = false;
+            const closedSet = this.closedDirectories[type];
             for (const dir of path_list) {
-                is_closed = [...this.closedDirectories[type].keys()].some(
-                    (closed_dir) => current_tree.parentDir + current_tree.name === closed_dir
-                );
+                is_closed = closedSet.has(current_tree.path);
                 if (is_closed) {
                     break; // skip closed directories
                 }
                 current_tree = getOrCreate(current_tree, dir);
             }
-            is_closed = [...this.closedDirectories[type].keys()].some(
-                (closed_dir) => current_tree.parentDir + current_tree.name === closed_dir
-            );
+            is_closed = closedSet.has(current_tree.path);
 
             if (!is_closed) {
                 current_tree.children.set(file_name, {
@@ -154,11 +156,13 @@ export class TreeModel {
 
 function getOrCreate(tree: FileTree, dir: string): FileTree {
     if (!tree.children.has(dir)) {
+        const parentDir = tree.parentDir ? tree.path + "/" : tree.name;
         tree.children.set(dir, {
             name: dir,
             children: new Map(),
             type: "Tree",
-            parentDir: tree.parentDir ? tree.parentDir + tree.name + "/" : tree.name,
+            parentDir,
+            path: parentDir + dir,
         });
     }
     const child = tree.children.get(dir);
@@ -166,16 +170,4 @@ function getOrCreate(tree: FileTree, dir: string): FileTree {
         throw new Error("Expected Directory, got File");
     }
     return child;
-}
-
-function listFiles(tree: FileTree, depth: number): UIModelItem[] {
-    const result: UIModelItem[] = [];
-    for (const e of tree.children.entries()) {
-        if (e[1].type !== "Tree") {
-            const ui_text = "  ".repeat(depth) + e[0];
-            const new_item: UIModelItem = [e[1], ui_text];
-            result.push(new_item);
-        }
-    }
-    return result;
 }
