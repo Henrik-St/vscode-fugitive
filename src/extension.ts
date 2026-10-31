@@ -129,10 +129,7 @@ export function activate({ subscriptions }: vscode.ExtensionContext): void {
     add_mutation_subscription(() => provider!.commit(), "fugitive.commit");
     add_subscription(() => provider!.open(true), "fugitive.openFileSplit");
     add_subscription(() => provider!.open(false), "fugitive.openFile");
-    add_mutation_subscription(
-        () => provider!.git.repo.commit("", { useEditor: true, amend: true }),
-        "fugitive.amend"
-    );
+    add_mutation_subscription(() => provider!.git.repo.commit("", { useEditor: true, amend: true }), "fugitive.amend");
     add_mutation_subscription(() => provider!.git.repo.commit("", { amend: true }), "fugitive.amendNoEdit");
     add_mutation_subscription(() => provider!.gitExclude(false), "fugitive.gitExclude");
     add_mutation_subscription(() => provider!.gitExclude(true), "fugitive.gitIgnore");
@@ -175,7 +172,10 @@ export function activate({ subscriptions }: vscode.ExtensionContext): void {
         () => thenable_to_promise(vscode.commands.executeCommand("git.stashPopLatest")),
         "fugitive.popLatestStash"
     );
-    add_mutation_subscription(() => thenable_to_promise(vscode.commands.executeCommand("git.stashPop")), "fugitive.popStash");
+    add_mutation_subscription(
+        () => thenable_to_promise(vscode.commands.executeCommand("git.stashPop")),
+        "fugitive.popStash"
+    );
     add_mutation_subscription(
         () => thenable_to_promise(vscode.commands.executeCommand("git.checkout")),
         "fugitive.checkoutBranch"

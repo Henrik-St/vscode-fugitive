@@ -5,7 +5,7 @@
  *  Licensed under the MIT License. See License.txt in the project root for license information.
  *--------------------------------------------------------------------------------------------*/
 
-import { Uri, Event, Disposable, ProviderResult, Command, CancellationToken } from 'vscode';
+import { Uri, Event, Disposable, ProviderResult, Command, CancellationToken } from "vscode";
 export { ProviderResult } from "vscode";
 
 export interface Git {
@@ -127,7 +127,7 @@ export interface DiffChange extends Change {
     readonly deletions: number;
 }
 
-export type RepositoryKind = 'repository' | 'submodule' | 'worktree';
+export type RepositoryKind = "repository" | "submodule" | "worktree";
 
 export interface RepositoryState {
     readonly HEAD: Branch | undefined;
@@ -215,7 +215,7 @@ export interface CloneOptions {
     /**
      * If no postCloneAction is provided, then the users setting for git.openAfterClone is used.
      */
-    postCloneAction?: 'none';
+    postCloneAction?: "none";
 }
 
 export interface RefQuery {
@@ -240,14 +240,14 @@ export interface Repository {
     readonly onDidCommit: Event<void>;
     readonly onDidCheckout: Event<void>;
 
-    getConfigs(): Promise<{ key: string; value: string; }[]>;
+    getConfigs(): Promise<{ key: string; value: string }[]>;
     getConfig(key: string): Promise<string>;
     setConfig(key: string, value: string): Promise<string>;
     unsetConfig(key: string): Promise<string>;
     getGlobalConfig(key: string): Promise<string>;
 
-    getObjectDetails(treeish: string, path: string): Promise<{ mode: string, object: string, size: number }>;
-    detectObjectType(object: string): Promise<{ mimetype: string, encoding?: string }>;
+    getObjectDetails(treeish: string, path: string): Promise<{ mode: string; object: string; size: number }>;
+    detectObjectType(object: string): Promise<{ mimetype: string; encoding?: string }>;
     buffer(ref: string, path: string): Promise<Buffer>;
     show(ref: string, path: string): Promise<string>;
     getCommit(ref: string): Promise<Commit>;
@@ -258,7 +258,7 @@ export interface Repository {
     restore(paths: string[], options?: { staged?: boolean; ref?: string }): Promise<void>;
 
     apply(patch: string, reverse?: boolean): Promise<void>;
-    apply(patch: string, options?: { allowEmpty?: boolean; reverse?: boolean; threeWay?: boolean; }): Promise<void>;
+    apply(patch: string, options?: { allowEmpty?: boolean; reverse?: boolean; threeWay?: boolean }): Promise<void>;
     diff(cached?: boolean): Promise<string>;
     diffWithHEAD(): Promise<Change[]>;
     diffWithHEAD(path: string): Promise<string>;
@@ -333,10 +333,18 @@ export interface Repository {
     popStash(index?: number): Promise<void>;
     dropStash(index?: number): Promise<void>;
 
-    createWorktree(options?: { path?: string; commitish?: string; branch?: string; noTrack?: boolean }): Promise<string>;
+    createWorktree(options?: {
+        path?: string;
+        commitish?: string;
+        branch?: string;
+        noTrack?: boolean;
+    }): Promise<string>;
     deleteWorktree(path: string, options?: { force?: boolean; label?: string }): Promise<void>;
 
-    migrateChanges(sourceRepositoryPath: string, options?: { confirmation?: boolean; deleteFromSource?: boolean; untracked?: boolean }): Promise<void>;
+    migrateChanges(
+        sourceRepositoryPath: string,
+        options?: { confirmation?: boolean; deleteFromSource?: boolean; untracked?: boolean }
+    ): Promise<void>;
 
     generateRandomBranchName(): Promise<string | undefined>;
 
@@ -378,7 +386,12 @@ export interface PostCommitCommandsProvider {
 }
 
 export interface PushErrorHandler {
-    handlePushError(repository: Repository, remote: Remote, refspec: string, error: Error & { gitErrorCode: GitErrorCodes }): Promise<boolean>;
+    handlePushError(
+        repository: Repository,
+        remote: Remote,
+        refspec: string,
+        error: Error & { gitErrorCode: GitErrorCodes }
+    ): Promise<boolean>;
 }
 
 export interface BranchProtection {
@@ -453,7 +466,6 @@ export interface API {
 }
 
 export interface GitExtension {
-
     readonly enabled: boolean;
     readonly onDidChangeEnablement: Event<boolean>;
 
@@ -518,7 +530,7 @@ export const enum GitErrorCodes {
     CherryPickConflict = "CherryPickConflict",
     WorktreeContainsChanges = "WorktreeContainsChanges",
     WorktreeAlreadyExists = "WorktreeAlreadyExists",
-    WorktreeBranchAlreadyUsed = 'WorktreeBranchAlreadyUsed'
+    WorktreeBranchAlreadyUsed = "WorktreeBranchAlreadyUsed",
 }
 
 export interface DiffEditorSelectionHunkToolbarContext {

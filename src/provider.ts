@@ -335,9 +335,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
     async commit(): Promise<void> {
         const repo = this.git.repo;
         if (repo.state.indexChanges.length > 0) {
-            await repo
-                .commit("", { useEditor: true })
-                .catch((err) => vscode.window.showWarningMessage(err.stderr));
+            await repo.commit("", { useEditor: true }).catch((err) => vscode.window.showWarningMessage(err.stderr));
         } else {
             vscode.window.showWarningMessage("Fugitive: Nothing to commit");
         }
