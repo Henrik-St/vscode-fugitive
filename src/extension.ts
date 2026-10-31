@@ -56,21 +56,18 @@ export function activate({ subscriptions }: vscode.ExtensionContext): void {
             active_operation_count++;
             update_operation_status();
             try {
-                try {
-                    await command();
-                } finally {
-                    const repo = provider?.git.repo;
-                    if (repo) {
-                        try {
-                            await vscode.commands.executeCommand("git.refresh", repo.rootUri);
-                        } finally {
-                            await provider?.refresh();
-                        }
-                    }
-                }
+                await command();
             } finally {
                 active_operation_count--;
                 update_operation_status();
+            }
+            const repo = provider?.git.repo;
+            if (repo) {
+                try {
+                    await vscode.commands.executeCommand("git.refresh", repo.rootUri);
+                } finally {
+                    await provider?.refresh();
+                }
             }
         }, name);
     };
