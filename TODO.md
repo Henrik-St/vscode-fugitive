@@ -13,11 +13,9 @@
 # Bug fixes:
 
 - Deleted files are not shown
-- New names of renames are not shown
 - Add move between directories changes
 - increase performance of tree view and long list of changes
 - vscode.vim bindings with conflicting first letter (g*, c*) do not work anymore (large)
-- optimistic changes, dont wait for git refresh -> soften lock (large)
 - remove additional info on file mode changes
 
 # Test Additions

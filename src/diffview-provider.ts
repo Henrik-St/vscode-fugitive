@@ -107,10 +107,20 @@ export class DiffViewProvider implements vscode.TextDocumentContentProvider {
         if (!branch) {
             return Promise.reject("No branch selected");
         }
-        this.getDiffView(branch);
+        await this.getDiffView(branch);
     }
 
     async getDiffView(ref?: string): Promise<void> {
+        await vscode.window.withProgress(
+            {
+                location: vscode.ProgressLocation.Window,
+                title: "Loading Fugitive diff view",
+            },
+            () => this.loadDiffView(ref)
+        );
+    }
+
+    private async loadDiffView(ref?: string): Promise<void> {
         LOGGER.debug("DiffViewProvider.getDocOrRefreshIfExists");
 
         let repo_list = this.git.getRepositories().sort((a, b) => a[0].length - b[0].length);

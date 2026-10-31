@@ -28,6 +28,13 @@ export class GitWrapper {
     cachedDiffViewDiffs: Map<string, string[]>;
     cachedDiffViewChanges: Change[];
 
+    private branchInfoGeneration = 0;
+    private diffMapGenerations: Record<"Unstaged" | "Staged" | "DiffViewChange", number> = {
+        Unstaged: 0,
+        Staged: 0,
+        DiffViewChange: 0,
+    };
+
     constructor(git_api: GitAPI) {
         this.api = git_api;
         this.repo = this.api.repositories[0];
@@ -48,39 +55,53 @@ export class GitWrapper {
         LOGGER.trace("setRepository:", new_repo.rootUri.path);
         this.repo = new_repo;
         this.rootUri = this.repo.rootUri.path;
+        this.branchInfoGeneration++;
+        this.diffMapGenerations.Unstaged++;
+        this.diffMapGenerations.Staged++;
+        this.diffMapGenerations.DiffViewChange++;
+        this.cachedBranchInfo = null;
+        this.cachedUnpushedCommits = [];
+        this.cachedUnstagedDiffs.clear();
+        this.cachedStagedDiffs.clear();
+        this.cachedDiffViewDiffs.clear();
+        this.cachedDiffViewChanges = [];
     }
 
-    async updateBranchInfo(): Promise<void> {
+    async updateBranchInfo(repo: Repository = this.repo): Promise<void> {
         LOGGER.trace("updateBranchInfo");
-        if (!this.repo.state.HEAD?.name) {
-            LOGGER.debug("updateBranchInfo: detached HEAD");
-            this.cachedUnpushedCommits = [];
-            return;
-        }
-        this.cachedBranchInfo = await this.repo.getBranch(this.repo.state.HEAD.name).catch(() => null);
-        if (!this.cachedBranchInfo) {
-            this.cachedUnpushedCommits = [];
-            return;
-        }
-        if (this.cachedBranchInfo.upstream) {
-            this.cachedUnpushedCommits = await this.repo.log({
-                range: getUpstreamBranchName(this.cachedBranchInfo.upstream) + "..HEAD",
-                maxEntries: 50,
-            });
-        } else {
-            LOGGER.debug("updateBranchInfo: no upstream for branch", this.repo.state.HEAD.name);
-            const branchbase = await this.repo
-                .getBranchBase(this.repo.state.HEAD.name)
-                .then((branch) => branch?.commit)
-                .catch(() => undefined);
-            if (!branchbase) {
-                LOGGER.debug("updateBranchInfo: no branch base found");
-                this.cachedUnpushedCommits = [];
-                return;
-            }
+        const generation = ++this.branchInfoGeneration;
+        const head_name = repo.state.HEAD?.name;
+        let branch_info: Branch | null = null;
+        let unpushed_commits: Commit[] = [];
 
-            this.cachedUnpushedCommits = await this.repo.log({ range: branchbase + "..HEAD", maxEntries: 50 });
+        if (!head_name) {
+            LOGGER.debug("updateBranchInfo: detached HEAD");
+        } else {
+            branch_info = await repo.getBranch(head_name).catch(() => null);
+            if (branch_info?.upstream) {
+                unpushed_commits = await repo.log({
+                    range: getUpstreamBranchName(branch_info.upstream) + "..HEAD",
+                    maxEntries: 50,
+                });
+            } else if (branch_info) {
+                LOGGER.debug("updateBranchInfo: no upstream for branch", head_name);
+                const branchbase = await repo
+                    .getBranchBase(head_name)
+                    .then((branch) => branch?.commit)
+                    .catch(() => undefined);
+                if (branchbase) {
+                    unpushed_commits = await repo.log({ range: branchbase + "..HEAD", maxEntries: 50 });
+                } else {
+                    LOGGER.debug("updateBranchInfo: no branch base found");
+                }
+            }
         }
+
+        if (repo !== this.repo || generation !== this.branchInfoGeneration) {
+            return;
+        }
+        this.cachedBranchInfo = branch_info;
+        this.cachedUnpushedCommits = unpushed_commits;
     }
 
     getCachedBranchInfo(): Branch | null {
@@ -134,23 +155,29 @@ export class GitWrapper {
         return this.repo.state.mergeChanges;
     }
 
-    public async updateDiffMap(type: "Unstaged" | "Staged" | "DiffViewChange"): Promise<void> {
+    public async updateDiffMap(
+        type: "Unstaged" | "Staged" | "DiffViewChange",
+        repo: Repository = this.repo
+    ): Promise<void> {
         LOGGER.trace("updateDiffMap:", type);
+        const generation = ++this.diffMapGenerations[type];
+        const root_uri = repo.rootUri.path;
+        const diff_view_merge_base = this.diffViewMergeBaseCommit;
         const index = type === "Staged";
         let current_path = "";
         let diffs: string;
 
         if (type === "DiffViewChange") {
-            if (!this.diffViewMergeBaseCommit) {
+            if (!diff_view_merge_base) {
                 return Promise.reject("No DiffView merge base commit");
             }
-            const changes = await this.repo.diffWith(this.diffViewMergeBaseCommit);
+            const changes = await repo.diffWith(diff_view_merge_base);
             const diffTexts = await Promise.all(
-                changes.map((change) => this.repo.diffWith(this.diffViewMergeBaseCommit!, change.uri.path))
+                changes.map((change) => repo.diffWith(diff_view_merge_base, change.uri.path))
             );
             diffs = diffTexts.join("\n");
         } else {
-            diffs = await this.repo.diff(index);
+            diffs = await repo.diff(index);
         }
 
         const diffLines = diffs.split("\n");
@@ -160,7 +187,7 @@ export class GitWrapper {
         for (const line of diffLines) {
             if (line.startsWith("diff --git")) {
                 const match = line.match(/diff --git \w\/(.*) \w\/(.*)/);
-                current_path = match ? this.rootUri + "/" + match[1] : "";
+                current_path = match ? root_uri + "/" + match[1] : "";
                 diff_count = -1;
                 continue;
             } else {
@@ -197,6 +224,9 @@ export class GitWrapper {
                 }
             }
         }
+        if (repo !== this.repo || generation !== this.diffMapGenerations[type]) {
+            return;
+        }
         if (type === "DiffViewChange") {
             this.cachedDiffViewDiffs = result_map;
         } else if (index) {
@@ -206,22 +236,28 @@ export class GitWrapper {
         }
     }
 
-    async applyPatchToFile(resource_uri: vscode.Uri, diff_index: number, action: "stage" | "unstage"): Promise<void> {
+    async applyPatchToFile(
+        resource_uri: vscode.Uri,
+        diff_index: number,
+        action: "stage" | "unstage",
+        repo: Repository = this.repo
+    ): Promise<void> {
         LOGGER.trace("applyPatchToFile:", resource_uri.path, diff_index, action);
-        const diff =
+        const patch = (
             action === "stage"
                 ? this.cachedUnstagedDiffs.get(resource_uri.path)
-                : this.cachedStagedDiffs.get(resource_uri.path);
-        if (!diff) {
+                : this.cachedStagedDiffs.get(resource_uri.path)
+        )?.[diff_index];
+        if (patch === undefined) {
             return Promise.reject("No diff found for " + resource_uri);
         }
 
-        const target_lines = (await this.repo.show(":0", resource_uri.path)).split("\n"); //index
+        const target_lines = (await repo.show(":0", resource_uri.path)).split("\n"); //index
         const source_lines =
             action === "stage"
                 ? (await readFile(resource_uri)).split("\n")
-                : (await this.repo.show("HEAD", resource_uri.path)).split("\n");
-        const patch_lines = diff[diff_index].split("\n");
+                : (await repo.show("HEAD", resource_uri.path)).split("\n");
+        const patch_lines = patch.split("\n");
         const patch_matches = patch_lines.splice(0, 1)[0].match(/^@@ -(\d+),(\d+) \+(\d+),(\d+) @@/);
         if (!patch_matches) {
             throw Error("Fugitive: Could not parse diff");
@@ -255,14 +291,13 @@ export class GitWrapper {
             mapping: "", //not needed
         };
 
-        vscode.commands.executeCommand("git.diff.stageHunk", stage_params).then(
-            async (success) => {
-                LOGGER.debug("git.diff.stageHunk: success: ", success);
-            },
-            (rejected) => {
-                LOGGER.debug("git.diff.stageHunk: rejected: ", rejected);
-            }
-        );
+        try {
+            const success = await vscode.commands.executeCommand("git.diff.stageHunk", stage_params);
+            LOGGER.debug("git.diff.stageHunk: success: ", success);
+        } catch (rejected) {
+            LOGGER.debug("git.diff.stageHunk: rejected: ", rejected);
+            throw rejected;
+        }
     }
 
     async constructCommitDiff(commit: Commit): Promise<string> {

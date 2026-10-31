@@ -14,10 +14,9 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
     public readonly git: GitWrapper;
 
-    private actionLock: boolean;
-
     private uiModel: UIModel;
     private cursor: Cursor;
+    private refreshGeneration = 0;
 
     //status data
     private onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri>();
@@ -29,8 +28,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
             throw Error("Git API not found!");
         }
         this.git = GIT;
-        this.actionLock = false;
-
         this.uiModel = new UIModel();
         this.cursor = new Cursor();
 
@@ -38,13 +35,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         const git_disposables = this.git.api.repositories.map((repo) => {
             return repo.state.onDidChange(async () => {
                 LOGGER.debug("onGitChanged: ", repo.rootUri.toString());
-                await this.git.updateBranchInfo();
-                await this.updateDiffs();
-
-                const doc = vscode.workspace.textDocuments.find((doc) => doc.uri.scheme === Provider.myScheme);
-                if (doc) {
-                    this.fireOnDidChange();
-                }
+                await this.refreshAndRender(repo);
             });
         });
 
@@ -57,8 +48,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 LOGGER.debug("onDidChangeTextDocument");
                 // overrides cursor behaviour
                 this.cursor.syncCursorLine(Provider.uri.toString());
-                this.actionLock = false; // reset action lock
-                LOGGER.debug("release lock");
             }
         });
 
@@ -75,25 +64,28 @@ export class Provider implements vscode.TextDocumentContentProvider {
         this.onDidChangeEmitter.fire(Provider.uri);
     }
 
-    private getLock(): boolean {
-        LOGGER.debug("Aquire lock");
-        if (this.actionLock) {
+    private async refreshRepository(repo: Repository): Promise<boolean> {
+        const generation = ++this.refreshGeneration;
+        await this.git.updateBranchInfo(repo);
+        if (repo !== this.git.repo || generation !== this.refreshGeneration) {
             return false;
         }
-        this.actionLock = true;
-        setTimeout(() => {
-            if (!this.actionLock) {
-                return;
-            }
-            LOGGER.debug("Reset lock after timeout");
-            this.actionLock = false;
-        }, 3000);
-        return true;
+        await this.updateDiffs(repo, generation);
+        return repo === this.git.repo && generation === this.refreshGeneration;
     }
 
-    private readLock(): boolean {
-        LOGGER.debug("Read lock");
-        return this.actionLock;
+    async refresh(): Promise<void> {
+        await this.refreshAndRender(this.git.repo);
+    }
+
+    private async refreshAndRender(repo: Repository): Promise<void> {
+        if (repo !== this.git.repo || !(await this.refreshRepository(repo))) {
+            return;
+        }
+        const doc = vscode.workspace.textDocuments.find((doc) => doc.uri.scheme === Provider.myScheme);
+        if (doc) {
+            this.fireOnDidChange();
+        }
     }
 
     dispose(): void {
@@ -132,8 +124,7 @@ export class Provider implements vscode.TextDocumentContentProvider {
         if (repo_list.length > 0) {
             await this.git.setRepository(repo_list[0][1]);
         }
-        await this.git.updateBranchInfo();
-        await this.updateDiffs();
+        await this.refreshRepository(this.git.repo);
 
         let doc = vscode.workspace.textDocuments.find((doc) => doc.uri === Provider.uri);
         if (!doc) {
@@ -210,11 +201,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     async setRepository(): Promise<void> {
-        if (!this.getLock()) {
-            vscode.window.showWarningMessage("Action in progress. Try again after completion");
-            return;
-        }
-
         const repos = this.git.getRepositories().map((i): [string, Repository] => [i[0].split("/").pop() || "", i[1]]);
         const repo_names = repos.map((i) => i[0]);
 
@@ -224,14 +210,14 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
         const value = await vscode.window.showQuickPick(repo_names, options);
         if (!value) {
-            this.actionLock = false;
             return;
         }
         const repo = repos.filter((i) => i[0] === value)[0][1];
-        this.git.setRepository(repo);
+        await this.git.setRepository(repo);
 
-        await this.git.updateBranchInfo();
-        await this.updateDiffs();
+        if (!(await this.refreshRepository(repo))) {
+            return;
+        }
 
         const doc = vscode.workspace.textDocuments.find((doc) => doc.uri.scheme === Provider.myScheme);
         if (doc) {
@@ -246,13 +232,8 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     toggleDirectory(): void {
-        if (!this.getLock()) {
-            vscode.window.showWarningMessage("Action in progress. Try again after completion");
-            return;
-        }
         const resource = this.getResourceUnderCursor();
         if (!resource) {
-            this.actionLock = false;
             return;
         }
         if (resource.type === "DirectoryHeader") {
@@ -261,67 +242,58 @@ export class Provider implements vscode.TextDocumentContentProvider {
             this.uiModel.treeModel.toggleDirectory(path, resource.changeType);
             this.fireOnDidChange();
         }
-        this.actionLock = false;
     }
 
     async stageFile(): Promise<void> {
-        if (!this.getLock()) {
-            vscode.window.showWarningMessage("Action in progress. Try again after completion");
-            return;
-        }
+        const repo = this.git.repo;
         const resource = this.getResourceUnderCursor();
         if (!resource) {
-            this.actionLock = false;
             return;
         }
         if (resource.type === "MergeChange") {
             const change = this.git.changeFromResource(resource);
             if (!change) {
                 LOGGER.warn("stageFile: No MergeChange found for index " + resource.changeIndex);
-                this.actionLock = false;
                 return;
             }
             LOGGER.debug("merge add ", change.uri.path);
             const uri = vscode.Uri.parse(change.uri.path);
             if (await this.checkForConflictMarker(uri)) {
-                await this.git.repo.add([change.uri.path]);
+                await repo.add([change.uri.path]);
                 return;
             }
-            this.actionLock = false;
         }
         if (resource.type === "Untracked") {
             const change = this.git.changeFromResource(resource);
             if (!change) {
                 LOGGER.warn("stageFile: No Untracked change found for index " + resource.changeIndex);
-                this.actionLock = false;
                 return;
             }
             LOGGER.debug("track ", change.uri.path);
-            await this.git.repo.add([change.uri.path]);
+            await repo.add([change.uri.path]);
             return;
         }
         if (resource.type === "UntrackedHeader") {
             const changes = this.git.untracked().map((c) => c.uri.path);
             LOGGER.debug(`track ${changes.length} files`);
-            await this.git.repo.add(changes);
+            await repo.add(changes);
             return;
         }
         if (resource.type === "Unstaged") {
             const change = this.git.changeFromResource(resource);
             if (!change) {
                 LOGGER.warn("stageFile: No Unstaged change found for index " + resource.changeIndex);
-                this.actionLock = false;
                 return;
             }
             LOGGER.debug("stage ", change.uri.path);
-            await this.git.repo.add([change.uri.path]);
+            await repo.add([change.uri.path]);
             this.uiModel.diffModel.getOpenedChanges().delete(change.uri.path);
             return;
         }
         if (resource.type === "UnstagedHeader") {
             const changes = this.git.unstaged().map((c) => c.uri.path);
             LOGGER.debug(`track ${changes.length} files`);
-            await this.git.repo.add(changes);
+            await repo.add(changes);
             for (const change of changes) {
                 this.uiModel.diffModel.getOpenedChanges().delete(change);
             }
@@ -331,14 +303,12 @@ export class Provider implements vscode.TextDocumentContentProvider {
             const change = this.git.changeFromResource(resource);
             if (!change) {
                 LOGGER.warn("stageFile: No UnstagedDiff change found for index " + resource.changeIndex);
-                this.actionLock = false;
                 return Promise.reject("No change for UnstagedDiff index: " + resource.changeIndex);
             }
             if (resource.diffIndex === undefined) {
-                this.actionLock = false;
                 return Promise.reject("No diff index: " + resource.diffIndex);
             }
-            await this.git.applyPatchToFile(change.uri, resource.diffIndex, "stage");
+            await this.git.applyPatchToFile(change.uri, resource.diffIndex, "stage", repo);
             return;
         }
         if (resource.type === "DirectoryHeader") {
@@ -352,31 +322,23 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
             LOGGER.debug(`stage ${affected_changes.length} ${type} files in directory ${resource.path}`);
             if (affected_changes.length === 0) {
-                this.actionLock = false;
                 return;
             }
-            await this.git.repo.add(affected_changes);
+            await repo.add(affected_changes);
             for (const change of affected_changes) {
                 this.uiModel.diffModel.getOpenedChanges().delete(change);
             }
             return;
         }
-        this.actionLock = false;
     }
 
     async commit(): Promise<void> {
-        if (!this.getLock()) {
-            vscode.window.showWarningMessage("Action in progress. Try again after completion");
-            return;
-        }
-        if (this.git.repo.state.indexChanges.length > 0) {
-            await this.git.repo
-                .commit("", { useEditor: true })
-                .catch((err) => vscode.window.showWarningMessage(err.stderr));
+        const repo = this.git.repo;
+        if (repo.state.indexChanges.length > 0) {
+            await repo.commit("", { useEditor: true }).catch((err) => vscode.window.showWarningMessage(err.stderr));
         } else {
             vscode.window.showWarningMessage("Fugitive: Nothing to commit");
         }
-        this.actionLock = false;
     }
 
     async checkForConflictMarker(uri: vscode.Uri): Promise<boolean> {
@@ -393,26 +355,21 @@ export class Provider implements vscode.TextDocumentContentProvider {
         if (value === success_text) {
             return true;
         } else {
-            this.actionLock = false;
             return false;
         }
     }
 
     async unstageFile(): Promise<void> {
-        if (!this.getLock()) {
-            vscode.window.showWarningMessage("Action in progress. Try again after completion");
-            return;
-        }
+        const repo = this.git.repo;
         const resource = this.getResourceUnderCursor();
         if (!resource) {
-            this.actionLock = false;
             return;
         }
         switch (resource.type) {
             case "StagedHeader": {
                 const changes = this.git.staged().map((c) => c.uri.path);
                 LOGGER.debug(`unstage ${changes.length}`);
-                await this.git.repo.revert(changes);
+                await repo.revert(changes);
                 for (const change of changes) {
                     this.uiModel.diffModel.getOpenedIndexChanges().delete(change);
                 }
@@ -422,11 +379,10 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 const change = this.git.changeFromResource(resource);
                 if (!change) {
                     LOGGER.warn("unstageFile: No Staged change found for index " + resource.changeIndex);
-                    this.actionLock = false;
                     return;
                 }
                 LOGGER.debug("unstage ", change.uri.path);
-                await this.git.repo.revert([change.uri.path]);
+                await repo.revert([change.uri.path]);
                 this.uiModel.diffModel.getOpenedIndexChanges().delete(change.uri.path);
                 return;
             }
@@ -434,14 +390,12 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 const change = this.git.changeFromResource(resource);
                 if (!change) {
                     LOGGER.warn("unstageFile: No StagedDiff change found for index " + resource.changeIndex);
-                    this.actionLock = false;
                     return Promise.reject("No change for StagedDiff index: " + resource.changeIndex);
                 }
                 if (resource.diffIndex === undefined) {
-                    this.actionLock = false;
                     return Promise.reject("No diff index: " + resource.diffIndex);
                 }
-                await this.git.applyPatchToFile(change.uri, resource.diffIndex, "unstage");
+                await this.git.applyPatchToFile(change.uri, resource.diffIndex, "unstage", repo);
                 return;
             }
             case "DirectoryHeader": {
@@ -455,17 +409,15 @@ export class Provider implements vscode.TextDocumentContentProvider {
 
                 LOGGER.debug(`unstage ${affected_changes.length} ${type} files in directory ${resource.path}`);
                 if (affected_changes.length === 0) {
-                    this.actionLock = false;
                     return;
                 }
-                await this.git.repo.revert(affected_changes);
+                await repo.revert(affected_changes);
                 for (const change of affected_changes) {
                     this.uiModel.diffModel.getOpenedIndexChanges().delete(change);
                 }
                 return;
             }
             default: {
-                this.actionLock = false;
                 return;
             }
         }
@@ -488,22 +440,15 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     async unstageAll(): Promise<void> {
-        if (!this.getLock()) {
-            vscode.window.showWarningMessage("Action in progress. Try again after completion");
-            return;
-        }
+        const repo = this.git.repo;
         const files = this.git.staged().map((c) => c.uri.path);
-        await this.git.repo.revert(files);
+        await repo.revert(files);
     }
 
     async cleanFile(): Promise<void> {
-        if (!this.getLock()) {
-            vscode.window.showWarningMessage("Action in progress. Try again after completion");
-            return;
-        }
+        const repo = this.git.repo;
         const resource = this.getResourceUnderCursor();
         if (!resource) {
-            this.actionLock = false;
             return;
         }
         switch (resource.type) {
@@ -511,11 +456,10 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 const change = this.git.changeFromResource(resource);
                 if (!change) {
                     LOGGER.warn("cleanFile: No Untracked change found for index " + resource.changeIndex);
-                    this.actionLock = false;
                     return;
                 }
                 LOGGER.debug("clean ", resource);
-                await this.git.repo.clean([change.uri.path]);
+                await repo.clean([change.uri.path]);
                 this.uiModel.diffModel.getOpenedChanges().delete(change.uri.path);
                 return;
             }
@@ -523,11 +467,10 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 const change = this.git.changeFromResource(resource);
                 if (!change) {
                     LOGGER.warn("cleanFile: No Unstaged change found for index " + resource.changeIndex);
-                    this.actionLock = false;
                     return;
                 }
                 LOGGER.debug("clean ", resource);
-                await this.git.repo.clean([change.uri.path]);
+                await repo.clean([change.uri.path]);
                 this.uiModel.diffModel.getOpenedChanges().delete(change.uri.path);
                 return;
             }
@@ -535,19 +478,17 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 const change = this.git.changeFromResource(resource);
                 if (!change) {
                     LOGGER.warn("cleanFile: No Staged change found for index " + resource.changeIndex);
-                    this.actionLock = false;
                     return;
                 }
                 LOGGER.debug("clean ", resource);
-                await this.git.repo.revert([change.uri.path]);
-                await this.git.repo.clean([change.uri.path]);
+                await repo.revert([change.uri.path]);
+                await repo.clean([change.uri.path]);
                 this.uiModel.diffModel.getOpenedIndexChanges().delete(change.uri.path);
                 return;
             }
             case "DirectoryHeader": {
                 const type = resource.changeType;
                 if (type !== "Untracked" && type !== "Unstaged" && type !== "Staged") {
-                    this.actionLock = false;
                     return;
                 }
                 const affected_changes = this.git
@@ -561,18 +502,16 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 const confirm_message = `Are you sure you want to clean ${affected_changes.length} ${type} files in directory ${resource.path}?`;
                 const confirm = await vscode.window.showWarningMessage(confirm_message, { modal: true }, "Yes", "No");
                 if (confirm !== "Yes") {
-                    this.actionLock = false;
                     return;
                 }
                 LOGGER.debug(`clean ${affected_changes.length} ${type} files in directory ${resource.path}`);
                 if (affected_changes.length === 0) {
-                    this.actionLock = false;
                     return;
                 }
                 if (type === "Staged") {
-                    await this.git.repo.revert(affected_changes);
+                    await repo.revert(affected_changes);
                 }
-                await this.git.repo.clean(affected_changes);
+                await repo.clean(affected_changes);
                 for (const change of affected_changes) {
                     this.uiModel.diffModel.getOpenedIndexChanges().delete(change);
                 }
@@ -582,10 +521,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     async toggleInlineDiff(): Promise<void> {
-        if (!this.getLock()) {
-            vscode.window.showWarningMessage("Action in progress. Try again after completion");
-            return;
-        }
         const resource = this.getResourceUnderCursor();
 
         switch (resource.type) {
@@ -593,7 +528,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 const change = this.git.changeFromResource(resource);
                 if (!change) {
                     LOGGER.warn("toggleInlineDiff: No Unstaged change found for index " + resource.changeIndex);
-                    this.actionLock = false;
                     return;
                 }
                 if (this.uiModel.diffModel.getOpenedChanges().has(change.uri.path)) {
@@ -607,7 +541,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 const change = this.git.changeFromResource(resource);
                 if (!change) {
                     LOGGER.warn("toggleInlineDiff: No Staged change found for index " + resource.changeIndex);
-                    this.actionLock = false;
                     return;
                 }
                 if (this.uiModel.diffModel.getOpenedIndexChanges().has(change.uri.path)) {
@@ -621,7 +554,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 const change = this.git.changeFromResource(resource);
                 if (!change) {
                     LOGGER.warn("toggleInlineDiff: No StagedDiff change found for index " + resource.changeIndex);
-                    this.actionLock = false;
                     return;
                 }
                 this.uiModel.diffModel.getOpenedIndexChanges().delete(change.uri.path);
@@ -631,7 +563,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 const change = this.git.changeFromResource(resource);
                 if (!change) {
                     LOGGER.warn("toggleInlineDiff: No UnstagedDiff change found for index " + resource.changeIndex);
-                    this.actionLock = false;
                     return;
                 }
                 this.uiModel.diffModel.getOpenedChanges().delete(change.uri.path);
@@ -641,10 +572,16 @@ export class Provider implements vscode.TextDocumentContentProvider {
         this.fireOnDidChange();
     }
 
-    private async updateDiffs() {
+    private async updateDiffs(repo: Repository, generation: number) {
         LOGGER.trace("updateDiffs");
-        await this.git.updateDiffMap("Unstaged");
-        await this.git.updateDiffMap("Staged");
+        await this.git.updateDiffMap("Unstaged", repo);
+        if (repo !== this.git.repo || generation !== this.refreshGeneration) {
+            return;
+        }
+        await this.git.updateDiffMap("Staged", repo);
+        if (repo !== this.git.repo || generation !== this.refreshGeneration) {
+            return;
+        }
         const delete_opened_diffs = Array.from(this.uiModel.diffModel.getOpenedChanges().keys()).filter(
             (k) => !this.git.cachedUnstagedDiffs.has(k)
         );
@@ -660,11 +597,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     async openDiff(): Promise<void> {
-        if (this.readLock()) {
-            vscode.window.showWarningMessage("Action in progress. Try again after completion");
-            return;
-        }
-
         const ressource = this.getResourceUnderCursor();
         if (!ressource) {
             return;
@@ -724,10 +656,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     async open(split: boolean): Promise<void> {
-        if (this.readLock()) {
-            vscode.window.showWarningMessage("Action in progress. Try again after completion");
-            return;
-        }
         const resource = this.getResourceUnderCursor();
 
         switch (resource.type) {
@@ -751,10 +679,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     private async openFile(resource: ResourceType, split: boolean) {
-        if (this.readLock()) {
-            vscode.window.showWarningMessage("Action in progress. Try again after completion");
-            return;
-        }
         const change = this.git.changeFromResource(resource);
         if (!change) {
             return;
@@ -780,10 +704,6 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     private async openCommitDiff(resource: ResourceType, split: boolean) {
-        if (this.readLock()) {
-            vscode.window.showWarningMessage("Action in progress. Try again after completion");
-            return;
-        }
         const commit = this.git.commitFromResource(resource);
         if (!commit) {
             return;
@@ -799,13 +719,10 @@ export class Provider implements vscode.TextDocumentContentProvider {
     }
 
     async gitExclude(git_ignore: boolean): Promise<void> {
-        if (this.readLock()) {
-            vscode.window.showWarningMessage("Action in progress. Try again after completion");
-            return;
-        }
+        const repo = this.git.repo;
         const resource = this.getResourceUnderCursor();
         const change = this.git.changeFromResource(resource);
-        let path = change?.originalUri.path.replace(this.git.rootUri, "");
+        let path = change?.originalUri.path.replace(repo.rootUri.path, "");
         if (!path) {
             if (resource.type === "DirectoryHeader") {
                 path = resource.path;
@@ -814,24 +731,21 @@ export class Provider implements vscode.TextDocumentContentProvider {
                 return;
             }
         }
-        const uri = git_ignore
-            ? vscode.Uri.parse(this.git.rootUri + "/.gitignore")
-            : vscode.Uri.parse(this.git.rootUri + "/.git/info/exclude");
+        const file_path = git_ignore ? ".gitignore" : ".git/info/exclude";
+        const uri = repo.rootUri.with({
+            path: `${repo.rootUri.path.replace(/\/$/, "")}/${file_path}`,
+        });
 
         try {
             await vscode.workspace.fs.stat(uri);
         } catch {
             await vscode.workspace.fs.writeFile(uri, new Uint8Array());
         }
-
         const contents = await vscode.workspace.fs.readFile(uri);
-        const enc = new TextEncoder(); // always utf-8
-        const filename = enc.encode(path);
-
-        const new_contents = new Uint8Array(contents.length + filename.length + 1);
+        const addition = encodeUtf8(`\n${path}`);
+        const new_contents = new Uint8Array(contents.length + addition.length);
         new_contents.set(contents);
-        new_contents.set(enc.encode("\n"), contents.length);
-        new_contents.set(filename, contents.length + 1);
+        new_contents.set(addition, contents.length);
         await vscode.workspace.fs.writeFile(uri, new_contents);
 
         const doc = await vscode.workspace.openTextDocument(uri);
@@ -845,4 +759,18 @@ export class Provider implements vscode.TextDocumentContentProvider {
     private getResourceUnderCursor(): ResourceType {
         return this.cursor.getResourceUnderCursor(this.uiModel);
     }
+}
+
+function encodeUtf8(value: string): Uint8Array {
+    const encoded = encodeURIComponent(value);
+    const bytes: number[] = [];
+    for (let index = 0; index < encoded.length; index++) {
+        if (encoded[index] === "%") {
+            bytes.push(Number.parseInt(encoded.slice(index + 1, index + 3), 16));
+            index += 2;
+        } else {
+            bytes.push(encoded.charCodeAt(index));
+        }
+    }
+    return Uint8Array.from(bytes);
 }
