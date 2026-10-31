@@ -1,6 +1,6 @@
 import * as vscode from "vscode";
 import * as assert from "assert";
-import { cmdAtLine, wait, getDocument, getLine } from "./utils.test";
+import { cmd, cmdAtLine, wait, getDocument, getLine } from "./utils.test";
 
 export async function refresh(): Promise<void> {
     await cmdAtLine(5, "fugitive.refresh");
@@ -19,6 +19,12 @@ export async function goTop(): Promise<void> {
 export async function goDown(): Promise<void> {
     await cmdAtLine(5, "fugitive.goDown");
     assert.strictEqual(vscode.window.activeTextEditor?.selection.active.line, 6, "Cursor does not go down one line");
+    await cmd("fugitive.refresh");
+    assert.strictEqual(
+        vscode.window.activeTextEditor?.selection.active.line,
+        6,
+        "Cursor jumps after the Fugitive document refreshes"
+    );
 }
 export async function goUp(): Promise<void> {
     await cmdAtLine(5, "fugitive.goUp");

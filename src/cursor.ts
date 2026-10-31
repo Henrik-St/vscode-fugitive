@@ -54,7 +54,8 @@ export class Cursor {
         if (vscode.window.activeTextEditor?.document.uri.toString() !== uri) {
             return;
         }
-        const new_line = line || this.line;
+        const new_line = line ?? this.line;
+        this.line = new_line;
         vscode.window.activeTextEditor!.selection = new vscode.Selection(
             new vscode.Position(new_line, 0),
             new vscode.Position(new_line, 0)
