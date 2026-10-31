@@ -13,6 +13,23 @@ export let GIT: GitWrapper | null = null;
 export const LOGGER: vscode.LogOutputChannel = vscode.window.createOutputChannel("Fugitive", { log: true });
 
 export function activate({ subscriptions }: vscode.ExtensionContext): void {
+    let active_operation_count = 0;
+    const operation_status = window.createStatusBarItem(vscode.StatusBarAlignment.Right, -100);
+    operation_status.name = "Fugitive operations";
+    subscriptions.push(operation_status);
+
+    const update_operation_status = () => {
+        if (active_operation_count === 0) {
+            operation_status.hide();
+            return;
+        }
+        operation_status.text = `$(sync~spin) ${active_operation_count}`;
+        operation_status.tooltip = `Fugitive: ${active_operation_count} operation${
+            active_operation_count === 1 ? "" : "s"
+        } in progress`;
+        operation_status.show();
+    };
+
     const add_subscription = (command: () => Promise<void>, name: string) => {
         subscriptions.push(
             commands.registerCommand(name, async () => {
@@ -36,17 +53,24 @@ export function activate({ subscriptions }: vscode.ExtensionContext): void {
 
     const add_mutation_subscription = (command: () => Promise<unknown>, name: string) => {
         add_subscription(async () => {
+            active_operation_count++;
+            update_operation_status();
             try {
-                await command();
-            } finally {
-                const repo = provider?.git.repo;
-                if (repo) {
-                    try {
-                        await vscode.commands.executeCommand("git.refresh", repo.rootUri);
-                    } finally {
-                        await provider?.refresh();
+                try {
+                    await command();
+                } finally {
+                    const repo = provider?.git.repo;
+                    if (repo) {
+                        try {
+                            await vscode.commands.executeCommand("git.refresh", repo.rootUri);
+                        } finally {
+                            await provider?.refresh();
+                        }
                     }
                 }
+            } finally {
+                active_operation_count--;
+                update_operation_status();
             }
         }, name);
     };
